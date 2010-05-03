@@ -1,0 +1,44 @@
+Revision history for SVG-Rasterize
+
+0.000007 Mon May  3 14:41:06 NZST 2010
+	 - normalization of attribute values according to XML
+           specification
+	 - revised docu
+
+0.000006 Sun May  2 22:09:43 NZST 2010
+	 - Introduction of hooks.
+	 - Set up framework for support of styling properties. Only
+	   very few are supported, though.
+	 - Examples directory. Only one very simple example so far.
+	 - Tested on Perl 5.8.9 with only the documented dependency
+	   modules.
+
+0.000005 Fri Apr 30 13:15:59 NZST 2010
+	 Changed namespace from SVG::Render to SVG::Rasterize. It's
+	 much more specific.
+
+0.000004 Fri Apr 30 11:22:36 NZST 2010
+	 - Reorganization of the viewport initialization. The root
+	   svg element is much less special now.
+	 - State only uses the name and attributes of a node. The
+	   only exception is the provision of the nextChild
+	   method. The node object is still saved for the use in
+	   hooks, but it is not used. The distinction between
+	   parsing a DOM tree or a file is entirely made in
+	   SVG::Render.
+	 - Revised the concept of length to number mapping preparing
+	   it for the support of relative lengths.
+
+0.000003 Thu Apr 29 15:51:16 NZST 2010
+	 - (Almost) full documentation of SVG::Render and
+	   SVG::Render::State.
+
+0.000002 Wed Apr 28 19:33:09 NZST 2010
+	 - Full support for the transform attribute.
+	 - Support for absolute units.
+	 - Initial viewport including viewBox and
+           preserveAspectRatio.
+
+0.000001 Sun Apr 25 19:43:28 NZST 2010
+         First release, proof of concept only. Can only draw black
+         lines of fixed width. Shows successful deployment of Cairo.

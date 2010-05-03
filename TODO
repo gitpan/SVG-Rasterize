@@ -1,0 +1,17 @@
+This file list some things I don't want to forget. There are many possibly
+much more important things to do which are not listed here because I won't
+forget them.
+
+- Params::Validate consequently
+- consequently use in_error where required
+- document which DOM functions have to be provided by an input object
+- stricter on percentage in colors
+
+done
+----
+- get rid of width/height setting via SVG::Render
+- weaken some references (currently not necessary)
+- document that 0 width and height are ignored (at least in topmost settings)
+- remove white space from attribute values (or not?)
+- Acknowledge Cairo library, Perl Cairo module, SVG
+- Correct hook docu.
