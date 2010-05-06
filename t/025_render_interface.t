@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 2;
+use Test::More tests => 10;
 use Test::Exception;
 
 use SVG::Rasterize;
@@ -17,8 +17,21 @@ sub svg_rasterize {
     throws_ok(sub { $rasterize->rasterize(svg => undef) },
 	      qr/svg.*SVG\:\:Rasterize|SVG\:\:Rasterize.*svg/,
 	      'invalid svg');
-    $svg = SVG->new;
-#    $rasterize->rasterize(svg => $svg);
+    # more input validation
+
+    $rasterize = SVG::Rasterize->new(width => 400, height => 300);
+    is($rasterize->width, 400, 'width before rasterize');
+    is($rasterize->height, 300, 'height before rasterize');
+    $svg       = SVG->new;
+    $rasterize->rasterize(svg => $svg);
+    is($rasterize->width, 400, 'width after rasterize');
+    is($rasterize->height, 300, 'height after rasterize');
+    $rasterize->rasterize(svg => $svg, width => 600, height => 100);
+    is($rasterize->width, 400, 'width after rasterize');
+    is($rasterize->height, 300, 'height after rasterize');
+
+    is($rasterize->engine->width, 600, 'engine width');
+    is($rasterize->engine->height, 100, 'engine height');
 }
 
 svg_rasterize;

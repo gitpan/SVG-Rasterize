@@ -11,7 +11,7 @@ use Params::Validate qw(validate validate_pos :types);
 
 use SVG::Rasterize::State;
 
-# $Id: Rasterize.pm 5460 2010-05-03 01:55:35Z mullet $
+# $Id: Rasterize.pm 5491 2010-05-06 01:25:28Z mullet $
 
 =head1 NAME
 
@@ -24,14 +24,18 @@ C<SVG::Rasterize> - rasterize SVG content to pixel graphics
 
 =head1 VERSION
 
-Version 0.000007
+Version 0.000008
 
 =cut
 
-our $VERSION = '0.000007';
+our $VERSION = '0.000008';
 
 
-__PACKAGE__->mk_accessors(qw(normalize_attributes));
+__PACKAGE__->mk_accessors(qw(normalize_attributes
+                             svg
+                             width
+                             height
+                             engine_class));
 
 __PACKAGE__->mk_ro_accessors(qw(engine
                                 width
@@ -50,31 +54,33 @@ our $IN_PER_MM = 1 / 25.4;
 our $IN_PER_PT = 1 / 72;
 our $IN_PER_PC = 1 / 6;
 
-our $WSP        = qr/[\x{20}\x{9}\x{D}\x{A}]/;
-our $CWSP       = qr/$WSP+\,?$WSP*|\,$WSP*/;
-our $INTEGER    = qr/[\+\-]?\d+/;
-our $p_INTEGER  = qr/^$INTEGER$/;
-our $w_INTEGER  = qr/^$WSP*$INTEGER$WSP*$/;
-our $FRACTION   = qr/[\+\-]?(?:\d*\.\d+|\d+\.)/;
-our $p_FRACTION = qr/^$FRACTION$/;
-our $w_FRACTION = qr/^$WSP*$FRACTION$WSP*$/;
-our $EXPONENT   = qr/[eE][\+\-]?\d+/;
-our $FLOAT      = qr/$FRACTION$EXPONENT?|$INTEGER$EXPONENT/;
-our $p_FLOAT    = qr/^$FLOAT$/;
-our $w_FLOAT    = qr/^$WSP*$FLOAT$WSP*$/;
-our $P_NUMBER   = qr/$INTEGER|$FRACTION/;
-our $p_P_NUMBER = qr/^$P_NUMBER$/;
-our $w_P_NUMBER = qr/^$WSP*$P_NUMBER$WSP*$/;
-our $A_NUMBER   = qr/$INTEGER|$FLOAT/;
-our $p_A_NUMBER = qr/^$A_NUMBER$/;
-our $w_A_NUMBER = qr/^$WSP*$A_NUMBER$WSP*$/;
-our $UNIT       = qr/em|ex|px|pt|pc|cm|mm|in|\%/;
-our $P_LENGTH   = qr/$P_NUMBER$UNIT?/;
-our $p_P_LENGTH = qr/^$P_LENGTH$/;
-our $w_P_LENGTH = qr/^$WSP*$P_LENGTH$WSP*$/;
-our $A_LENGTH   = qr/$A_NUMBER$UNIT?/;
-our $p_A_LENGTH = qr/^$A_LENGTH$/;
-our $w_A_LENGTH = qr/^$WSP*$A_LENGTH$WSP*$/;
+our $PACKAGE_PART = qr/[a-zA-Z][a-zA-Z0-9\_]*/;
+our $PACKAGE_NAME = qr/^$PACKAGE_PART(?:\:\:$PACKAGE_PART)*$/;
+our $WSP          = qr/[\x{20}\x{9}\x{D}\x{A}]/;
+our $CWSP         = qr/$WSP+\,?$WSP*|\,$WSP*/;
+our $INTEGER      = qr/[\+\-]?\d+/;
+our $p_INTEGER    = qr/^$INTEGER$/;
+our $w_INTEGER    = qr/^$WSP*$INTEGER$WSP*$/;
+our $FRACTION     = qr/[\+\-]?(?:\d*\.\d+|\d+\.)/;
+our $p_FRACTION   = qr/^$FRACTION$/;
+our $w_FRACTION   = qr/^$WSP*$FRACTION$WSP*$/;
+our $EXPONENT     = qr/[eE][\+\-]?\d+/;
+our $FLOAT        = qr/$FRACTION$EXPONENT?|$INTEGER$EXPONENT/;
+our $p_FLOAT      = qr/^$FLOAT$/;
+our $w_FLOAT      = qr/^$WSP*$FLOAT$WSP*$/;
+our $P_NUMBER     = qr/$INTEGER|$FRACTION/;
+our $p_P_NUMBER   = qr/^$P_NUMBER$/;
+our $w_P_NUMBER   = qr/^$WSP*$P_NUMBER$WSP*$/;
+our $A_NUMBER     = qr/$INTEGER|$FLOAT/;
+our $p_A_NUMBER   = qr/^$A_NUMBER$/;
+our $w_A_NUMBER   = qr/^$WSP*$A_NUMBER$WSP*$/;
+our $UNIT         = qr/em|ex|px|pt|pc|cm|mm|in|\%/;
+our $P_LENGTH     = qr/$P_NUMBER$UNIT?/;
+our $p_P_LENGTH   = qr/^$P_LENGTH$/;
+our $w_P_LENGTH   = qr/^$WSP*$P_LENGTH$WSP*$/;
+our $A_LENGTH     = qr/$A_NUMBER$UNIT?/;
+our $p_A_LENGTH   = qr/^$A_LENGTH$/;
+our $w_A_LENGTH   = qr/^$WSP*$A_LENGTH$WSP*$/;
 
 sub multiply_matrices {
     my $n = pop(@_);
@@ -98,20 +104,19 @@ sub new {
     my ($class, @args) = @_;
 
     my $self = bless {}, $class;
-    $self->init(@args);
-    return $self;
+    return $self->init(@args);
 }
 
 sub init {
     my ($self, %args) = @_;
 
-    $args{normalize_attributes} = 1
-	if(!defined($args{normalize_attributes}));
     foreach(keys %args) {
 	my $meth = $_;
 	if($self->can($meth)) { $self->$meth($args{$meth}) }
 	else { carp "Unrecognized init parameter $meth.\n" }
     }
+
+    return $self;
 }
 
 sub _process_initial_viewport_length {
@@ -174,19 +179,16 @@ sub _initial_viewport {
 	      "initial viewport.\n");
     }
 
-    $self->{width}      = $width[0];
-    $self->{height}     = $height[0];
-
+    $args_ptr->{width}  = $width[0];
+    $args_ptr->{height} = $height[0];
     $args_ptr->{matrix} = $matrix;
 }
 
-# Assumes that $self->{width}, $self->{height} are set to their final
-# values, i.e. _initial_viewport has been executed.
 sub _create_engine {
     my ($self, $args_ptr) = @_;
     my $default           = 'SVG::Rasterize::Cairo';
-    my %engine_args       = (width  => $self->{width},
-			     height => $self->{height});
+    my %engine_args       = (width  => $args_ptr->{width},
+			     height => $args_ptr->{height});
 
     # TODO: class name testing
     $args_ptr->{engine_class} ||= $default;
@@ -340,11 +342,11 @@ sub _in_error {
 }
 
 sub _process_normalize_attributes {
-    my ($self, @args) = @_;
+    my ($self, $normalize, @args) = @_;
 
     $args[0] ||= {};
 
-    if($self->{normalize_attributes}) {
+    if($normalize) {
 	foreach(keys %{$args[0]}) {
 	    $args[0]->{$_} =~ s/^$WSP*//;
 	    $args[0]->{$_} =~ s/$WSP*$//;
@@ -358,38 +360,65 @@ sub _process_normalize_attributes {
 sub rasterize {
     my ($self, @args) = @_;
 
+    # validate args and process object defaults
     my %args = validate
 	(@args,
-	 {svg          => { isa => 'SVG::Element' },
-	  width        => { optional => 1, regex => qr/^$A_LENGTH$/ },
-	  height       => { optional => 1, regex => qr/^$A_LENGTH$/ },
-	  engine_class => 0});
+	 {normalize_attributes => {optional => 1, type => BOOLEAN},
+	  svg                  => {optional => 1,
+				   can      => ['getNodeName',
+						'getAttributes']},
+	  width                => {optional => 1,
+				   regex => qr/^$A_LENGTH$/},
+	  height               => {optional => 1,
+				   regex => qr/^$A_LENGTH$/},
+	  engine_class         => {optional => 1, type => SCALAR}});
 
-    # $engine stays constant. In contrast, $node and $state
-    # save the current svg element and the current state object,
-    # respectively.
+    $args{normalize_attributes} = $self->{normalize_attributes}
+        if(!exists($args{normalize_attributes})
+	   and exists($self->{normalize_attributes}));
+    $args{svg}                  = $self->{svg}
+        if(!exists($args{svg}) and exists($self->{svg}));
+    $args{width}                = $self->{width}
+        if(!exists($args{width}) and exists($self->{width}));
+    $args{height}               = $self->{height}
+        if(!exists($args{height}) and exists($self->{height}));
+    $args{engine_class}         = $self->{engine_class}
+        if(!exists($args{engine_class}) and exists($self->{engine_class}));
+
+    @args = %args;
+    %args = validate
+	(@args,
+	 {normalize_attributes => {default => 1, type => BOOLEAN},
+	  svg                  => {can => ['getNodeName',
+					   'getAttributes']},
+	  width                => {optional => 1,
+				   regex => qr/^$A_LENGTH$/},
+	  height               => {optional => 1,
+				   regex => qr/^$A_LENGTH$/},
+	  engine_class         => {default => 'SVG::Rasterize::Cairo',
+				   regex => $PACKAGE_NAME}});
+
+    # process initial node and establish initial viewport
     my $node            = $args{svg}->getNodeName eq 'document'
 	? $args{svg}->firstChild : $args{svg};
     my $node_name       = $node->getNodeName;
     my $node_attributes = $self->_process_normalize_attributes
-	(scalar($node->getAttributes));
+	($args{normalize_attributes}, scalar($node->getAttributes));
+
+    $self->_initial_viewport($node_attributes, \%args);
+    $self->_create_engine(\%args);
 
     $self->before_node_hook->($self,
 			      $node,
 			      $node_name,
 			      $node_attributes);
-    $self->_initial_viewport($node_attributes, \%args);
-
     my $state           = SVG::Rasterize::State->new
 	(rasterize       => $self,
 	 node            => $node,
 	 node_name       => $node_name,
 	 node_attributes => $node_attributes,
 	 matrix          => $args{matrix});
-
     $self->start_node_hook->($self, $state);
-
-    my $engine = $self->_create_engine(\%args);
 
     my @stack = ();
     while($state) {
@@ -399,7 +428,8 @@ sub rasterize {
 		push(@stack, $state);
 		$node_name       = $node->getNodeName;
 		$node_attributes = $self->_process_normalize_attributes
-		    (scalar($node->getAttributes));
+		    ($args{normalize_attributes},
+		     scalar($node->getAttributes));
 		$self->before_node_hook->($self,
 					  $node,
 					  $node_name,
@@ -471,7 +501,7 @@ In the past, I have used several programs to rasterize C<SVG>
 graphics including L<Inkscape|http://www.inkscape.org/>,
 L<Konqueror|http://www.konqueror.org/>, L<Adobe
 Illustrator|http://www.adobe.com/products/illustrator/>, and
-L<rsvg|librsvg.sourceforge.net/>. While
+L<rsvg|http://library.gnome.org/devel/rsvg/stable/>. While
 L<Inkscape|http://www.inkscape.org/> was my favourite none of them
 made me entirely happy. There were always parts of the standard that
 I would have liked to use, but were unsupported.
@@ -504,22 +534,58 @@ stage.
 
 =head3 new
 
-  Usage   : SVG::Rasterize->new(%args)
-  Function: creates a new SVG::Rasterize object
-  Returns : a SVG::Rasterize object
-  Args    : initial attribute values as named parameters
+  $rasterize = SVG::Rasterize->new(%args)
 
-Creates a new C<SVG::Rasterize> object and calls C<init(%args)>. If
-you subclass C<SVG::Rasterize> overload L<init|/init>, not C<new>.
+Creates a new C<SVG::Rasterize> object and calls
+L<init(%args)|/init>. If you subclass C<SVG::Rasterize> overload
+L<init|/init>, not C<new>.
 
-For each given argument, L<init|/init> calls the accessor with the
-same name to initialize the attribute. If such an accessor (or in
-fact, any method of that name) does not exist a warning is printed
-and the argument is ignored.
+L<init|/init> goes through the arguments given to new. If a method
+of the same name exists it is called with the respective value as
+argument. This can be used for attribute initialization. Some of the
+values can be also given to L<rasterize|/rasterize> to temporarily
+override the attribute values. The values of these overridable
+attributes are only validated once they are used by
+L<rasterize|/rasterize>.
+
+Supported arguments include:
+
+=over 4
+
+=item * svg (optional): A C<DOM> object to render.
+
+=item * width (optional): width (in pixels) of the generated output
+image
+
+=item * height (optional): height (in pixels) of the generated
+output image
+
+=back
+
+Any additional arguments are silently ignored. Note that the
+attribute values are only validated once their are used by
+rasterize.
 
 =head2 Public Attributes
 
-There are some attributes that influence unit conversions,
+=head3 svg
+
+Holds the C<DOM> object to render. It does not have to be a
+L<SVG|SVG> object, but it has to offer a C<getNodeName>, a
+C<getAttributes>, and a C<getChildren> method analogous to those
+defined by the <SVG|SVG> class. If a different object is given to
+L<rasterize|/rasterize> then the latter one overrules this value
+temporarily (i.e. without overwriting it).
+
+=head3 width
+
+The width of the generated output in pixels.
+
+=head3 height
+
+The height of the generated output in pixels.
+
+There are other attributes that influence unit conversions,
 white space handling, and the choice of the underlying rasterization
 engine. See L<ADVANCED TOPICS|/ADVANCED TOPICS>.
 
@@ -542,15 +608,28 @@ Supported parameters:
 
 =over 4
 
-=item * svg (mandatory): L<SVG|SVG> object to rasterize
+=item * svg (optional): C<DOM> object to rasterize. If not specified
+the value of the L<svg|/svg> attribute is used. One of them has to
+be set and has to provide the C<getNodeName>, C<getAttributes>, and
+C<getChildren> C<DOM> methods.
 
-=item * width (optional): width of the target image in pixels
+=item * width (optional): width of the target image in pixels,
+temporarily overrides the L<width|/width> attribute.
 
-=item * height (optional): height of the target image in pixels
+=item * height (optional): height of the target image in pixels,
+temporarily overrides the L<height|/height> attribute.
 
 =item * engine_class (optional): alternative engine class to
-L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>. See there for
-details on the interface.
+L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>, temporarily
+overrides the L<engine_class|/engine_class> attribute. See
+L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> for details on the
+interface. The value has to match the regular expression saved in
+L<PACKAGE_NAME|/PACKAGE_NAME>.
+
+=item * normalize_attributes (optional): Influences L<White Space
+Handling|/White Space Handling>, temporarily overrides the
+L<normalize_attributes|/normalize_attributes> attribute. Defaults to
+1.
 
 =back
 
@@ -589,10 +668,7 @@ an example.
 
 =head3 init
 
-  Usage   : only called by new
-  Function: initializes attributes
-  Returns : nothing
-  Args    : initial attribute values as named parameters
+  $rasterize->init(%args)
 
 If you overload C<init>, your method should also call this one.
 
@@ -622,9 +698,9 @@ reference with 6 entries representing the product matrix.
 The method can be called either as subroutine or as class
 method or as object method:
 
-  multiply_matrices($m, $n);
-  SVG::Rasterize->multiply_matrices($m, $n);
-  $rasterize->multiply_matrices($m, $n);
+  $product = multiply_matrices($m, $n);
+  $product = SVG::Rasterize->multiply_matrices($m, $n);
+  $product = $rasterize->multiply_matrices($m, $n);
 
 Note that C<multiply_matrices> does not perform any input check. It
 expects that you provide (at least) two ARRAY references with (at
@@ -696,8 +772,8 @@ specification, 12pc equal 1pt.
 
 =item * map_abs_length
 
-  $rasterize->map_abs_length($length)
-  $rasterize->map_abs_length($number, $unit)
+  $number = $rasterize->map_abs_length($length)
+  $number = $rasterize->map_abs_length($number, $unit)
 
 This method takes a length and returns the corresponding value
 in C<px> according to the conversion rates above. Surrounding
@@ -976,13 +1052,29 @@ the code to validate or extract user input. They are listed in the
 INTERNALS section because it is not part of the interface where
 exactly they are used. They are documented for inspection only. They
 are compiled into other expressions so changing them will probably
-not achieve what you might expect. The following items are global
-variables in the C<SVG::Rasterize> package. They are more or less a
-direct translation of parts of the Backus Naur form given by the
-C<SVG> specification for the C<transform> attribute
+not achieve what you might expect. The exception to this rule is the
+C<PACKAGE_NAME> variable. The following items are global variables
+in the C<SVG::Rasterize> package. They are more or less a direct
+translation of parts of the Backus Naur form given by the C<SVG>
+specification for the C<transform> attribute
 (L<http://www.w3.org/TR/SVG11/coords.html#TransformAttribute>).
 
 =over 4
+
+=item * PACKAGE_PART
+
+  qr/[a-zA-Z][a-zA-Z0-9\_]*/
+
+=item * PACKAGE_NAME
+
+  qr/^$PACKAGE_PART(?:\:\:PACKAGE_PART)*$/
+
+Package names given to methods in this class, namely the
+C<engine_class> parameters have to match this regular expression. I
+am not sure which package names exactly are allowed. If you know
+where in the Perl manpages or the Camel book this is described,
+please point me to it. If this pattern is too strict for your
+favourite package name, you can change this variable.
 
 =item * INTEGER
 

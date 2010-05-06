@@ -1,11 +1,25 @@
 Revision history for SVG-Rasterize
 
+0.000008 Thu May  6 13:28:45 NZST 2010
+	 - Corrects docu issues that I have only seen unce uploaded.
+	 - Removes POD that slipped into README making the CPAN
+	   version look empty.
+	 - Homogenizes interface of new and rasterize. The rasterize
+	   method now accepts temporary values for (the relevant)
+	   object attributes.
+	 - Input objects are now validated by interface, not by
+	   class, allowing generic DOM objects (not necessarily SVG
+	   subclasses) to be rendered.
+	 - The rasterization backend is initialized as early as
+	   possible allowing early in_error. Makes the root element
+	   even less special.
+
 0.000007 Mon May  3 14:41:06 NZST 2010
 	 - normalization of attribute values according to XML
            specification
 	 - revised docu
 
-0.000006 Sun May  2 22:09:43 NZST 2010
+0.000006 Sun May  2 22:09:43 NZST 2010 (unpublished)
 	 - Introduction of hooks.
 	 - Set up framework for support of styling properties. Only
 	   very few are supported, though.
@@ -13,11 +27,11 @@ Revision history for SVG-Rasterize
 	 - Tested on Perl 5.8.9 with only the documented dependency
 	   modules.
 
-0.000005 Fri Apr 30 13:15:59 NZST 2010
+0.000005 Fri Apr 30 13:15:59 NZST 2010 (unpublished)
 	 Changed namespace from SVG::Render to SVG::Rasterize. It's
 	 much more specific.
 
-0.000004 Fri Apr 30 11:22:36 NZST 2010
+0.000004 Fri Apr 30 11:22:36 NZST 2010 (unpublished)
 	 - Reorganization of the viewport initialization. The root
 	   svg element is much less special now.
 	 - State only uses the name and attributes of a node. The
@@ -29,16 +43,16 @@ Revision history for SVG-Rasterize
 	 - Revised the concept of length to number mapping preparing
 	   it for the support of relative lengths.
 
-0.000003 Thu Apr 29 15:51:16 NZST 2010
+0.000003 Thu Apr 29 15:51:16 NZST 2010 (unpublished)
 	 - (Almost) full documentation of SVG::Render and
 	   SVG::Render::State.
 
-0.000002 Wed Apr 28 19:33:09 NZST 2010
+0.000002 Wed Apr 28 19:33:09 NZST 2010 (unpublished)
 	 - Full support for the transform attribute.
 	 - Support for absolute units.
 	 - Initial viewport including viewBox and
            preserveAspectRatio.
 
-0.000001 Sun Apr 25 19:43:28 NZST 2010
+0.000001 Sun Apr 25 19:43:28 NZST 2010 (unpublished)
          First release, proof of concept only. Can only draw black
          lines of fixed width. Shows successful deployment of Cairo.

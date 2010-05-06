@@ -1,7 +1,14 @@
 SVG-Rasterize
 
-Rasterize SVG content to pixel graphics (or whatever you can do with
-a matrix of pixels).
+Rasterize SVG content to pixel graphics.
+
+SVG::Rasterize can be used to rasterize SVG|SVG objects to pixel
+graphics building on the perl bindings of the cairo library (by
+default, other underlying rasterization engines could be added). The
+direct rasterization of SVG _files_ might be implemented in the
+future, right now you should have a look at SVG::Parser which can
+generate an SVG object from an svg file.
+
 
 INSTALLATION
 
@@ -11,6 +18,10 @@ To install this module, run the following commands:
 	make
 	make test
 	make install
+
+CHANGES
+
+For a list of changes have a look at the separate Changes file.
 
 DEPENDENCIES
 
@@ -53,8 +64,6 @@ You can also look for information at:
     Search CPAN
         http://search.cpan.org/dist/SVG-Rasterize/
 
-
-=head1 LICENSE AND COPYRIGHT
 
 Copyright 2010 Lutz Gehlen.
 

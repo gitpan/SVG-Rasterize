@@ -8,13 +8,13 @@ use 5.008009;
 
 use Carp;
 use Params::Validate qw(validate validate_pos validate_with :types);
-use Scalar::Util qw(weaken blessed looks_like_number);
+use Scalar::Util qw(blessed looks_like_number);
 use List::Util qw(min max);
 
 use SVG::Rasterize::Properties qw(%property_specification
                                   %relevant_properties);
 
-# $Id: State.pm 5461 2010-05-03 02:39:39Z mullet $
+# $Id: State.pm 5481 2010-05-04 08:44:31Z mullet $
 
 =head1 NAME
 
@@ -27,11 +27,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.000007
+Version 0.000008
 
 =cut
 
-our $VERSION = '0.000007';
+our $VERSION = '0.000008';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -98,8 +98,7 @@ sub new {
     my ($class, @args) = @_;
 
     my $self = bless {}, $class;
-    $self->init(@args);
-    return $self;
+    return $self->init(@args);
 }
 
 sub init {
@@ -117,12 +116,12 @@ sub init {
 			      optional => 1}});
 
     # read only and private arguments
-    $self->{_parent}         = $args{parent};
+    $self->{_parent}         = $args{parent} if(exists($args{parent}));
     $self->{_rasterize}      = $args{rasterize};
     $self->{node_name}       = $args{node_name};
     $self->{node_attributes} = $args{node_attributes};
-    $self->{node}            = $args{node};
-    $self->{matrix}          = $args{matrix};
+    $self->{node}            = $args{node}   if(exists($args{node}));
+    $self->{matrix}          = $args{matrix} if(exists($args{matrix}));
 
     if($args{node}) {
 	my $children = eval { $args{node}->getChildren };
@@ -131,6 +130,8 @@ sub init {
     }
 
     $self->_process_node;
+
+    return $self;
 }
 
 sub _process_transform_attribute {
@@ -577,7 +578,7 @@ Creates a new C<SVG::Rasterize::State> object and calls
 C<init(%args)>. If you subclass C<SVG::Rasterize::State> overload
 L<init|/init>, not C<new>.
 
-Arguments are:
+Supported arguments:
 
 =over 4
 

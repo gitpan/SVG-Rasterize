@@ -4,8 +4,8 @@ forget them.
 
 - Params::Validate consequently
 - consequently use in_error where required
-- document which DOM functions have to be provided by an input object
 - stricter on percentage in colors
+- explicit return in all methods
 
 done
 ----
@@ -15,3 +15,11 @@ done
 - remove white space from attribute values (or not?)
 - Acknowledge Cairo library, Perl Cairo module, SVG
 - Correct hook docu.
+- refer to CHANGES from README
+- document which DOM functions have to be provided by an input object
+- homogenize parameters for SVG::Rasterize and the rasterize method
+- homogenize interface docu of methods
+- consequent assignments in interface docu of methods with return value
+- regex for engine_class
+- svg validation via interface, not class
+- revise _create_engine, class name validation, width/height

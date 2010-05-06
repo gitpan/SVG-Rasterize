@@ -234,35 +234,35 @@ sub initial_viewport {
 	      qr/Failed to determine the width of the initial viewport/,
 	      'initial viewport no parameters');
     throws_ok(sub { $rasterize->_initial_viewport({$svg->getAttributes},
-					       {width => 5}) },
+						  {width => 5}) },
 	      qr/Failed to determine the height of the initial viewport/,
 	      'initial viewport no height');
     $attributes = {width => 100, height => 50};
     $rasterize->_initial_viewport({$svg->getAttributes},
-			       $attributes);
+				  $attributes);
     is_deeply($attributes->{matrix}, [1, 0, 0, 1, 0, 0], 'matrix');
 
     $attributes = {width => '1in', height => '0.5in'};
     $rasterize->_initial_viewport({$svg->getAttributes},
-			       $attributes);
+				  $attributes);
     is_deeply($attributes->{matrix}, [1, 0, 0, 1, 0, 0], 'matrix');
 
-    is($rasterize->width, 90, 'width transformation');
-    is($rasterize->height, 45, 'height transformation');
+    is($attributes->{width}, 90, 'width transformation');
+    is($attributes->{height}, 45, 'height transformation');
     $attributes = {width => 10, height => 15};
     $rasterize->_initial_viewport({$svg->getAttributes},
-			       $attributes);
+				  $attributes);
     is_deeply($attributes->{matrix}, [1, 0, 0, 1, 0, 0], 'matrix');
 
-    is($rasterize->width, 10, 'width transformation');
-    is($rasterize->height, 15, 'height transformation');
+    is($attributes->{width}, 10, 'width transformation');
+    is($attributes->{height}, 15, 'height transformation');
     $attributes = {width => '1in', height => '0.5in'};
     $rasterize->_initial_viewport({$svg->getAttributes},
 			       $attributes);
     is_deeply($attributes->{matrix}, [1, 0, 0, 1, 0, 0], 'matrix');
 
-    is($rasterize->width, 90, 'width transformation');
-    is($rasterize->height, 45, 'height transformation');
+    is($attributes->{width}, 90, 'width transformation');
+    is($attributes->{height}, 45, 'height transformation');
 
     $rasterize = SVG::Rasterize->new;
     $svg       = SVG->new(width => 50)->firstChild;
@@ -771,4 +771,3 @@ process_transform_attribute;
 transform;
 initial_viewport;
 preserve_aspect_ratio;
-

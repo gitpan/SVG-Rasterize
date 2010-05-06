@@ -9,7 +9,7 @@ use 5.008009;
 use Carp;
 use Cairo;
 
-# $Id: Cairo.pm 5460 2010-05-03 01:55:35Z mullet $
+# $Id: Cairo.pm 5482 2010-05-04 08:45:51Z mullet $
 
 =head1 NAME
 
@@ -22,11 +22,11 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.000007
+Version 0.000008
 
 =cut
 
-our $VERSION = '0.000007';
+our $VERSION = '0.000008';
 
 
 __PACKAGE__->mk_accessors(qw(width height));
@@ -133,7 +133,7 @@ __END__
 =head1 DESCRIPTION
 
 The interface of this class has to be considered unstable. Therefore
-it is also only very sparcely documented.
+it is also only very sparsely documented.
 
 =head1 INTERFACE
 
@@ -141,20 +141,14 @@ it is also only very sparcely documented.
 
 =head3 new
 
-  Usage   : SVG::Rasterize::Cairo->new(%args)
-  Function: creates a new SVG::Rasterize::Cairo object
-  Returns : a SVG::Rasterize::Cairo object
-  Args    : initial attribute values as named parameters
+  SVG::Rasterize::Cairo->new(%args)
 
 Creates a new C<SVG::Rasterize::Cairo> object and calls C<init(%args)>.
 If you subclass C<SVG::Rasterize::Cairo> overload C<init>, not C<new>.
 
 =head3 init
 
-  Usage   : only called by new
-  Function: initializes attributes
-  Returns : nothing
-  Args    : initial attribute values as named parameters
+  $cairo->init(%args)
 
 If you overload C<init>, your method should also call this one.
 It provides the following functions:
