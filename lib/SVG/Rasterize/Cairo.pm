@@ -9,7 +9,7 @@ use 5.008009;
 use Carp;
 use Cairo;
 
-# $Id: Cairo.pm 5482 2010-05-04 08:45:51Z mullet $
+# $Id: Cairo.pm 5539 2010-05-12 04:47:49Z mullet $
 
 =head1 NAME
 
@@ -22,11 +22,11 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.000008
+Version 0.000009
 
 =cut
 
-our $VERSION = '0.000008';
+our $VERSION = '0.000009';
 
 
 __PACKAGE__->mk_accessors(qw(width height));
@@ -86,7 +86,7 @@ sub draw_line {
     my ($self, $properties, $x1, $y1, $x2, $y2) = @_;
     my $context                                 = $self->{context};
     
-    return if($properties->{'stroke'} eq 'none');
+    return if(!$properties->{'stroke'});
 
     $context->save;
 

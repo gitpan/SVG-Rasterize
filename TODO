@@ -6,6 +6,18 @@ forget them.
 - consequently use in_error where required
 - stricter on percentage in colors
 - explicit return in all methods
+- document engine_class attribute
+- introduce engine_args attribute
+- documentation on SVG validation.
+- method _in_error needs to be public (to be used by State).
+- probably, the transformation matrix has to be applied by cairo
+  (-> text).
+- property validation with dedicated %PROP_VAL?
+  -> specific for xsl / css
+  -> apply to whole hash after setting of defaults?
+  -> element specific?
+- callbacks etc. in %ATTR_VAL
+- color regexes in Regexes
 
 done
 ----

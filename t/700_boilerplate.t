@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 5;
+use Test::More tests => 9;
 
 sub not_in_file_ok {
     my ($filename, %regex) = @_;
@@ -44,6 +44,10 @@ not_in_file_ok(README =>
 module_boilerplate_ok('lib/SVG/Rasterize.pm');
 module_boilerplate_ok('lib/SVG/Rasterize/State.pm');
 module_boilerplate_ok('lib/SVG/Rasterize/Cairo.pm');
+module_boilerplate_ok('lib/SVG/Rasterize/Properties.pm');
+module_boilerplate_ok('lib/SVG/Rasterize/Specification.pm');
+module_boilerplate_ok('lib/SVG/Rasterize/Colors.pm');
+module_boilerplate_ok('lib/SVG/Rasterize/Regexes.pm');
 
 not_in_file_ok(Changes =>
   "placeholder date/time"       => qr(Date/time)

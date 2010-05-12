@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 12;
 
 use SVG;
 use Test::Exception;
@@ -32,6 +32,9 @@ sub tree_traversal {
 	(sub { is($_[3]->{id}, shift(@expected), 'node id') });
     $rasterize->rasterize(svg => $svg);
     is(scalar(@expected), 0, 'all used up');
+
+    lives_ok(sub { $rasterize->before_node_hook(undef) }, 'unset hook');
+    ok(!defined($rasterize->{before_node_hook}), 'unset hook worked');
 }
 
 tree_traversal;

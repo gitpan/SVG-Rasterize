@@ -1,5 +1,21 @@
 Revision history for SVG-Rasterize
 
+0.001000 Wed May 12 21:00:58 NZST 2010
+	 Identical to 0.000009.
+
+0.000009 Wed May 12 20:55:57 NZST 2010 (unpublished)
+	 - Introduces SVG::Rasterize::Specification,
+	   SVG::Rasterize::Properties, and
+	   SVG::Rasterize::Colors. These files are at least
+	   semiautomatically created from the DTD or human readable
+	   specification. This hopefully finalizes the general
+	   structure of the framework to deal with attributes and
+	   properties.
+	 - Commonly uses regexes are outsourced in
+	   SVG::Rasterize::Regexes leading to much cleaner code.
+	 - Unsetting of hooks (to undef) now passes parameter
+	   validation.
+
 0.000008 Thu May  6 13:28:45 NZST 2010
 	 - Corrects docu issues that I have only seen unce uploaded.
 	 - Removes POD that slipped into README making the CPAN

@@ -11,10 +11,12 @@ use Params::Validate qw(validate validate_pos validate_with :types);
 use Scalar::Util qw(blessed looks_like_number);
 use List::Util qw(min max);
 
-use SVG::Rasterize::Properties qw(%property_specification
-                                  %relevant_properties);
+use SVG::Rasterize::Regexes qw(:whitespace :numbers :lengths);
+use SVG::Rasterize::Specification;
+use SVG::Rasterize::Properties;
+use SVG::Rasterize::Colors;
 
-# $Id: State.pm 5481 2010-05-04 08:44:31Z mullet $
+# $Id: State.pm 5550 2010-05-12 08:49:52Z mullet $
 
 =head1 NAME
 
@@ -27,11 +29,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.000008
+Version 0.000009
 
 =cut
 
-our $VERSION = '0.000008';
+our $VERSION = '0.000009';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -271,8 +273,8 @@ sub _process_transform_attribute {
 
 sub _process_viewBox_attribute {
     my ($self)     = @_;
-    my $name       = $self->{node_name}       || '';
-    my $attributes = $self->{node_attributes} || {};
+    my $name       = $self->{node_name};
+    my $attributes = $self->{node_attributes};
     my $viewBox    = $attributes->{viewBox};
 
     return if(!$viewBox);
@@ -380,11 +382,12 @@ sub _process_viewBox_attribute {
 
 sub _process_styling_properties {
     my ($self) = @_;
-    my $name        = $self->{node_name}       || '';
-    my $attributes  = $self->{node_attributes} || {};
-    my $properties  = {%{$relevant_properties{$name} || {}}};
+    my $name        = $self->{node_name};
+    my $attributes  = $self->{node_attributes};
+    my @prop_names  = grep { $ATTR_VAL{$name}->{$_} } keys %PROPERTIES;
     my $parent_prop = $self->{_parent} ? $self->{_parent}->properties : {};
     my $css         = {};
+    my $properties  = {};
 
     # parse style attribute
     if($attributes->{style}) {
@@ -396,72 +399,68 @@ sub _process_styling_properties {
 		    $css->{lc($prop_name)} = $prop_value;
 		}
 		else {
-		    warn("Failed to parse property setting $_, ".
+		    warn("Failed to parse css property setting $_, ".
 			 "skipping.\n");
 		}
 	    }
 	}
     }
 
-    foreach(keys %$properties) {
-	my $spec = $property_specification{$_};
+    foreach(@prop_names) {
+	my $spec  = $PROPERTIES{$_};
+	my $val   = $ATTR_VAL{$name}->{$_};
+	my $hints = $ATTR_HINTS{$name}->{$_};
 	if(defined($css->{$_}) or defined($attributes->{$_})) {
 	    if(defined($css->{$_})) {
-		# TODO: Remove this if because all properties have the
-		#       validation spec
-		if($spec->{validation}->{css}) {
-		    validate_with
-			(params      => $css,
-			 spec        => {$_ => $spec->{validation}->{css}},
-			 allow_extra => 1);
-		}
+		validate_with(params      => $css,
+			      spec        => {$_ => $val},
+			      allow_extra => 1);
 		$properties->{$_} = $css->{$_};
 	    }
 	    else {
-		# TODO: Remove this if because all properties have the
-		#       validation spec
-		if($spec->{validation}->{css}) {
-		    validate_with
-			(params      => $attributes,
-			 spec        => {$_ => $spec->{validation}->{xsl}},
-			 allow_extra => 1);
-		}
+		validate_with(params      => $attributes,
+			      spec        => {$_ => $val},
+			      allow_extra => 1);
 		$properties->{$_} = $attributes->{$_};
 	    }
-
-	    # parse color specs
-	    if($spec->{color}) {
-		my $rgbe = qr/[\+\-]?\d{1,3}\%?/;
-		my $rgb  = qr/^rgb\($WSP*($rgbe)$WSP*\,
-                                    $WSP*($rgbe)$WSP*\,
-                                    $WSP*($rgbe)$WSP*\)$/x;
-		if($properties->{$_} =~ $rgb) {
-		    $properties->{$_} = [$1, $2, $3];
-		    foreach my $rgb_entry (@{$properties->{$_}}) {
-			if((my $i = index($rgb_entry, '%')) >= 0) {
-			    $rgb_entry = int(substr($rgb_entry, 0, $i)
-					     * 2.55 + 0.5);
-			}
-			$rgb_entry = 0   if($rgb_entry < 0);
-			$rgb_entry = 255 if($rgb_entry > 255);
-		    }
-		}
-		else {
-		    croak("Invalid color specification ".
-			  "($properties->{$_}).\n");
-		}
-	    }
-
-	    # lengths
-	    if($spec->{length}) {
-		$properties->{$_} = $self->map_length($properties->{$_});
-	    }
-
-	    next;
 	}
-	if(defined($parent_prop->{$_}) and $spec->{inherited}) {
+	elsif(defined($parent_prop->{$_}) and $spec->{inherited}) {
 	    $properties->{$_} = $parent_prop->{$_};
-	    next;
+	}
+	else {
+	    $properties->{$_} = $spec->{default};
+	}
+
+	# parse color specs
+	if($hints->{color} and defined($properties->{$_})) {
+	    my $rgbe = qr/[\+\-]?\d{1,3}\%?/;
+	    my $rgb  = qr/^rgb\($WSP*($rgbe)$WSP*\,
+                                $WSP*($rgbe)$WSP*\,
+                                $WSP*($rgbe)$WSP*\)$/x;
+	    if(ref($properties->{$_}) eq 'ARRAY') {}
+	    elsif($properties->{$_} =~ $rgb) {
+		$properties->{$_} = [$1, $2, $3];
+		foreach my $rgb_entry (@{$properties->{$_}}) {
+		    if((my $i = index($rgb_entry, '%')) >= 0) {
+			$rgb_entry = int(substr($rgb_entry, 0, $i)
+					 * 2.55 + 0.5);
+		    }
+		    $rgb_entry = 0   if($rgb_entry < 0);
+		    $rgb_entry = 255 if($rgb_entry > 255);
+		}
+	    }
+	    elsif(exists($COLORS{$properties->{$_}})) {
+		$properties->{$_} = $COLORS{$properties->{$_}};
+	    }
+	    else {
+		croak("Invalid color specification ".
+		      "($properties->{$_}).\n");
+	    }
+	}
+
+	# lengths
+	if($hints->{length} and defined($properties->{$_})) {
+	    $properties->{$_} = $self->map_length($properties->{$_});
 	}
     }
 
@@ -470,7 +469,22 @@ sub _process_styling_properties {
 
 sub _process_node {
     my ($self, @args) = @_;
-    my $attributes    = $self->{node_attributes} || {};
+    my $name          = $self->{node_name};
+    my $attributes    = $self->{node_attributes};
+
+    # allowed child element?
+    if($self->{_parent}) {
+	my $p_node_name = $self->{_parent}->node_name;
+	if(!$CHILDREN{$p_node_name}->{$name}) {
+	    $self->{_rasterize}->_in_error
+		(sprintf(q{Element '%s' is not a valid child of }.
+			 q{element '%s'.}, $name, $p_node_name));
+	}
+    }
+
+    # attribute validation
+    my @attr_buffer = %$attributes;
+    validate(@attr_buffer, $ATTR_VAL{$name});
 
     # apply transformations
     $self->{matrix} ||= [1, 0, 0, 1, 0, 0];

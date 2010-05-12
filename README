@@ -35,18 +35,19 @@ Test::More,       version 0.86  or higher
 Test::Exception   version 0.27  or higher
 Scalar::Util,     version 1.19  or higher
 
-With respect to the actual code, the dependency on Cairo is not strict.  The
-code only requires Cairo in case no other rasterization engine is specified
-(see documentation for details). However, if you do not provide a different
-backend, which would probably at least require a wrapper written by you, then
-you cannot do anything without Cairo. Therefore I have included it as a strict
-dependency. Feel free take that out of the Makefile.PL if you know what you
-are doing.
+With respect to the actual code, the dependency on Cairo is not
+strict.  The code only requires Cairo in case no other rasterization
+engine is specified (see documentation for details). However, if you
+do not provide a different backend, which would probably at least
+require a wrapper written by you, then you cannot do anything
+without Cairo. Therefore I have included it as a strict
+dependency. Feel free take that out of the Makefile.PL if you know
+what you are doing.
 
 SUPPORT AND DOCUMENTATION
 
-After installing, you can find documentation for this module with the
-perldoc command.
+After installing, you can find documentation for this module with
+the perldoc command.
 
     perldoc SVG::Rasterize
 
@@ -67,8 +68,8 @@ You can also look for information at:
 
 Copyright 2010 Lutz Gehlen.
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of either: the GNU General Public License as published
-by the Free Software Foundation; or the Artistic License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of either: the GNU General Public License as
+published by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.

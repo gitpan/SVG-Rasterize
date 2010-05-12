@@ -14,7 +14,10 @@ inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/SVG/Rasterize.pm
 lib/SVG/Rasterize/Cairo.pm
+lib/SVG/Rasterize/Colors.pm
 lib/SVG/Rasterize/Properties.pm
+lib/SVG/Rasterize/Regexes.pm
+lib/SVG/Rasterize/Specification.pm
 lib/SVG/Rasterize/State.pm
 Makefile.PL
 MANIFEST			This list of files
@@ -26,6 +29,7 @@ t/010_globals.t
 t/015_hooks.t
 t/020_geometry.t
 t/025_render_interface.t
+t/027_dtd.t
 t/030_styling.t
 t/700_boilerplate.t
 t/705_manifest.t

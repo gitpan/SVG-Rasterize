@@ -9,9 +9,10 @@ use 5.008009;
 use Carp;
 use Params::Validate qw(validate validate_pos :types);
 
+use SVG::Rasterize::Regexes qw(:all);
 use SVG::Rasterize::State;
 
-# $Id: Rasterize.pm 5491 2010-05-06 01:25:28Z mullet $
+# $Id: Rasterize.pm 5556 2010-05-12 09:02:12Z mullet $
 
 =head1 NAME
 
@@ -24,11 +25,11 @@ C<SVG::Rasterize> - rasterize SVG content to pixel graphics
 
 =head1 VERSION
 
-Version 0.000008
+Version 0.001000
 
 =cut
 
-our $VERSION = '0.000008';
+our $VERSION = '0.001000';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -53,34 +54,6 @@ our $IN_PER_CM = 1 / 2.54;
 our $IN_PER_MM = 1 / 25.4;
 our $IN_PER_PT = 1 / 72;
 our $IN_PER_PC = 1 / 6;
-
-our $PACKAGE_PART = qr/[a-zA-Z][a-zA-Z0-9\_]*/;
-our $PACKAGE_NAME = qr/^$PACKAGE_PART(?:\:\:$PACKAGE_PART)*$/;
-our $WSP          = qr/[\x{20}\x{9}\x{D}\x{A}]/;
-our $CWSP         = qr/$WSP+\,?$WSP*|\,$WSP*/;
-our $INTEGER      = qr/[\+\-]?\d+/;
-our $p_INTEGER    = qr/^$INTEGER$/;
-our $w_INTEGER    = qr/^$WSP*$INTEGER$WSP*$/;
-our $FRACTION     = qr/[\+\-]?(?:\d*\.\d+|\d+\.)/;
-our $p_FRACTION   = qr/^$FRACTION$/;
-our $w_FRACTION   = qr/^$WSP*$FRACTION$WSP*$/;
-our $EXPONENT     = qr/[eE][\+\-]?\d+/;
-our $FLOAT        = qr/$FRACTION$EXPONENT?|$INTEGER$EXPONENT/;
-our $p_FLOAT      = qr/^$FLOAT$/;
-our $w_FLOAT      = qr/^$WSP*$FLOAT$WSP*$/;
-our $P_NUMBER     = qr/$INTEGER|$FRACTION/;
-our $p_P_NUMBER   = qr/^$P_NUMBER$/;
-our $w_P_NUMBER   = qr/^$WSP*$P_NUMBER$WSP*$/;
-our $A_NUMBER     = qr/$INTEGER|$FLOAT/;
-our $p_A_NUMBER   = qr/^$A_NUMBER$/;
-our $w_A_NUMBER   = qr/^$WSP*$A_NUMBER$WSP*$/;
-our $UNIT         = qr/em|ex|px|pt|pc|cm|mm|in|\%/;
-our $P_LENGTH     = qr/$P_NUMBER$UNIT?/;
-our $p_P_LENGTH   = qr/^$P_LENGTH$/;
-our $w_P_LENGTH   = qr/^$WSP*$P_LENGTH$WSP*$/;
-our $A_LENGTH     = qr/$A_NUMBER$UNIT?/;
-our $p_A_LENGTH   = qr/^$A_LENGTH$/;
-our $w_A_LENGTH   = qr/^$WSP*$A_LENGTH$WSP*$/;
 
 sub multiply_matrices {
     my $n = pop(@_);
@@ -284,7 +257,7 @@ sub before_node_hook {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, {type => CODEREF});
+	validate_pos(@args, {type => CODEREF|UNDEF});
 	$self->{before_node_hook} = $args[0];
     }
     return $self->{before_node_hook} || sub {};
@@ -294,7 +267,7 @@ sub start_node_hook {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, {type => CODEREF});
+	validate_pos(@args, {type => CODEREF|UNDEF});
 	$self->{start_node_hook} = $args[0];
     }
     return $self->{start_node_hook} || sub {};
@@ -304,7 +277,7 @@ sub end_node_hook {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, {type => CODEREF});
+	validate_pos(@args, {type => CODEREF|UNDEF});
 	$self->{end_node_hook} = $args[0];
     }
     return $self->{end_node_hook} || sub {};
@@ -396,7 +369,7 @@ sub rasterize {
 	  height               => {optional => 1,
 				   regex => qr/^$A_LENGTH$/},
 	  engine_class         => {default => 'SVG::Rasterize::Cairo',
-				   regex => $PACKAGE_NAME}});
+				   regex => $p_PACKAGE_NAME}});
 
     # process initial node and establish initial viewport
     my $node            = $args{svg}->getNodeName eq 'document'
@@ -1047,17 +1020,14 @@ exhaustive.
 
 =head2 Regular Expressions
 
-The following regular expressions are used at different locations of
-the code to validate or extract user input. They are listed in the
-INTERNALS section because it is not part of the interface where
-exactly they are used. They are documented for inspection only. They
-are compiled into other expressions so changing them will probably
-not achieve what you might expect. The exception to this rule is the
-C<PACKAGE_NAME> variable. The following items are global variables
-in the C<SVG::Rasterize> package. They are more or less a direct
-translation of parts of the Backus Naur form given by the C<SVG>
-specification for the C<transform> attribute
-(L<http://www.w3.org/TR/SVG11/coords.html#TransformAttribute>).
+Some regular expressions are used at different locations of the code
+to validate or extract user input. They are listed in the INTERNALS
+section because it is not part of the interface where exactly they
+are used. They are documented for inspection only. They are compiled
+into other expressions so changing them will probably not achieve
+what you might expect. The exception to this rule is the
+C<PACKAGE_NAME> variable. See
+L<SVG::Rasterize::Regexes|SVG::Rasterize::Regexes> for a full list.
 
 =over 4
 
@@ -1075,57 +1045,6 @@ am not sure which package names exactly are allowed. If you know
 where in the Perl manpages or the Camel book this is described,
 please point me to it. If this pattern is too strict for your
 favourite package name, you can change this variable.
-
-=item * INTEGER
-
-  qr/[\+\-]?\d+/;
-
-Note that this allows leading zeroes like '00030'. This is for
-compliance with the C<SVG> specification.
-
-=item * FRACTION
-
-  qr/[\+\-]?(?:\d*\.\d+|\d+\.)/;
-
-Floating point number in non-scientific notation.
-Note that this allows leading zeroes like '000.123'. This is for
-compliance with the C<SVG> specification.
-
-=item * EXPONENT
-
-  qr/[eE][\+\-]?\d+/;
-
-=item * FLOAT
-
-  qr/$FRACTION$EXPONENT?|$INTEGER$EXPONENT/;
-
-Floating point number in decimal or scientific notation.
-
-=item * P_NUMBER
-
-  qr/$INTEGER|$FRACTION/;
-
-Number allowed in C<CSS> compliant style properties: integer
-or float in decimal notation.
-
-=item * A_NUMBER
-
-  qr/$INTEGER|$FLOAT/;
-
-Number allowed in C<XML> attributes. Integer or float in either
-decimal or scientific notation.
-
-=item * UNIT
-
-  qr/em|ex|px|pt|pc|cm|mm|in|\%/;
-
-=item * P_LENGTH
-
-  qr/$P_NUMBER$UNIT?/;
-
-=item * A_LENGTH
-
-  qr/$A_NUMBER$UNIT?/;
 
 =back
 

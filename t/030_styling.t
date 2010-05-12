@@ -126,8 +126,8 @@ sub color {
 	is($state->node_attributes->{id}, shift(@expected),
 	   'expected id');
 	if($state->node_attributes->{id} eq 'g01') {
-	    is($state->properties->{'stroke'}, 'none',
-	       'property stroke is "none" on g01');
+	    ok(!defined($state->properties->{'stroke'}),
+	       'property stroke is undef on g01');
 	}
 	if($state->node_attributes->{id} eq 'g02') {
 	    is_deeply($state->properties->{'stroke'}, [20, 255, 1],
