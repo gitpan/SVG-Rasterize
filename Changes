@@ -1,5 +1,21 @@
 Revision history for SVG-Rasterize
 
+0.001002 Sun May 16 19:33:22 NZST 2010
+	 - The final transformation matrix is now applied by the
+	   rasterization engine and not by SVG::Rasterize. This is
+	   necessary for correct stroke-width handling with
+	   inhomogeneous scaling and skewing.
+	 - Introduces partial path support. All valid path data
+	   strings are swallowed, but only moveto, closepath, and
+	   lineto commands are supported, the rest is ignored.
+	 - Reorganizes SVG::Rasterize::Regexes into a set of
+	   hashes. The namespace pollution became uncontrollable.
+
+0.001001 Thu May 13 20:59:13 NZST 2010 (unpublished)
+	 - Further consolidates the usage of attribute checking and
+	   processing using regexes in SVG::Rasterize::Regexes.
+	 - Further completion of %SVG::Specification::ATTR_VAL.
+
 0.001000 Wed May 12 21:00:58 NZST 2010
 	 Identical to 0.000009.
 

@@ -1,6 +1,26 @@
-This file list some things I don't want to forget. There are many possibly
-much more important things to do which are not listed here because I won't
-forget them.
+Roadmap
+-------
+Version 0.002
+- paths
+- basic shapes
+- solid filling
+
+Version 0.003
+- error processing
+- parameter validation
+
+Version 0.004
+- text basics
+
+Version 0.005
+- opacity
+- gradients and patterns
+- clipping paths
+- masks
+
+The following list contains some things I don't want to
+forget. There are many possibly much more important things to do
+which are not listed here because I won't forget them.
 
 - Params::Validate consequently
 - consequently use in_error where required
@@ -10,28 +30,36 @@ forget them.
 - introduce engine_args attribute
 - documentation on SVG validation.
 - method _in_error needs to be public (to be used by State).
-- probably, the transformation matrix has to be applied by cairo
-  (-> text).
 - property validation with dedicated %PROP_VAL?
   -> specific for xsl / css
   -> apply to whole hash after setting of defaults?
   -> element specific?
-- callbacks etc. in %ATTR_VAL
-- color regexes in Regexes
+- document all regexes
+- ID and NMTOKEN in %ATTR_VAL
+- validation possible for those attributes that still have type
+  CDATA?
+- check rotation direction in spec
 
 done
 ----
 - get rid of width/height setting via SVG::Render
 - weaken some references (currently not necessary)
-- document that 0 width and height are ignored (at least in topmost settings)
+- document that 0 width and height are ignored (at least in topmost
+  settings)
 - remove white space from attribute values (or not?)
 - Acknowledge Cairo library, Perl Cairo module, SVG
 - Correct hook docu.
 - refer to CHANGES from README
-- document which DOM functions have to be provided by an input object
+- document which DOM functions have to be provided by an input
+  object
 - homogenize parameters for SVG::Rasterize and the rasterize method
 - homogenize interface docu of methods
-- consequent assignments in interface docu of methods with return value
+- consequent assignments in interface docu of methods with return
+  value
 - regex for engine_class
 - svg validation via interface, not class
 - revise _create_engine, class name validation, width/height
+- callbacks etc. in %ATTR_VAL
+- color regexes in Regexes
+- probably, the transformation matrix has to be applied by cairo
+  (-> text, stroke-width in general).

@@ -9,7 +9,7 @@ use 5.008009;
 use Carp;
 use Cairo;
 
-# $Id: Cairo.pm 5539 2010-05-12 04:47:49Z mullet $
+# $Id: Cairo.pm 5618 2010-05-16 07:30:45Z mullet $
 
 =head1 NAME
 
@@ -22,11 +22,11 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.000009
+Version 0.001002
 
 =cut
 
-our $VERSION = '0.000009';
+our $VERSION = '0.001002';
 
 
 __PACKAGE__->mk_accessors(qw(width height));
@@ -83,18 +83,63 @@ sub init {
 ###########################################################################
 
 sub draw_line {
-    my ($self, $properties, $x1, $y1, $x2, $y2) = @_;
-    my $context                                 = $self->{context};
+    my ($self, $state, $x1, $y1, $x2, $y2) = @_;
+    my $properties                         = $state->properties;
+    my $context                            = $self->{context};
     
     return if(!$properties->{'stroke'});
 
     $context->save;
 
-    $context->set_source_rgb(@{$properties->{'stroke'}});
+    $context->set_matrix(Cairo::Matrix->init(@{$state->matrix}));
+
+    $context->set_source_rgb(map { $_ / 256 } @{$properties->{'stroke'}});
     $context->set_line_width($properties->{'stroke-width'});
     
     $context->move_to($x1, $y1);
     $context->line_to($x2, $y2);
+
+    $context->stroke;
+
+    $context->restore;
+}
+
+sub draw_path {
+    my ($self, $state, @instructions) = @_;
+    my $properties                    = $state->properties;
+    my $context                       = $self->{context};
+    
+    return if(!$properties->{'stroke'});
+
+    $context->save;
+
+    $context->set_matrix(Cairo::Matrix->init(@{$state->matrix}));
+
+    $context->set_source_rgb(map { $_ / 256 } @{$properties->{'stroke'}});
+    $context->set_line_width($properties->{'stroke-width'});
+    
+    foreach(@instructions) {
+	if($_->[0] eq 'M') {
+	    $context->move_to($_->[1], $_->[2]);
+	    next;
+	}
+	if($_->[0] eq 'm') {
+	    $context->rel_move_to($_->[1], $_->[2]);
+	    next;
+	}
+	if($_->[0] eq 'Z' or $_->[0] eq 'z') {
+	    $context->close_path;
+	    next;
+	}
+	if($_->[0] eq 'L') {
+	    $context->line_to($_->[1], $_->[2]);
+	    next;
+	}
+	if($_->[0] eq 'l') {
+	    $context->rel_line_to($_->[1], $_->[2]);
+	    next;
+	}
+    }
 
     $context->stroke;
 
@@ -177,6 +222,8 @@ These are the methods which alternative rasterization engines have
 to implement.
 
 =head3 draw_line
+
+=head3 draw_path
 
 =head3 write
 

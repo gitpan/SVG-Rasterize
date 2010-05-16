@@ -9,10 +9,14 @@ use 5.008009;
 use Carp;
 use Params::Validate qw(validate validate_pos :types);
 
-use SVG::Rasterize::Regexes qw(:all);
+use SVG::Rasterize::Regexes qw(:whitespace
+                               %RE_PACKAGE
+                               %RE_NUMBER
+                               %RE_LENGTH
+                               %RE_PATH);
 use SVG::Rasterize::State;
 
-# $Id: Rasterize.pm 5556 2010-05-12 09:02:12Z mullet $
+# $Id: Rasterize.pm 5619 2010-05-16 07:32:54Z mullet $
 
 =head1 NAME
 
@@ -25,11 +29,11 @@ C<SVG::Rasterize> - rasterize SVG content to pixel graphics
 
 =head1 VERSION
 
-Version 0.001000
+Version 0.001002
 
 =cut
 
-our $VERSION = '0.001000';
+our $VERSION = '0.001002';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -189,8 +193,12 @@ sub _create_engine {
 sub px_per_in {
     my ($self, @args) = @_;
 
-    validate_pos(@args, { regex => qr/^$A_NUMBER$/, optional => 1 });
-    $self->{px_per_in} = $args[0] if(@args);
+    if(@args) {
+	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
+			      optional => 1 });
+	$self->{px_per_in} = $args[0];
+    }
+
     return defined($self->{px_per_in}) ? $self->{px_per_in} : $PX_PER_IN;
 }
 
@@ -199,32 +207,48 @@ sub px_per_in {
 sub in_per_cm {
     my ($self, @args) = @_;
 
-    validate_pos(@args, { regex => qr/^$A_NUMBER$/, optional => 1 });
-    $self->{in_per_cm} = $args[0] if(@args);
+    if(@args) {
+	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
+			      optional => 1 });
+	$self->{in_per_cm} = $args[0];
+    }
+
     return defined($self->{in_per_cm}) ? $self->{in_per_cm} : $IN_PER_CM;
 }
 
 sub in_per_mm {
     my ($self, @args) = @_;
 
-    validate_pos(@args, { regex => qr/^$A_NUMBER$/, optional => 1 });
-    $self->{in_per_mm} = $args[0] if(@args);
+    if(@args) {
+	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
+			      optional => 1 });
+	$self->{in_per_mm} = $args[0];
+    }
+
     return defined($self->{in_per_mm}) ? $self->{in_per_mm} : $IN_PER_MM;
 }
 
 sub in_per_pt {
     my ($self, @args) = @_;
 
-    validate_pos(@args, { regex => qr/^$A_NUMBER$/, optional => 1 });
-    $self->{in_per_pt} = $args[0] if(@args);
+    if(@args) {
+	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
+			      optional => 1 });
+	$self->{in_per_pt} = $args[0];
+    }
+
     return defined($self->{in_per_pt}) ? $self->{in_per_pt} : $IN_PER_PT;
 }
 
 sub in_per_pc {
     my ($self, @args) = @_;
 
-    validate_pos(@args, { regex => qr/^$A_NUMBER$/, optional => 1 });
-    $self->{in_per_pc} = $args[0] if(@args);
+    if(@args) {
+	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
+			      optional => 1 });
+	$self->{in_per_pc} = $args[0];
+    }
+
     return defined($self->{in_per_pc}) ? $self->{in_per_pc} : $IN_PER_PC;
 }
 
@@ -235,8 +259,9 @@ sub map_abs_length {
     # in a length attribute. I allow it.
     my ($number, $unit);
     if(@args < 2) {
-	validate_pos(@args, {regex => $p_A_LENGTH});
-	($number, $unit) = $args[0] =~ /^($A_NUMBER)($UNIT?)$/;
+	validate_pos(@args, {regex => $RE_LENGTH{p_A_LENGTH}});
+	($number, $unit) =
+	    $args[0] =~ /^($RE_NUMBER{A_NUMBER})($RE_LENGTH{UNIT}?)$/;
     }
     else { ($number, $unit) = @args }  # bypasses validation!
 
@@ -291,15 +316,79 @@ sub end_node_hook {
 
 sub _draw_line {
     my ($self, $state) = @_;
-    my $node = $state->node;
-    my $x1   = $self->map_abs_length($node->getAttribute('x1') || 0);
-    my $y1   = $self->map_abs_length($node->getAttribute('y1') || 0);
-    my $x2   = $self->map_abs_length($node->getAttribute('x2') || 0);
-    my $y2   = $self->map_abs_length($node->getAttribute('y2') || 0);
+    my $attributes     = $state->node_attributes;
+    my $x1             = $state->map_length($attributes->{x1} || 0);
+    my $y1             = $state->map_length($attributes->{y1} || 0);
+    my $x2             = $state->map_length($attributes->{x2} || 0);
+    my $y2             = $state->map_length($attributes->{y2} || 0);
 
-    $self->{engine}->draw_line($state->properties,
-			       $state->transform($x1, $y1),
-			       $state->transform($x2, $y2));
+    return $self->{engine}->draw_line($state, $x1, $y1, $x2, $y2);
+}
+
+sub _split_path_data {
+    my ($self, $d)    = @_;
+    my @sub_path_data = grep { /\S/ } split(qr/([a-zA-Z])/, $d);
+    my @instructions  = ();
+    my $parse_error   =
+	"Failed to process the path data string %s correctly. Please ".
+	"report this as a bug and include the string into the bug ".
+	"report.\n";
+
+    my $arg_sequence;
+    while(@sub_path_data) {
+	my $key = shift(@sub_path_data);
+
+	if($key eq 'M' or $key eq 'm') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{MAS_SPLIT}) {
+		    push(@instructions, [$key, $1, $2]);
+		    $arg_sequence = $3;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+	if($key eq 'Z' or $key eq 'z') {
+	    push(@instructions, [$key]);
+	    next;
+	}
+	if($key eq 'L' or $key eq 'l') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{LAS_SPLIT}) {
+		    push(@instructions, [$key, $1, $2]);
+		    $arg_sequence = $3;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+	# TODO: once the support is complete there has to be some
+	# _in_error stuff in case we arrive at the end.
+    }
+
+    return @instructions;
+}
+
+sub _draw_path {
+    my ($self, $state) = @_;
+    my $path_data      = $state->node_attributes->{d} || '';
+
+    return if(!$path_data);
+
+    return $self->{engine}->draw_path
+	($state, $self->_split_path_data($path_data));
 }
 
 ###########################################################################
@@ -331,21 +420,9 @@ sub _process_normalize_attributes {
 }
 
 sub rasterize {
-    my ($self, @args) = @_;
+    my ($self, %args) = @_;
 
     # validate args and process object defaults
-    my %args = validate
-	(@args,
-	 {normalize_attributes => {optional => 1, type => BOOLEAN},
-	  svg                  => {optional => 1,
-				   can      => ['getNodeName',
-						'getAttributes']},
-	  width                => {optional => 1,
-				   regex => qr/^$A_LENGTH$/},
-	  height               => {optional => 1,
-				   regex => qr/^$A_LENGTH$/},
-	  engine_class         => {optional => 1, type => SCALAR}});
-
     $args{normalize_attributes} = $self->{normalize_attributes}
         if(!exists($args{normalize_attributes})
 	   and exists($self->{normalize_attributes}));
@@ -358,18 +435,23 @@ sub rasterize {
     $args{engine_class}         = $self->{engine_class}
         if(!exists($args{engine_class}) and exists($self->{engine_class}));
 
-    @args = %args;
+    my @args = %args;
     %args = validate
 	(@args,
-	 {normalize_attributes => {default => 1, type => BOOLEAN},
-	  svg                  => {can => ['getNodeName',
-					   'getAttributes']},
+	 {normalize_attributes => {default  => 1,
+				   type     => BOOLEAN},
+	  svg                  => {can      => ['getNodeName',
+						'getAttributes']},
 	  width                => {optional => 1,
-				   regex => qr/^$A_LENGTH$/},
+				   type     => SCALAR,
+				   regex    => $RE_LENGTH{p_A_LENGTH}},
 	  height               => {optional => 1,
-				   regex => qr/^$A_LENGTH$/},
-	  engine_class         => {default => 'SVG::Rasterize::Cairo',
-				   regex => $p_PACKAGE_NAME}});
+				   type     => SCALAR,
+				   regex    => $RE_LENGTH{p_A_LENGTH}},
+	  engine_class         => {default  => 'SVG::Rasterize::Cairo',
+				   type     => SCALAR,
+				   regex    =>
+				       $RE_PACKAGE{p_PACKAGE_NAME}}});
 
     # process initial node and establish initial viewport
     my $node            = $args{svg}->getNodeName eq 'document'
@@ -423,6 +505,7 @@ sub rasterize {
 	else {
 	    # do something
 	    $self->_draw_line($state) if($state->node_name eq 'line');
+	    $self->_draw_path($state) if($state->node_name eq 'path');
 
 	    $self->end_node_hook->($self, $state);
 	    $state = pop @stack;

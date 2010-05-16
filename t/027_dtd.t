@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 9;
 
 use SVG;
 use Test::Exception;
@@ -50,6 +50,27 @@ sub attributes {
     throws_ok(sub { $rasterize->rasterize(svg => $svg) },
 	      qr/width/,
 	      'group attribute width');
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(id => 'svg', width => 400, height => 300);
+    $svg->g(id => 'g01', transform => 'foo(1.0, 4.5)');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/transform/,
+	      'transform by foo');
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(id => 'svg', width => 400, height => 300);
+    $svg->g(id => 'g01', transform => 'footranslate(1.0, 4.5)');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/transform/,
+	      'transform by footranslate');
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(id => 'svg', width => 400, height => 300);
+    $svg->svg(id => 'svg01', 'viewBox' => '1 2 3');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/viewBox/,
+	      'invalid viewBox');
 }
 
 children;

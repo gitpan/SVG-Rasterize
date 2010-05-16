@@ -7,16 +7,17 @@ use strict;
 use 5.008009;
 
 use Carp;
-use Params::Validate qw(validate validate_pos validate_with :types);
+use Params::Validate qw(:all);
 use Scalar::Util qw(blessed looks_like_number);
 use List::Util qw(min max);
 
-use SVG::Rasterize::Regexes qw(:whitespace :numbers :lengths);
+use SVG::Rasterize::Regexes qw(:whitespace
+                               :attributes);
 use SVG::Rasterize::Specification;
 use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 
-# $Id: State.pm 5550 2010-05-12 08:49:52Z mullet $
+# $Id: State.pm 5602 2010-05-16 00:29:16Z mullet $
 
 =head1 NAME
 
@@ -29,11 +30,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.000009
+Version 0.001002
 
 =cut
 
-our $VERSION = '0.000009';
+our $VERSION = '0.001002';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -53,42 +54,6 @@ __PACKAGE__->mk_ro_accessors(qw(hasChildren
 use constant PI => 3.14159265358979;
 
 *multiply_matrices = \&SVG::Rasterize::multiply_matrices;
-
-our ($WSP, $CWSP,
-     $INTEGER, $p_INTEGER, $w_integer,
-     $FRACTION, $p_FRACTION, $w_FRACTION,
-     $EXPONENT, $FLOAT, $p_FLOAT, $w_FLOAT,
-     $P_NUMBER, $p_P_NUMBER, $w_P_NUMBER,
-     $A_NUMBER, $p_A_NUMBER, $w_A_NUMBER,
-     $UNIT,
-     $P_LENGTH, $p_P_LENGTH, $w_P_LENGTH,
-     $A_LENGTH, $p_A_LENGTH, $w_A_LENGTH);
-
-*WSP        = \$SVG::Rasterize::WSP;
-*CWSP       = \$SVG::Rasterize::CWSP;
-*INTEGER    = \$SVG::Rasterize::INTEGER;
-*p_INTEGER  = \$SVG::Rasterize::p_INTEGER;
-*w_integer  = \$SVG::Rasterize::w_integer;
-*FRACTION   = \$SVG::Rasterize::FRACTION;
-*p_FRACTION = \$SVG::Rasterize::p_FRACTION;
-*w_FRACTION = \$SVG::Rasterize::w_FRACTION;
-*EXPONENT   = \$SVG::Rasterize::EXPONENT;
-*FLOAT      = \$SVG::Rasterize::FLOAT;
-*p_FLOAT    = \$SVG::Rasterize::p_FLOAT;
-*w_FLOAT    = \$SVG::Rasterize::w_FLOAT;
-*P_NUMBER   = \$SVG::Rasterize::P_NUMBER;
-*p_P_NUMBER = \$SVG::Rasterize::p_P_NUMBER;
-*w_P_NUMBER = \$SVG::Rasterize::w_P_NUMBER;
-*A_NUMBER   = \$SVG::Rasterize::A_NUMBER;
-*p_A_NUMBER = \$SVG::Rasterize::p_A_NUMBER;
-*w_A_NUMBER = \$SVG::Rasterize::w_A_NUMBER;
-*UNIT       = \$SVG::Rasterize::UNIT;
-*P_LENGTH   = \$SVG::Rasterize::P_LENGTH;
-*p_P_LENGTH = \$SVG::Rasterize::p_P_LENGTH;
-*w_P_LENGTH = \$SVG::Rasterize::w_P_LENGTH;
-*A_LENGTH   = \$SVG::Rasterize::A_LENGTH;
-*p_A_LENGTH = \$SVG::Rasterize::p_A_LENGTH;
-*w_A_LENGTH = \$SVG::Rasterize::w_A_LENGTH;
 
 ###########################################################################
 #                                                                         #
@@ -142,64 +107,11 @@ sub _process_transform_attribute {
 
     return if(!$transform);
 
-    # The following regular expressions are basically a one-to-one
-    # translation of the Backus Naur form given in the SVG
-    # specification on
-    # http://www.w3.org/TR/SVG11/coords.html#TransformAttribute
-    # There is the following identifier correspondence:
-    # transform-list          - $tfl
-    # transforms              - $tfs
-    # transform               - $tf
-    # matrix                  - $ma
-    # translate               - $tr
-    # scale                   - $sc
-    # rotate                  - $ro
-    # skewX                   - $sx
-    # skewY                   - $sy
-    # number                  - $SVG::Rasterize::A_NUMBER;
-    # comma-wsp               - $SVG::Rasterize::CWSP
-    # wsp                     - $SVG::Rasterize::WSP
-    # integer-constant        - $SVG::Rasterize::INTEGER,  implicit
-    # floating-point-constant - $SVG::Rasterize::FLOAT,    implicit
-    # fractional-constant     - $SVG::Rasterize::FRACTION, implicit
-    # exponent                - $SVG::Rasterize::EXPONENT, implicit
-    # sign                    - optimized away
-    #                           (unsure how that relates to \s)
-    # digit, digit sequence, and comma are used directly.
-    # The definition allows some "weird" numbers like 001 or 00.1,
-    # but this is what the specification says.
-    # If any of these REs are changed, 010_geometry.t should be
-    # changed accordingly.
-
-    my $nu  = $A_NUMBER;
-    my $ma  = qr/matrix$WSP*\($WSP*(?:$nu$CWSP){5}$nu$WSP*\)/;
-    my $tr  = qr/translate$WSP*\($WSP*$nu(?:$CWSP$nu)?$WSP*\)/;
-    my $sc  = qr/scale$WSP*\($WSP*$nu(?:$CWSP$nu)?$WSP*\)/;
-    my $ro  = qr/rotate$WSP*\($WSP*$nu(?:(?:$CWSP$nu){2})?$WSP*\)/;
-    my $sx  = qr/skewX$WSP*\($WSP*$nu$WSP*\)/;
-    my $sy  = qr/skewY$WSP*\($WSP*$nu$WSP*\)/;
-    my $tf  = qr/(?:$ma|$tr|$sc|$ro|$sx|$sy)/;
-    my $tfm = qr/$tf(?:$CWSP$tf)*/;
-    my $tfs = qr/($tf)(?:$CWSP($tfm))?/;
-    my $tfl = qr/^$WSP*($tfm)?$WSP*$/;
-    my $tfn = qr/matrix|translate|scale|rotate|skewX|skewY/;
-    my $tfc = qr/($tfn)$WSP*\($WSP*($nu(?:$CWSP$nu)*)$WSP*\)/;
-
-    # check validity and strip leading and trailing white space
-    if($transform =~ $tfl) { $transform = $1 }
-    else {
-	warn("The string '$transform' seems to be an invalid transform ".
-	     "string and is ignored. If you think that it is valid ".
-	     "please report this as a bug and include the string into ".
-	     "the bug report.\n");
-	return;
-    }
-
     # dissect string into single transformation strings
     my @atoms = ();
     my $str   = $transform;
     while($str) {
-	if($str =~ $tfs) {
+	if($str =~ $RE_TRANSFORM{TRANSFORM_SPLIT}) {
 	    push(@atoms, $1);
 	    $str = $2;
 	}
@@ -214,7 +126,7 @@ sub _process_transform_attribute {
     # process the single transformations
     my $sm = $self->{matrix};
     foreach(@atoms) {
-	my ($type, $param_str) = $_ =~ $tfc;
+	my ($type, $param_str) = $_ =~ $RE_TRANSFORM{TRANSFORM_CAPTURE};
 	my @params             = split(/$CWSP/, $param_str);
 
 	my $cm;  # current matrix
@@ -279,9 +191,6 @@ sub _process_viewBox_attribute {
 
     return if(!$viewBox);
 
-    # TODO: Check if the current element is actually allowed to
-    # have a viewBox attribute
-
     my $width  = $attributes->{width};
     my $height = $attributes->{height};
     if(!$width or !$height) {
@@ -290,48 +199,38 @@ sub _process_viewBox_attribute {
     }
 
     # viewBox
-    my $n = $A_NUMBER;
-    my ($min_x, $min_y, $vB_width, $vB_height);
-    if($viewBox =~ /^($n)$CWSP($n)$CWSP($n)$CWSP($n)$/) {
-	($min_x, $min_y, $vB_width, $vB_height) = ($1, $2, $3, $4);
-	if($vB_width <= 0) {
-	    warn("Invalid viewBox width ($vB_width). ".
-		 "Ignoring viewBox.\n");
-	    return;
-	}
-	if($vB_height <= 0) {
-	    warn("Invalid viewBox height ($vB_height). ".
-		 "Ignoring viewBox.\n");
-	    return;
-	}
+    my ($min_x, $min_y, $vB_width, $vB_height) =
+	$viewBox =~ $RE_VIEW_BOX{p_VIEW_BOX};
+    if($vB_width <= 0) {
+	warn("Invalid viewBox width ($vB_width). ".
+	     "Ignoring viewBox.\n");
+	return;
     }
-    else {
-	warn "Invalid viewBox format ($viewBox). Ignoring it.\n";
+    if($vB_height <= 0) {
+	warn("Invalid viewBox height ($vB_height). ".
+	     "Ignoring viewBox.\n");
 	return;
     }
 
     # preserveAspectRatio
     my ($defer, $align, $meetOrSlice);
     if(my $pAR = $attributes->{preserveAspectRatio}) {
-	my $re_align = qr/none|x(?:Min|Mid|Max)Y(?:Min|Mid|Max)/;
-	my $re_mOS   = qr/meet|slice/;
-	my $re_amOS  = qr/($re_align) +($re_mOS)|($re_align)/;
-
-	if($pAR =~ /^defer +($re_align) +($re_mOS)$/) {
+	if($pAR =~ /^defer +$RE_VIEW_BOX{ALIGN} +$RE_VIEW_BOX{MOS}$/) {
 	    ($defer, $align, $meetOrSlice) = ('defer', $1, $2);
 	}
-	elsif($pAR =~ /^($re_align) +($re_mOS)$/) {
+	elsif($pAR =~ /^$RE_VIEW_BOX{ALIGN} +$RE_VIEW_BOX{MOS}$/) {
 	    ($defer, $align, $meetOrSlice) = ('', $1, $2);
 	}
-	elsif($pAR =~ /^defer +($re_align)$/) {
+	elsif($pAR =~ /^defer +$RE_VIEW_BOX{ALIGN}$/) {
 	    ($defer, $align, $meetOrSlice) = ('defer', $1, 'meet');
 	}
-	elsif($pAR =~ /^($re_align)$/) {
+	elsif($pAR =~ /^$RE_VIEW_BOX{ALIGN}$/) {
 	    ($defer, $align, $meetOrSlice) = ('', $1, 'meet');
 	}
 	else {
-	    warn("Invalid preserveAspectRatio format ($pAR). ".
-		 "Using 'none'.\n");
+	    warn("Failed to process the preserveAspectRatio string ".
+		 "'$pAR' correctly. Please report this as a bug and ".
+		 "include the string into the bug report.\n");
 	    ($defer, $align, $meetOrSlice) = (undef, undef, undef);
 	}
     }
@@ -408,9 +307,12 @@ sub _process_styling_properties {
 
     foreach(@prop_names) {
 	my $spec  = $PROPERTIES{$_};
-	my $val   = $ATTR_VAL{$name}->{$_};
 	my $hints = $ATTR_HINTS{$name}->{$_};
 	if(defined($css->{$_}) or defined($attributes->{$_})) {
+	    my $val = {%{$ATTR_VAL{$name}->{$_}}};
+	    $val->{optional} = 1;
+	    delete $val->{default};
+	    
 	    if(defined($css->{$_})) {
 		validate_with(params      => $css,
 			      spec        => {$_ => $val},
@@ -433,12 +335,8 @@ sub _process_styling_properties {
 
 	# parse color specs
 	if($hints->{color} and defined($properties->{$_})) {
-	    my $rgbe = qr/[\+\-]?\d{1,3}\%?/;
-	    my $rgb  = qr/^rgb\($WSP*($rgbe)$WSP*\,
-                                $WSP*($rgbe)$WSP*\,
-                                $WSP*($rgbe)$WSP*\)$/x;
 	    if(ref($properties->{$_}) eq 'ARRAY') {}
-	    elsif($properties->{$_} =~ $rgb) {
+	    elsif($properties->{$_} =~ $RE_COLOR{p_RGB}) {
 		$properties->{$_} = [$1, $2, $3];
 		foreach my $rgb_entry (@{$properties->{$_}}) {
 		    if((my $i = index($rgb_entry, '%')) >= 0) {
@@ -521,8 +419,9 @@ sub map_length {
 
     # To me it is unclear if leading/trailing white space is allowed
     # in a length attribute. I allow it.
-    validate_pos(@args, { regex => $p_A_LENGTH });
-    my ($number, $unit) = $args[0] =~ /^($A_NUMBER)($UNIT?)$/;
+    validate_pos(@args, { regex => $RE_LENGTH{p_A_LENGTH} });
+    my ($number, $unit) =
+	$args[0] =~ /^($RE_NUMBER{A_NUMBER})($RE_LENGTH{UNIT}?)$/;
     
     if(!$unit)           { return $number }
     elsif($unit eq 'em') { croak "Unit em not supported, yet.\n" }

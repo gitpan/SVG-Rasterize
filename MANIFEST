@@ -1,5 +1,7 @@
 Changes
 examples/line.pl
+examples/path.pl
+examples/stroke_width.pl
 ignore.txt
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
@@ -31,6 +33,7 @@ t/020_geometry.t
 t/025_render_interface.t
 t/027_dtd.t
 t/030_styling.t
+t/035_paths.t
 t/700_boilerplate.t
 t/705_manifest.t
 t/750_pod.t

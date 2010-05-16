@@ -2,47 +2,82 @@
 use strict;
 use warnings;
 
-use Test::More tests => 52;
+use Test::More tests => 67;
 
 use SVG;
 use Test::Exception;
 use SVG::Rasterize;
+use SVG::Rasterize::Regexes qw(:all);
 
-sub regexp {
-    ok('0'        =~ /^$SVG::Rasterize::INTEGER$/, '0 integer');
-    ok('+0'       =~ /^$SVG::Rasterize::INTEGER$/, '+0 integer');
-    ok('-0'       =~ /^$SVG::Rasterize::INTEGER$/, '-0 integer');
-    ok('5'        =~ /^$SVG::Rasterize::INTEGER$/, '5 integer');
-    ok('-1234'    =~ /^$SVG::Rasterize::INTEGER$/, '-1234 integer');
-    ok('001'      =~ /^$SVG::Rasterize::INTEGER$/, '001 integer');
-    ok('-'        !~ /^$SVG::Rasterize::INTEGER$/, '- no integer');
-    ok('30'       !~ /^$SVG::Rasterize::FRACTION$/, '30 no fraction');
-    ok('0.1'      =~ /^$SVG::Rasterize::FRACTION$/, '0.1 fraction');
-    ok('30.'      =~ /^$SVG::Rasterize::FRACTION$/, '30. fraction');
-    ok('-30.'     =~ /^$SVG::Rasterize::FRACTION$/, '-30. fraction');
-    ok('-.1'      =~ /^$SVG::Rasterize::FRACTION$/, '-.1 fraction');
-    ok('+.3'      =~ /^$SVG::Rasterize::FRACTION$/, '+.3 fraction');
-    ok('+00.3'    =~ /^$SVG::Rasterize::FRACTION$/, '+00.3 fraction');
-    ok('e+03'     =~ /^$SVG::Rasterize::EXPONENT$/, 'e+03 exponent');
-    ok('E4'       =~ /^$SVG::Rasterize::EXPONENT$/, 'E4 exponent');
-    ok('E.4'      !~ /^$SVG::Rasterize::EXPONENT$/, 'E.4 no exponent');
-    ok('30.'      =~ /^$SVG::Rasterize::FLOAT$/, '30. floating point');
-    ok('-30.'     =~ /^$SVG::Rasterize::FLOAT$/, '-30. floating point');
-    ok('-.1'      =~ /^$SVG::Rasterize::FLOAT$/, '-.1 floating point');
-    ok('+.3'      =~ /^$SVG::Rasterize::FLOAT$/, '+.3 floating point');
-    ok('+00.3'    =~ /^$SVG::Rasterize::FLOAT$/, '+00.3 floating point');
-    ok('30.E-01'  =~ /^$SVG::Rasterize::FLOAT$/, '30.E-01 floating point');
-    ok('-30.E-01' =~ /^$SVG::Rasterize::FLOAT$/, '-30.E-01 floating point');
-    ok('-.1E-01'  =~ /^$SVG::Rasterize::FLOAT$/, '-.1E-01 floating point');
-    ok('+.3E-01'  =~ /^$SVG::Rasterize::FLOAT$/, '+.3E-01 floating point');
-    ok('+00.3E-01'=~ /^$SVG::Rasterize::FLOAT$/, '+00.3E-01 floating point');
-    ok('+00.3E-01'=~ /^$SVG::Rasterize::FLOAT$/, '+00.3E-01 floating point');
-    ok('123E5'    =~ /^$SVG::Rasterize::FLOAT$/, '123E5 floating point');
-    ok('123E5'    !~ /^$SVG::Rasterize::INTEGER$/, '123E5 no integer');
-    ok('123E5'    =~ /^$SVG::Rasterize::A_NUMBER$/, '123E5 number');
-    ok('12345'    =~ /^$SVG::Rasterize::A_NUMBER$/, '12345 number');
-    ok('+.1E-7'   =~ /^$SVG::Rasterize::A_NUMBER$/, '+.1E-7 number');
-    ok('--1'      !~ /^$SVG::Rasterize::A_NUMBER$/, '--1 not number');
+sub transform_validation {
+    ok('0'        =~ /^$RE_NUMBER{INTEGER}$/,
+       '0 integer');
+    ok('+0'       =~ /^$RE_NUMBER{INTEGER}$/,
+       '+0 integer');
+    ok('-0'       =~ /^$RE_NUMBER{INTEGER}$/,
+       '-0 integer');
+    ok('5'        =~ /^$RE_NUMBER{INTEGER}$/,
+       '5 integer');
+    ok('-1234'    =~ /^$RE_NUMBER{INTEGER}$/,
+       '-1234 integer');
+    ok('001'      =~ /^$RE_NUMBER{INTEGER}$/,
+       '001 integer');
+    ok('-'        !~ /^$RE_NUMBER{INTEGER}$/,
+       '- no integer');
+    ok('30'       !~ /^$RE_NUMBER{FRACTION}$/,
+       '30 no fraction');
+    ok('0.1'      =~ /^$RE_NUMBER{FRACTION}$/,
+       '0.1 fraction');
+    ok('30.'      =~ /^$RE_NUMBER{FRACTION}$/,
+       '30. fraction');
+    ok('-30.'     =~ /^$RE_NUMBER{FRACTION}$/,
+       '-30. fraction');
+    ok('-.1'      =~ /^$RE_NUMBER{FRACTION}$/,
+       '-.1 fraction');
+    ok('+.3'      =~ /^$RE_NUMBER{FRACTION}$/,
+       '+.3 fraction');
+    ok('+00.3'    =~ /^$RE_NUMBER{FRACTION}$/,
+       '+00.3 fraction');
+    ok('e+03'     =~ /^$RE_NUMBER{EXPONENT}$/,
+       'e+03 exponent');
+    ok('E4'       =~ /^$RE_NUMBER{EXPONENT}$/,
+       'E4 exponent');
+    ok('E.4'      !~ /^$RE_NUMBER{EXPONENT}$/,
+       'E.4 no exponent');
+    ok('30.'      =~ /^$RE_NUMBER{FLOAT}$/,
+       '30. floating point');
+    ok('-30.'     =~ /^$RE_NUMBER{FLOAT}$/,
+       '-30. floating point');
+    ok('-.1'      =~ /^$RE_NUMBER{FLOAT}$/,
+       '-.1 floating point');
+    ok('+.3'      =~ /^$RE_NUMBER{FLOAT}$/,
+       '+.3 floating point');
+    ok('+00.3'    =~ /^$RE_NUMBER{FLOAT}$/,
+       '+00.3 floating point');
+    ok('30.E-01'  =~ /^$RE_NUMBER{FLOAT}$/,
+       '30.E-01 floating point');
+    ok('-30.E-01' =~ /^$RE_NUMBER{FLOAT}$/,
+       '-30.E-01 floating point');
+    ok('-.1E-01'  =~ /^$RE_NUMBER{FLOAT}$/,
+       '-.1E-01 floating point');
+    ok('+.3E-01'  =~ /^$RE_NUMBER{FLOAT}$/,
+       '+.3E-01 floating point');
+    ok('+00.3E-01'=~ /^$RE_NUMBER{FLOAT}$/,
+       '+00.3E-01 floating point');
+    ok('+00.3E-01'=~ /^$RE_NUMBER{FLOAT}$/,
+       '+00.3E-01 floating point');
+    ok('123E5'    =~ /^$RE_NUMBER{FLOAT}$/,
+       '123E5 floating point');
+    ok('123E5'    !~ /^$RE_NUMBER{INTEGER}$/,
+       '123E5 no integer');
+    ok('123E5'    =~ /^$RE_NUMBER{A_NUMBER}$/,
+       '123E5 number');
+    ok('12345'    =~ /^$RE_NUMBER{A_NUMBER}$/,
+       '12345 number');
+    ok('+.1E-7'   =~ /^$RE_NUMBER{A_NUMBER}$/,
+       '+.1E-7 number');
+    ok('--1'      !~ /^$RE_NUMBER{A_NUMBER}$/,
+       '--1 not number');
 }
 
 sub units {
@@ -93,6 +128,54 @@ sub typeglobs {
     is($rasterize->px_per_in, 120, 'setting object variable dpi');
 }
 
-regexp;
+sub pAR_validation {
+    ok('none' =~ $RE_VIEW_BOX{ALIGN}, q{ALIGN 'none'});
+    ok('xMidYMax' =~ $RE_VIEW_BOX{ALIGN}, q{ALIGN 'xMidYMax'});
+    ok('defer xMidYMax' =~ $RE_VIEW_BOX{PAR},
+       q{PAR 'defer xMidYMax'});
+    ok('defer xMidYMax meet' =~ $RE_VIEW_BOX{PAR},
+       q{PAR 'defer xMidYMax meet'});
+}
+
+sub path_data_validation {
+    ok('M1 2' =~ $RE_PATH{p_PATH_LIST},
+       'just move');
+    ok('M1.2' =~ $RE_PATH{p_PATH_LIST},
+       'non intuitive move');
+    ok('M1.2 0' =~ $RE_PATH{p_PATH_LIST},
+       'more intuitive move');
+    ok('M1.2 0.3' =~ $RE_PATH{p_PATH_LIST},
+       'ambiguous move');
+    ok('M1.2 0.3C1.3,5,10,1,5-4' =~ $RE_PATH{p_PATH_LIST},
+       'move curve-to');
+}
+
+sub path_data_splitting {
+    my $rasterize = SVG::Rasterize->new;
+
+    is_deeply([$rasterize->_split_path_data('M3 -4')],
+	      [['M', 3, -4]],
+	      q{path data 'M3 -4'});
+    is_deeply([$rasterize->_split_path_data('M3 -4 12.3')],
+	      [['M', 3, -4], ['M', '12.', 3]],
+	      q{path data 'M3 -4 12.3'});
+    is_deeply([$rasterize->_split_path_data('M3 -4 12.23')],
+	      [['M', 3, -4], ['M', 12.2, 3]],
+	      q{path data 'M3 -4 12.23'});
+    is_deeply([$rasterize->_split_path_data('M-13')],
+	      [['M', -1, 3]],
+	      q{path data 'M-13'});
+    is_deeply([$rasterize->_split_path_data('M-13.4')],
+	      [['M', '-13.', 4]],
+	      q{path data 'M-13.4'});
+    is_deeply([$rasterize->_split_path_data('M3-1l100Z')],
+	      [['M', 3, -1], ['l', 10, 0], ['Z']],
+	      q{path data 'M3-1l100Z'});
+}
+
+transform_validation;
 units;
 typeglobs;
+pAR_validation;
+path_data_validation;
+path_data_splitting;
