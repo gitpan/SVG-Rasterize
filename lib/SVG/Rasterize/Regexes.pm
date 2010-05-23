@@ -12,11 +12,11 @@ C<SVG::Rasterize::Regexes> - Commonly used regular expressions
 
 =head1 VERSION
 
-Version 0.001002
+Version 0.001005
 
 =cut
 
-our $VERSION = '0.001002';
+our $VERSION = '0.001005';
 
 our @EXPORT    = qw();
 our @EXPORT_OK = qw($WSP
@@ -27,7 +27,8 @@ our @EXPORT_OK = qw($WSP
                     %RE_COLOR
                     %RE_TRANSFORM
                     %RE_VIEW_BOX
-                    %RE_PATH);
+                    %RE_PATH
+                    %RE_DASHARRAY);
 
 our %EXPORT_TAGS = (all           => [@EXPORT, @EXPORT_OK],
 		    whitespace    => [qw($WSP $CWSP)],
@@ -36,7 +37,8 @@ our %EXPORT_TAGS = (all           => [@EXPORT, @EXPORT_OK],
                                          %RE_COLOR
                                          %RE_TRANSFORM
                                          %RE_VIEW_BOX
-                                         %RE_PATH)]);
+                                         %RE_PATH
+                                         %RE_DASHARRAY)]);
 
 our $WSP  = qr/[\x{20}\x{9}\x{D}\x{A}]/;
 our $CWSP = qr/(?:$WSP+\,?$WSP*|\,$WSP*)/;
@@ -53,41 +55,45 @@ our %RE_PACKAGE = ();
 our %RE_NUMBER = ();
 our %RE_LENGTH = ();
 {
-    $RE_NUMBER{NNINTEGER}  = qr/\d+/;
-    $RE_NUMBER{INTEGER}    = qr/[\+\-]?$RE_NUMBER{NNINTEGER}/;
-    $RE_NUMBER{p_INTEGER}  = qr/^$RE_NUMBER{INTEGER}$/;
-    $RE_NUMBER{w_INTEGER}  = qr/^$WSP*$RE_NUMBER{INTEGER}$WSP*$/;
+    $RE_NUMBER{NNINTEGER}    = qr/\d+/;
+    $RE_NUMBER{INTEGER}      = qr/[\+\-]?$RE_NUMBER{NNINTEGER}/;
+    $RE_NUMBER{p_INTEGER}    = qr/^$RE_NUMBER{INTEGER}$/;
+    $RE_NUMBER{w_INTEGER}    = qr/^$WSP*$RE_NUMBER{INTEGER}$WSP*$/;
 
-    $RE_NUMBER{NNFRACTION} = qr/(?:\d*\.\d+|\d+\.)/;
-    $RE_NUMBER{FRACTION}   = qr/[\+\-]?$RE_NUMBER{NNFRACTION}/;
-    $RE_NUMBER{p_FRACTION} = qr/^$RE_NUMBER{FRACTION}$/;
-    $RE_NUMBER{w_FRACTION} = qr/^$WSP*$RE_NUMBER{FRACTION}$WSP*$/;
-    $RE_NUMBER{EXPONENT}   = qr/[eE][\+\-]?\d+/;
-    $RE_NUMBER{NNFLOAT}    = qr/(?:$RE_NUMBER{NNFRACTION}
-                                  $RE_NUMBER{EXPONENT}?
-                                 |$RE_NUMBER{NNINTEGER}
-                                  $RE_NUMBER{EXPONENT})/x;
-    $RE_NUMBER{FLOAT}      = qr/[\+\-]?$RE_NUMBER{NNFLOAT}/;
-    $RE_NUMBER{p_FLOAT}    = qr/^$RE_NUMBER{FLOAT}$/;
-    $RE_NUMBER{w_FLOAT}    = qr/^$WSP*$RE_NUMBER{FLOAT}$WSP*$/;
-    $RE_NUMBER{P_NNNUMBER} = qr/(?:$RE_NUMBER{NNFRACTION}
+    $RE_NUMBER{NNFRACTION}   = qr/(?:\d*\.\d+|\d+\.)/;
+    $RE_NUMBER{FRACTION}     = qr/[\+\-]?$RE_NUMBER{NNFRACTION}/;
+    $RE_NUMBER{p_FRACTION}   = qr/^$RE_NUMBER{FRACTION}$/;
+    $RE_NUMBER{w_FRACTION}   = qr/^$WSP*$RE_NUMBER{FRACTION}$WSP*$/;
+    $RE_NUMBER{EXPONENT}     = qr/[eE][\+\-]?\d+/;
+    $RE_NUMBER{NNFLOAT}      = qr/(?:$RE_NUMBER{NNFRACTION}
+                                    $RE_NUMBER{EXPONENT}?
+                                   |$RE_NUMBER{NNINTEGER}
+                                    $RE_NUMBER{EXPONENT})/x;
+    $RE_NUMBER{FLOAT}        = qr/[\+\-]?$RE_NUMBER{NNFLOAT}/;
+    $RE_NUMBER{p_FLOAT}      = qr/^$RE_NUMBER{FLOAT}$/;
+    $RE_NUMBER{w_FLOAT}      = qr/^$WSP*$RE_NUMBER{FLOAT}$WSP*$/;
+    $RE_NUMBER{P_NNNUMBER}   = qr/(?:$RE_NUMBER{NNFRACTION}
+                                   |$RE_NUMBER{NNINTEGER})/x;
+    $RE_NUMBER{p_P_NNNUMBER} = qr/^$RE_NUMBER{P_NNNUMBER}$/;
+    $RE_NUMBER{w_P_NNNUMBER} = qr/^$WSP*$RE_NUMBER{P_NNNUMBER}$WSP*$/;
+    $RE_NUMBER{P_NUMBER}     = qr/[\+\-]?$RE_NUMBER{P_NNNUMBER}/;
+    $RE_NUMBER{p_P_NUMBER}   = qr/^$RE_NUMBER{P_NUMBER}$/;
+    $RE_NUMBER{w_P_NUMBER}   = qr/^$WSP*$RE_NUMBER{P_NUMBER}$WSP*$/;
+    $RE_NUMBER{A_NNNUMBER}   = qr/(?:$RE_NUMBER{NNFLOAT}
                                  |$RE_NUMBER{NNINTEGER})/x;
-    $RE_NUMBER{P_NUMBER}   = qr/[\+\-]?$RE_NUMBER{P_NNNUMBER}/;
-    $RE_NUMBER{p_P_NUMBER} = qr/^$RE_NUMBER{P_NUMBER}$/;
-    $RE_NUMBER{w_P_NUMBER} = qr/^$WSP*$RE_NUMBER{P_NUMBER}$WSP*$/;
-    $RE_NUMBER{A_NNNUMBER} = qr/(?:$RE_NUMBER{NNFLOAT}
-                                 |$RE_NUMBER{NNINTEGER})/x;
-    $RE_NUMBER{A_NUMBER}   = qr/[\+\-]?$RE_NUMBER{A_NNNUMBER}/;
-    $RE_NUMBER{p_A_NUMBER} = qr/^$RE_NUMBER{A_NUMBER}$/;
-    $RE_NUMBER{w_A_NUMBER} = qr/^$WSP*$RE_NUMBER{A_NUMBER}$WSP*$/;
+    $RE_NUMBER{p_A_NNNUMBER} = qr/^$RE_NUMBER{A_NNNUMBER}$/;
+    $RE_NUMBER{w_A_NNNUMBER} = qr/^$WSP*$RE_NUMBER{A_NNNUMBER}$WSP*$/;
+    $RE_NUMBER{A_NUMBER}     = qr/[\+\-]?$RE_NUMBER{A_NNNUMBER}/;
+    $RE_NUMBER{p_A_NUMBER}   = qr/^$RE_NUMBER{A_NUMBER}$/;
+    $RE_NUMBER{w_A_NUMBER}   = qr/^$WSP*$RE_NUMBER{A_NUMBER}$WSP*$/;
 
-    $RE_LENGTH{UNIT}       = qr/(?:em|ex|px|pt|pc|cm|mm|in|\%)/;
-    $RE_LENGTH{P_LENGTH}   = qr/$RE_NUMBER{P_NUMBER}$RE_LENGTH{UNIT}?/;
-    $RE_LENGTH{p_P_LENGTH} = qr/^$RE_LENGTH{P_LENGTH}$/;
-    $RE_LENGTH{w_P_LENGTH} = qr/^$WSP*$RE_LENGTH{P_LENGTH}$WSP*$/;
-    $RE_LENGTH{A_LENGTH}   = qr/$RE_NUMBER{A_NUMBER}$RE_LENGTH{UNIT}?/;
-    $RE_LENGTH{p_A_LENGTH} = qr/^$RE_LENGTH{A_LENGTH}$/;
-    $RE_LENGTH{w_A_LENGTH} = qr/^$WSP*$RE_LENGTH{A_LENGTH}$WSP*$/;
+    $RE_LENGTH{UNIT}         = qr/(?:em|ex|px|pt|pc|cm|mm|in|\%)/;
+    $RE_LENGTH{P_LENGTH}     = qr/$RE_NUMBER{P_NUMBER}$RE_LENGTH{UNIT}?/;
+    $RE_LENGTH{p_P_LENGTH}   = qr/^$RE_LENGTH{P_LENGTH}$/;
+    $RE_LENGTH{w_P_LENGTH}   = qr/^$WSP*$RE_LENGTH{P_LENGTH}$WSP*$/;
+    $RE_LENGTH{A_LENGTH}     = qr/$RE_NUMBER{A_NUMBER}$RE_LENGTH{UNIT}?/;
+    $RE_LENGTH{p_A_LENGTH}   = qr/^$RE_LENGTH{A_LENGTH}$/;
+    $RE_LENGTH{w_A_LENGTH}   = qr/^$WSP*$RE_LENGTH{A_LENGTH}$WSP*$/;
 }
 
 # rgb colors
@@ -212,37 +218,73 @@ our %RE_PATH = ();
 #    my  $las     = $mas;  # if changed check carefully all below
     my  $lt      = qr/(?:L|l)$WSP*$mas/;
     my  $hlas    = qr/$RE_NUMBER{A_NUMBER}(?:$CWSP?$RE_NUMBER{A_NUMBER})*/;
-    my  $hlt     = qr/(?:H|h)$hlas/;
+    my  $hlt     = qr/(?:H|h)$WSP*$hlas/;
 #    my  $vlas    = $hlas;  # if changed check carefully all below
-    my  $vlt     = qr/(?:V|v)$hlas/;
+    my  $vlt     = qr/(?:V|v)$WSP*$hlas/;
     my  $ca      = qr/$cp$CWSP?$cp$CWSP?$cp/;
     my  $cas     = qr/$ca(?:$CWSP?$ca)*/;
-    my  $ct      = qr/(?:C|c)$cas/;
+    my  $ct      = qr/(?:C|c)$WSP*$cas/;
     my  $sca     = qr/$cp$CWSP?$cp/;
     my  $scas    = qr/$sca(?:$CWSP?$sca)*/;
-    my  $sct     = qr/(?:S|s)$scas/;
+    my  $sct     = qr/(?:S|s)$WSP*$scas/;
 #    my  $qbas    = $scas;  # if changed check carefully all below
-    my  $qb      = qr/(?:Q|q)$scas/;
+    my  $qb      = qr/(?:Q|q)$WSP*$scas/;
 #    my  $sqbas   = $mas;  # if changed check carefully all below
-    my  $sqb     = qr/(?:T|t)$mas/;
+    my  $sqb     = qr/(?:T|t)$WSP*$mas/;
     my  $eaa     = qr/$RE_NUMBER{A_NNNUMBER}$CWSP?
                       $RE_NUMBER{A_NNNUMBER}$CWSP?
                       $RE_NUMBER{A_NUMBER}$CWSP
                       $fl$CWSP$fl$CWSP
                       $cp/x;
     my  $eaas    = qr/$eaa(?:$CWSP?$eaa)*/;
-    my  $ea      = qr/(?:A|a)$eaas/;
+    my  $ea      = qr/(?:A|a)$WSP*$eaas/;
     my  $dt      = qr/(?:$cl|$lt|$hlt|$vlt|$ct|$sct|$qb|$sqb|$ea)/;
     my  $dtm     = qr/$dt(?:$WSP*$dt)*/;        # draw to multiple
     my  $pcg     = qr/$mt(?:$WSP*$dtm)?/;       # path command group
-    my  $pcgm    = qr/$pcg(?:$WSP+$pcg)*/;      # pcg multiple
+    my  $pcgm    = qr/$pcg(?:$WSP*$pcg)*/;      # pcg multiple
 
     $RE_PATH{p_PATH_LIST} = qr/^$WSP*$pcgm$WSP*$/;
     $RE_PATH{MAS_SPLIT}   = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
                                 ($RE_NUMBER{A_NUMBER})$CWSP?
-                                ($mas?)\s*$/x;
+                                ($mas?)$/x;
     $RE_PATH{LAS_SPLIT}   = $RE_PATH{MAS_SPLIT};
+    $RE_PATH{HLAS_SPLIT}  = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($hlas?)$/x;
+    $RE_PATH{VLAS_SPLIT}  = $RE_PATH{HLAS_SPLIT};
+    $RE_PATH{CAS_SPLIT}   = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($cas?)$/x;
+    $RE_PATH{SCAS_SPLIT}  = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($scas?)$/x;
+    $RE_PATH{QBAS_SPLIT}  = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($scas?)$/x;
+    $RE_PATH{SQBAS_SPLIT} = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($mas?)$/x;
+    $RE_PATH{EAAS_SPLIT}  = qr/^($RE_NUMBER{A_NNNUMBER})$CWSP?
+                                ($RE_NUMBER{A_NNNUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP
+                                ($fl)$CWSP($fl)$CWSP
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($RE_NUMBER{A_NUMBER})$CWSP?
+                                ($eaas?)$/x;
 }
+
+# stroke-dasharray
+our %RE_DASHARRAY = ();
+$RE_DASHARRAY{p_DASHARRAY} = qr/^$RE_LENGTH{A_LENGTH}
+                                 (?:$WSP*\,$WSP*$RE_LENGTH{A_LENGTH})*$/x;
+$RE_DASHARRAY{SPLIT}       = qr/$WSP*\,$WSP*/;
 
 1;
 

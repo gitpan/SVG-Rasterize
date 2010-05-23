@@ -30,15 +30,10 @@ which are not listed here because I won't forget them.
 - introduce engine_args attribute
 - documentation on SVG validation.
 - method _in_error needs to be public (to be used by State).
-- property validation with dedicated %PROP_VAL?
-  -> specific for xsl / css
-  -> apply to whole hash after setting of defaults?
-  -> element specific?
 - document all regexes
 - ID and NMTOKEN in %ATTR_VAL
 - validation possible for those attributes that still have type
   CDATA?
-- check rotation direction in spec
 
 done
 ----
@@ -63,3 +58,13 @@ done
 - color regexes in Regexes
 - probably, the transformation matrix has to be applied by cairo
   (-> text, stroke-width in general).
+- check rotation direction in spec
+- property validation with dedicated %PROP_VAL? - not for now
+  -> specific for xsl / css
+  -> apply to whole hash after setting of defaults?
+  -> element specific?
+- rest of path commands
+- support for stroke properties (linecap etc.)
+- stroke-dasharray and stroke-dashoffset
+- clamp color values only at presentation time
+- update docu: The state is not that much proof of concept any more.

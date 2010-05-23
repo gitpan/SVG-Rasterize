@@ -16,7 +16,7 @@ use SVG::Rasterize::Regexes qw(:whitespace
                                %RE_PATH);
 use SVG::Rasterize::State;
 
-# $Id: Rasterize.pm 5619 2010-05-16 07:32:54Z mullet $
+# $Id: Rasterize.pm 5720 2010-05-23 09:37:42Z mullet $
 
 =head1 NAME
 
@@ -29,11 +29,11 @@ C<SVG::Rasterize> - rasterize SVG content to pixel graphics
 
 =head1 VERSION
 
-Version 0.001002
+Version 0.001005
 
 =cut
 
-our $VERSION = '0.001002';
+our $VERSION = '0.001005';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -52,6 +52,8 @@ __PACKAGE__->mk_ro_accessors(qw(engine
 #                                                                         #
 ###########################################################################
 
+use constant TWO_PI => 6.28318530717959;
+
 our $PX_PER_IN = 90;
 our $DPI;  *DPI = \$PX_PER_IN;
 our $IN_PER_CM = 1 / 2.54;
@@ -69,6 +71,95 @@ sub multiply_matrices {
 	    $m->[1] * $n->[2] + $m->[3] * $n->[3],
 	    $m->[0] * $n->[4] + $m->[2] * $n->[5] + $m->[4],
 	    $m->[1] * $n->[4] + $m->[3] * $n->[5] + $m->[5]];
+}
+
+sub _angle {
+    shift(@_) if(@_ % 2);
+    my ($x1, $y1, $x2, $y2) = @_;
+    my $l_prod     = sqrt(($x1**2 + $y1**2) * ($x2**2 + $y2**2));
+
+    return undef if($l_prod == 0);
+
+    my $scalar     = $x1 * $x2 + $y1 * $y2;
+    my $cos        = $scalar / $l_prod;
+    my $sign       = $x1 * $y2 - $y1 * $x2 > 0 ? 1 : -1;
+    my $sin        = $sign * sqrt($l_prod**2 - $scalar**2) / $l_prod;
+
+    $cos = 1  if($cos > 1);
+    $cos = -1 if($cos < -1);
+    $sin = 1  if($sin > 1);
+    $sin = -1 if($sin < -1);
+
+    return atan2($sin, $cos);
+}
+
+sub adjust_arc_radii {
+    shift(@_) if(@_ % 2 == 0);
+    my ($x1, $y1, $rx, $ry, $phi, $x2, $y2) = @_;
+
+    $rx = abs($rx);
+    $ry = abs($ry);
+    return($rx, $ry) if($rx == 0 or $ry == 0);
+    
+    my $sin_phi = sin($phi);
+    my $cos_phi = cos($phi);
+    my $x1_h    = ($x1 - $x2) / 2;
+    my $y1_h    = ($y1 - $y2) / 2;
+    my $x1_p    =  $cos_phi * $x1_h + $sin_phi * $y1_h;
+    my $y1_p    = -$sin_phi * $x1_h + $cos_phi * $y1_h;
+    my $lambda  = ($x1_p / $rx) ** 2 + ($y1_p / $ry) ** 2;
+
+    return($rx, $ry, $sin_phi, $cos_phi, $x1_p, $y1_p) if($lambda <= 0);
+
+    my $radicand = 1 / $lambda - 1;
+    if($radicand < 0) {
+	my $sqrt_lambda = sqrt($lambda);
+	$rx       *= $sqrt_lambda;
+	$ry       *= $sqrt_lambda;
+	$radicand  = 0;
+    }
+
+    return($rx, $ry, $sin_phi, $cos_phi, $x1_p, $y1_p, $radicand);
+}
+
+sub endpoint_to_center {
+    shift(@_) if(@_ % 2 == 0);
+    my ($x1, $y1, $rx, $ry, $phi, $fa, $fs, $x2, $y2) = @_;
+    my ($sin_phi, $cos_phi, $x1_p, $y1_p, $radicand);
+
+    ($rx, $ry, $sin_phi, $cos_phi, $x1_p, $y1_p, $radicand) =
+	adjust_arc_radii($x1, $y1, $rx, $ry, $phi, $x2, $y2);
+
+    return if(!defined($radicand));
+
+    my ($cx_p, $cy_p);
+    my $factor;
+    if($radicand > 0) {
+	$factor = ($fa == $fs ? -1 : 1) * sqrt($radicand);
+	$cx_p   =      $factor * $rx / $ry * $y1_p;
+	$cy_p   = -1 * $factor * $ry / $rx * $x1_p;
+    }
+    else {
+	$cx_p = 0;
+	$cy_p = 0;
+    }
+
+    my $x1_c = ($x1 + $x2) / 2;
+    my $y1_c = ($y1 + $y2) / 2;
+    my $cx   = $cos_phi * $cx_p - $sin_phi * $cy_p + $x1_c;
+    my $cy   = $sin_phi * $cx_p + $cos_phi * $cy_p + $y1_c;
+
+    # 0 <= $th1 < 2PI
+    my $th1  = _angle(1, 0, ($x1_p - $cx_p) / $rx, ($y1_p - $cy_p) / $ry);
+    $th1 += TWO_PI while($th1 < 0);
+
+    # sign of $dth
+    my $dth  = _angle(($x1_p - $cx_p) / $rx, ($y1_p - $cy_p) / $ry,
+		      (-$x1_p - $cx_p) / $rx, (-$y1_p - $cy_p) / $ry);
+    if($fs == 0) { $dth -= TWO_PI while($dth > 0) }
+    else         { $dth += TWO_PI while($dth < 0) }
+    
+    return($cx, $cy, $rx, $ry, $th1, $dth);
 }
 
 ###########################################################################
@@ -327,7 +418,7 @@ sub _draw_line {
 
 sub _split_path_data {
     my ($self, $d)    = @_;
-    my @sub_path_data = grep { /\S/ } split(qr/([a-zA-Z])/, $d);
+    my @sub_path_data = grep { /\S/ } split(qr/\s*([a-zA-Z])\s*/, $d);
     my @instructions  = ();
     my $parse_error   =
 	"Failed to process the path data string %s correctly. Please ".
@@ -347,6 +438,10 @@ sub _split_path_data {
 		if($arg_sequence =~ $RE_PATH{MAS_SPLIT}) {
 		    push(@instructions, [$key, $1, $2]);
 		    $arg_sequence = $3;
+
+		    # subsequent moveto cmds are turned into lineto
+		    $key = 'L' if($key eq 'M');
+		    $key = 'l' if($key eq 'm');
 		}
 		else {
 		    $self->_in_error(sprintf($parse_error, $d));
@@ -374,8 +469,129 @@ sub _split_path_data {
 	    }
 	    next;
 	}
-	# TODO: once the support is complete there has to be some
-	# _in_error stuff in case we arrive at the end.
+	if($key eq 'H' or $key eq 'h') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{HLAS_SPLIT}) {
+		    push(@instructions, [$key, $1]);
+		    $arg_sequence = $2;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+	if($key eq 'V' or $key eq 'v') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{VLAS_SPLIT}) {
+		    push(@instructions, [$key, $1]);
+		    $arg_sequence = $2;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+	if($key eq 'C' or $key eq 'c') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{CAS_SPLIT}) {
+		    push(@instructions, [$key, $1, $2, $3, $4, $5, $6]);
+		    $arg_sequence = $7;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+	if($key eq 'S' or $key eq 's') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{SCAS_SPLIT}) {
+		    push(@instructions, [$key, $1, $2, $3, $4]);
+		    $arg_sequence = $5;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+	if($key eq 'Q' or $key eq 'q') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{QBAS_SPLIT}) {
+		    push(@instructions, [$key, $1, $2, $3, $4]);
+		    $arg_sequence = $5;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+	if($key eq 'T' or $key eq 't') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{SQBAS_SPLIT}) {
+		    push(@instructions, [$key, $1, $2]);
+		    $arg_sequence = $3;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+	if($key eq 'A' or $key eq 'a') {
+	    $self->_in_error(sprintf($parse_error, $d))
+		if(!@sub_path_data);
+	    $arg_sequence = shift(@sub_path_data);
+
+	    while($arg_sequence) {
+		if($arg_sequence =~ $RE_PATH{EAAS_SPLIT}) {
+		    if($1 == 0 or $2 == 0) {
+			# 0 radius: turn into lineto
+			push(@instructions,
+			     [($key eq 'A' ? 'L' : 'l'), $6, $7]);
+		    }
+		    else {
+			push(@instructions,
+			     [$key, $1, $2, $3, $4, $5, $6, $7]);
+		    }
+		    $arg_sequence = $8;
+		}
+		else {
+		    $self->_in_error(sprintf($parse_error, $d));
+		}
+	    }
+	    next;
+	}
+
+	# If we arrive here we are in trouble.
+	$self->_in_error(sprintf($parse_error, $d));
     }
 
     return @instructions;
@@ -573,16 +789,91 @@ priority for C<SVG::Rasterize> is accuracy, not speed.
 
 =head2 Status
 
-This release is a proof of concept. It mainly shows the successful
-deployment of L<Cairo|Cairo>. The support of transform attributes
-and the establishment of the initial viewport are fully implemented.
-However, the only things you can draw at the moment are lines
-with specified color and stroke width.
+The support of transform attributes and the establishment of the
+initial viewport are fully implemented. The following elements are
+drawn at the moment:
+
+=over 4
+
+=item * line
+
+=item * path.
+
+=back
+
+The following attributes are at least partly interpreted:
+
+=over
+
+=item * transform
+
+=item * viewBox
+
+=item * preserveAspectRatio
+
+=item * style
+
+=item * fill and all associated properties
+
+=item * stroke and all associated properties
+
+=back
 
 I hope that the interface described here will be largely stable.
 However, this is not guaranteed. Some features are documented as
 likely to change, but everything is subject to change at this early
 stage.
+
+Here is my current view of the next part of the roadmap:
+
+=over 4
+
+=item Version 0.002
+
+=over 4
+
+=item paths
+
+=item basic shapes
+
+=item solid filling
+
+=item opacity
+
+=back
+
+=item Version 0.003
+
+=over 4
+
+=item error processing
+
+=item parameter validation
+
+=back
+
+=item Version 0.004
+
+=over 4
+
+=item text basics
+
+=back
+
+=item Version 0.005
+
+=over 4
+
+=item gradients and patterns
+
+=item clipping paths
+
+=item masks
+
+=back
+
+=back
+
 
 =head1 INTERFACE
 
@@ -763,6 +1054,166 @@ expects that you provide (at least) two ARRAY references with (at
 least) 6 numbers each. If you pass more parameters then the last two
 are used. If they contain more than 6 entries then the first 6 are
 used.
+
+=head3 endpoint_to_center
+
+  @result = endpoint_to_center(@input)
+  @result = SVG::Rasterize->endpoint_to_center(@input)
+  @result = $rasterize->endpoint_to_center(@input)
+
+Rasterization engines like
+L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> might use center
+parameterization instead of endpoint parametrization of an
+elliptical arc (see
+L<http://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes>).
+This method calculates the center parameters from the endpoint
+parameters given in a C<SVG> path data string. As indicated above,
+it can be called as a subroutine or a class method or an object
+method. The required parameters are:
+
+=over 4
+
+=item * x coordinate of the starting point
+
+=item * y coordinate of the starting point
+
+=item * radius in x direction
+
+=item * radius in y direction
+
+=item * angle by which the ellipse is rotated with respect to the
+positive x axis (in radiant, not degrees)
+
+=item * large arc flag
+
+=item * sweep flag
+
+=item * x coordinate of the end point
+
+=item * y coordinate of the end point.
+
+=back
+
+If the reparameterization cannot be computed an empty list is
+returned. This can have to possible reasons. Either one of the radii
+is equal (with respect to machine precision) to 0 or the start and
+end point of the arc are equal (with respect to machine
+precision). The first case should have been checked before (note
+that no rounding problems can occur here because no arithmetics is
+done with the passed values) because in this case the arc should be
+turned into a line. In the second case, the arc should just not be
+drawn.
+
+Note that the input values are not validated (e.g. if the values are
+numbers, if the flags are either 0 or 1 and so on). It is assumed
+that this has been checked before.  Furthermore, it is not checked
+if the radii are very close to 0 or start and end point are nearly
+equal.
+
+A list of the following parameters is returned (unless an empty
+list is returned due to the reasons mentioned above):
+
+=over 4
+
+=item * x coordinate of the center
+
+=item * y coordinate of the center
+
+=item * radius in x direction
+
+This value might have been increased to make the ellipse big enough
+to connect start and end point. If it was negative the absolute
+value has been used (so the return value is always positive).
+
+=item * radius in y direction
+
+This value might have been increased to make the ellipse big enough
+to connect start and end point. If it was negative the absolute
+value has been used (so the return value is always positive).
+
+=item * start angle in radiant
+
+=item * sweep angle (positive or negative) in radiant.
+
+=back
+
+
+=head3 adjust_arc_radii
+
+  @result = adjust_arc_radii(@input)
+  @result = SVG::Rasterize->adjust_arc_radii(@input)
+  @result = $rasterize->adjust_arc_radii(@input)
+
+The C<SVG> specification requires that the radii of an elliptic arc
+are increased automatically if the given values are too small to
+connect the given endpoints (see
+L<http://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes>).
+This situation can arise from rounding errors, but also for example
+during an animation. Moreover, if given radii are negative then the
+absolute values are to be taken. This method takes care of these
+adjustments and returns the new values plus some intermediate values
+that might be useful for callers, namely
+L<endpoint_to_center|/endpoint_to_center>.
+
+In detail, it requires the following parameters:
+
+=over 4
+
+=item * x coordinate of the starting point
+
+=item * y coordinate of the starting point
+
+=item * radius in x direction
+
+=item * radius in y direction
+
+=item * angle phi by which the ellipse is rotated with respect to the
+positive x axis (in radiant)
+
+=item * x coordinate of the end point
+
+=item * y coordinate of the end point.
+
+=back
+
+Note that the input values are not validated (e.g. if the values are
+numbers etc.). It is assumed that this has been checked before.
+Furthermore, it is not checked if the radii are very close to 0 or
+start and end point are nearly equal.
+
+The following values are guaranteed to be returned:
+
+=over 4
+
+=item * adjusted absolute value of the radius in x direction
+
+=item * adjusted absolute value of the radius in y direction
+
+=back
+
+This is all if one of the radii is equal to 0. Otherwise, the
+following additional values are returned:
+
+=over 4
+
+=item * sin(phi)
+
+=item * cos(phi)
+
+=item * x_1' (see C<SVG> specification link above)
+
+=item * y_1' (see C<SVG> specification link above)
+
+=item * 1 / Lambda - 1
+
+This value is only returned if Lambda is greater than 0 which is
+equivalent (assuming exact arithmetics) to the end point of the arc
+being different to the starting point. Lambda is the value
+calculated in equation (F.6.6.2) of the specification (see link
+above). 1 / Lambda - 1 is equal to the radicand in equation
+(F.6.5.2).
+
+=back
 
 =head1 ADVANCED TOPICS
 
@@ -1029,7 +1480,22 @@ situations in which the specification does not give instructions.
 However, at the moment, C<SVG::Rasterize> usually croaks whenever
 it is unhappy.
 
-=head3 Skew of 90°
+=head3 Invalid and numerically unstable values
+
+There are situations where certain values cannot be dealt with,
+e.g. denominators of 0 or negative radicands. Examples are skews of
+90 degrees or elliptical arcs where one radius is 0. In these
+situations, C<SVG::Rasterize> checks for these cases and acts
+accordingly. Great care is taken to check directly those values
+which are used as denominator, radicand etc. and not some
+mathematically equivalent expression which might evaluate to a
+slightly different value due to rounding errors. However, it is
+not checked if such an expression is very close to a critical
+value which might render the processing numerically unstable. I
+do not want to impose a certain notion of "too close" on C<SVG>
+authors. Instead it is left to them to check for these border
+cases. However, the underlying rasterization engine might still
+impose boundaries.
 
 =head1 DEPENDENCIES
 
@@ -1114,13 +1580,13 @@ L<SVG::Rasterize::Regexes|SVG::Rasterize::Regexes> for a full list.
 
 =over 4
 
-=item * PACKAGE_PART
+=item * $package_part (internal)
 
   qr/[a-zA-Z][a-zA-Z0-9\_]*/
 
-=item * PACKAGE_NAME
+=item * $SVG::Rasterize::Regexes::RE_PACKAGE{p_PACKAGE_NAME}
 
-  qr/^$PACKAGE_PART(?:\:\:PACKAGE_PART)*$/
+  qr/^$package_part(?:\:\:$package_part)*$/
 
 Package names given to methods in this class, namely the
 C<engine_class> parameters have to match this regular expression. I
@@ -1143,7 +1609,15 @@ favourite package name, you can change this variable.
 
 =item * _initial_viewport
 
+=item * _process_normalize_attributes
+
+=item * _angle
+
 =item * _draw_line
+
+=item * _split_path_data
+
+=item * _draw_path
 
 =back
 

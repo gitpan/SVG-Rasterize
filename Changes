@@ -1,5 +1,32 @@
 Revision history for SVG-Rasterize
 
+0.001005 Sun May 23 21:39:39 NZST 2010
+	 - Color filling (no gradients, patterns etc.).
+	 - (Semi-)transparent stroking and filling including
+	   different opacity values for stroke and fill and without
+	   the fill shining through transparent stroke.
+	 - Further newly supported properties (all fill and stroke
+	   properties):
+	   - fill-rule
+	   - stroke-linecap
+	   - stroke-linejoin
+	   - stroke-miterlimit
+	   - stroke-dashoffset
+	   - stroke-dasharray
+	 - Bugfixes:
+	   - in processing of explicit 'inherit' property
+	     values
+	   - in path data processing
+	   - color values are clamped at presentation time instead
+	     of parsing time (as recommended by the spec).
+
+0.001004 Fri May 21 21:19:54 NZST 2010 (unpublished)
+	 - Elliptical arcs including example script.
+
+0.001003 Thu May 20 19:59:30 NZST 2010 (unpublished)
+	 - Support for all path commands except elliptical arc.
+	 - Core documentation up-to-date.
+
 0.001002 Sun May 16 19:33:22 NZST 2010
 	 - The final transformation matrix is now applied by the
 	   rasterization engine and not by SVG::Rasterize. This is

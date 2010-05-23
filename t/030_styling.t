@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 38;
+use Test::More tests => 54;
 
 use SVG;
 use Test::Exception;
@@ -107,6 +107,49 @@ sub set_property {
     $rasterize->rasterize(svg => $svg);
 }
 
+sub inherit {
+    my $rasterize;
+    my $svg;
+    my $hook;
+    my @expected;
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('stroke-width' => '9pt');
+    $svg->firstChild->attrib('id'           => 'svg');
+    $svg->firstChild->attrib('stroke'       => 'black');
+    $svg->group(id             => 'g01',
+		'stroke'       => 'none',
+		'stroke-width' => ' inherit');
+    $hook = sub {
+	if($_[3]->{id} eq 'svg') {
+	    is($_[3]->{'stroke-width'}, '9pt', 'xsl stroke-width');
+	}
+	if($_[3]->{id} eq 'g01') {
+	    is($_[3]->{'stroke-width'}, 'inherit',
+	       'xsl stroke-width explicit inherit');
+	    is($_[3]->{'stroke'}, 'none',
+	       'xsl stroke explicit none');
+	}
+    };
+    $rasterize->before_node_hook($hook);
+    $hook = sub {
+	my ($render, $state) = @_;
+	if($state->node_attributes->{id} eq 'svg') {
+	    is($state->properties->{'stroke-width'}, 11.25,
+	       'property stroke-width on svg');
+	}
+	if($state->node_attributes->{id} eq 'g01') {
+	    is($state->properties->{'stroke-width'}, 11.25,
+	       'property stroke-width on g01');
+	    ok(!defined($state->properties->{'stroke'}),
+	       'property stroke undefined on g01');
+	}
+    };
+    $rasterize->start_node_hook($hook);
+    $rasterize->rasterize(svg => $svg);
+}
+
 sub color {
     my $rasterize;
     my $svg;
@@ -134,7 +177,7 @@ sub color {
 	       'property stroke on g02');
 	}
 	if($state->node_attributes->{id} eq 'g03') {
-	    is_deeply($state->properties->{'stroke'}, [33, 0, 255],
+	    is_deeply($state->properties->{'stroke'}, [33, -25, 306],
 	       'property stroke on g03');
 	}
     };
@@ -182,6 +225,77 @@ sub whitespace {
 	      'without attribute normalization');
 }
 
+sub dasharray {
+    my $rasterize;
+    my $svg;
+    my $hook;
+    my @expected;
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id => 'g01', 'stroke-dasharray' => '3,4');
+    @expected = ('svg', 'g01');
+    $hook = sub {
+	my ($render, $state) = @_;
+	is($state->node_attributes->{id}, shift(@expected),
+	   'expected id');
+	if($state->node_attributes->{id} eq 'g01') {
+	    is_deeply($state->properties->{'stroke-dasharray'},
+		      [3, 4],
+		      'property stroke on g01');
+	}
+    };
+    $rasterize->start_node_hook($hook);
+    $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id => 'g01', 'stroke-dasharray' => '1in, 40px');
+    @expected = ('svg', 'g01');
+    $hook = sub {
+	my ($render, $state) = @_;
+	is($state->node_attributes->{id}, shift(@expected),
+	   'expected id');
+	if($state->node_attributes->{id} eq 'g01') {
+	    is_deeply($state->properties->{'stroke-dasharray'},
+		      [90, 40],
+		      'property stroke on g01');
+	}
+    };
+    $rasterize->start_node_hook($hook);
+    $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id => 'g01', 'stroke-dasharray' => '1in,40px, 12');
+    @expected = ('svg', 'g01');
+    $hook = sub {
+	my ($render, $state) = @_;
+	is($state->node_attributes->{id}, shift(@expected),
+	   'expected id');
+	if($state->node_attributes->{id} eq 'g01') {
+	    is_deeply($state->properties->{'stroke-dasharray'},
+		      [90, 40, 12, 90, 40, 12],
+		      'property stroke on g01');
+	}
+    };
+    $rasterize->start_node_hook($hook);
+    $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id => 'g01', 'stroke-dasharray' => '1in,-40px');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/Negative value \(\-40\) in stroke\-dasharray/,
+	      'negative value in dasharray');
+}
+
 set_property;
+inherit;
 color;
 whitespace;
+dasharray;

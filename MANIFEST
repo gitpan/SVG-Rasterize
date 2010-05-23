@@ -1,6 +1,9 @@
 Changes
+examples/arcs.pl
+examples/fill_rule.pl
 examples/line.pl
 examples/path.pl
+examples/qbezier.pl
 examples/stroke_width.pl
 ignore.txt
 inc/Module/AutoInstall.pm

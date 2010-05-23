@@ -17,7 +17,7 @@ use SVG::Rasterize::Specification;
 use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 
-# $Id: State.pm 5602 2010-05-16 00:29:16Z mullet $
+# $Id: State.pm 5717 2010-05-23 09:30:21Z mullet $
 
 =head1 NAME
 
@@ -30,11 +30,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.001002
+Version 0.001005
 
 =cut
 
-our $VERSION = '0.001002';
+our $VERSION = '0.001005';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -317,20 +317,25 @@ sub _process_styling_properties {
 		validate_with(params      => $css,
 			      spec        => {$_ => $val},
 			      allow_extra => 1);
-		$properties->{$_} = $css->{$_};
+		$properties->{$_} = $css->{$_}
+		    unless($css->{$_} eq 'inherit');
 	    }
 	    else {
 		validate_with(params      => $attributes,
 			      spec        => {$_ => $val},
 			      allow_extra => 1);
-		$properties->{$_} = $attributes->{$_};
+		$properties->{$_} = $attributes->{$_}
+		    unless($attributes->{$_} eq 'inherit');
 	    }
 	}
-	elsif(defined($parent_prop->{$_}) and $spec->{inherited}) {
-	    $properties->{$_} = $parent_prop->{$_};
-	}
-	else {
-	    $properties->{$_} = $spec->{default};
+
+	if(!defined($properties->{$_})) {
+	    if(defined($parent_prop->{$_}) and $spec->{inherited}) {
+		$properties->{$_} = $parent_prop->{$_};
+	    }
+	    else {
+		$properties->{$_} = $spec->{default};
+	    }
 	}
 
 	# parse color specs
@@ -343,8 +348,6 @@ sub _process_styling_properties {
 			$rgb_entry = int(substr($rgb_entry, 0, $i)
 					 * 2.55 + 0.5);
 		    }
-		    $rgb_entry = 0   if($rgb_entry < 0);
-		    $rgb_entry = 255 if($rgb_entry > 255);
 		}
 	    }
 	    elsif(exists($COLORS{$properties->{$_}})) {
@@ -359,6 +362,40 @@ sub _process_styling_properties {
 	# lengths
 	if($hints->{length} and defined($properties->{$_})) {
 	    $properties->{$_} = $self->map_length($properties->{$_});
+	}
+
+	# specific attribute processing
+	# stroke-miterlimit
+	if($_ eq 'stroke-miterlimit') {
+	    if($properties->{$_} < 1) {
+	    croak('Value of stroke-miterlimit ('.
+		  $properties->{$_}.
+		  ') out of range (must be at least 1).'."\n");
+	    }
+	}
+
+	# stroke-dasharray
+	if($_ eq 'stroke-dasharray') {
+	    if(defined($properties->{$_})) {
+		if($properties->{$_} eq 'none') {
+		    $properties->{$_} = undef;
+		}
+		else {
+		    $properties->{$_} =
+			[map { $self->map_length($_) }
+			 split($RE_DASHARRAY{SPLIT}, $properties->{$_})];
+		    foreach my $dash (@{$properties->{$_}}) {
+			if($dash < 0) {
+			    croak("Negative value ($dash) in ".
+				  "stroke-dasharray.");
+			}
+		    }
+		    if(@{$properties->{$_}} % 2) {
+			$properties->{$_} = [@{$properties->{$_}},
+					     @{$properties->{$_}}];
+		    }
+		}
+	    }
 	}
     }
 

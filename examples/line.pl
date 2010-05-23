@@ -7,11 +7,11 @@ use SVG;
 
 my $rasterize;
 my $svg;
-my $engine;
 
 $svg       = SVG->new;
 $svg->line(x1 => 10, y1 => 10, x2 => 80, y2 => 20,
-	   style => 'stroke:rgb(255, 0, 0);stroke-width:5');
+	   style => 'stroke:rgb(255, 0, 0);stroke-width:8',
+	   'stroke-linecap' => 'round');
 $svg->line(x1 => 50, y1 => 50, x2 => 100, y2 => 100,
 	   style => 'stroke:rgb(0, 0, 100%)');
 $svg->line(x1 => 100, y1 => 100, x2 => 500, y2 => 900,
