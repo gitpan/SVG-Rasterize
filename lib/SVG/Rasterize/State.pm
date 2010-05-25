@@ -17,24 +17,19 @@ use SVG::Rasterize::Specification;
 use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 
-# $Id: State.pm 5717 2010-05-23 09:30:21Z mullet $
+# $Id: State.pm 5767 2010-05-25 03:44:10Z mullet $
 
 =head1 NAME
 
 C<SVG::Rasterize::State> - state of settings during traversal
 
-=head1 INHERITANCE
-
-  SVG::Rasterize::State is a
-    L<Class::Accessor|Class::Accessor>
-
 =head1 VERSION
 
-Version 0.001005
+Version 0.002000
 
 =cut
 
-our $VERSION = '0.001005';
+our $VERSION = '0.002000';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -411,7 +406,7 @@ sub _process_node {
     if($self->{_parent}) {
 	my $p_node_name = $self->{_parent}->node_name;
 	if(!$CHILDREN{$p_node_name}->{$name}) {
-	    $self->{_rasterize}->_in_error
+	    $self->{_rasterize}->in_error
 		(sprintf(q{Element '%s' is not a valid child of }.
 			 q{element '%s'.}, $name, $p_node_name));
 	}
@@ -568,20 +563,19 @@ C<SVG::Rasterize>).
 =head3 node_name
 
 Can only be set at construction time. Stores the name of the current
-node even if <node|/node> above is undef. If it differs from
-C<< $node->getNodeName >> (not recommended), C<node_name> is used.
+node even if L<node|/node> above is undef. If it differs from C<<
+$node->getNodeName >> (usage not recommended), C<node_name> is used.
 
 =head3 node_attributes
 
 Can only be set at construction time. Stores the attributes of the
-current node as a HASH reference even if <node|/node> above is
+current node as a HASH reference even if L<node|/node> above is
 undef. The accessor does not create a copy of the hash, so changes
 will affect the hash stored in the object. This is on purpose to
 give you full control e.g. inside a L<hook|SVG::Rasterize/Hooks>. In
 case the node has no attributes an empty hash is returned. If the
-content differs from
-C<< $node->getAttributes >> (not recommended), C<node_attributes> is
-used.
+content differs from C<< $node->getAttributes >> (usage not
+recommended), C<node_attributes> is used.
 
 =head3 matrix
 
@@ -605,8 +599,7 @@ L<transform|/transform> below.
 
 The distinction between users and developers is a bit arbitrary
 because these methods are only interesting for users who write
-hooks which probably brings them as close to being a developer
-of this distribution as a user can be.
+hooks which makes them almost a developer.
 
 =head3 map_length
 
@@ -727,8 +720,9 @@ matrix accordingly.
 
 Creates a hash with current style properties which are taken from
 (in order of decreasing preference) the C<style> attribute or the
-respective properrty attribute or (if inheritable) from the parent
-state.
+respective property attribute or (if inheritable) from the parent
+state or from the hash of default values in
+L<SVG::Rasterize::Properties|SVG::Rasterize::Properties>.
 
 =back
 

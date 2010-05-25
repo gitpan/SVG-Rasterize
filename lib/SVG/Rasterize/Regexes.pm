@@ -12,11 +12,11 @@ C<SVG::Rasterize::Regexes> - Commonly used regular expressions
 
 =head1 VERSION
 
-Version 0.001005
+Version 0.002000
 
 =cut
 
-our $VERSION = '0.001005';
+our $VERSION = '0.002000';
 
 our @EXPORT    = qw();
 our @EXPORT_OK = qw($WSP
@@ -28,7 +28,8 @@ our @EXPORT_OK = qw($WSP
                     %RE_TRANSFORM
                     %RE_VIEW_BOX
                     %RE_PATH
-                    %RE_DASHARRAY);
+                    %RE_DASHARRAY
+                    %RE_POLY);
 
 our %EXPORT_TAGS = (all           => [@EXPORT, @EXPORT_OK],
 		    whitespace    => [qw($WSP $CWSP)],
@@ -38,7 +39,8 @@ our %EXPORT_TAGS = (all           => [@EXPORT, @EXPORT_OK],
                                          %RE_TRANSFORM
                                          %RE_VIEW_BOX
                                          %RE_PATH
-                                         %RE_DASHARRAY)]);
+                                         %RE_DASHARRAY
+                                         %RE_POLY)]);
 
 our $WSP  = qr/[\x{20}\x{9}\x{D}\x{A}]/;
 our $CWSP = qr/(?:$WSP+\,?$WSP*|\,$WSP*)/;
@@ -286,6 +288,17 @@ $RE_DASHARRAY{p_DASHARRAY} = qr/^$RE_LENGTH{A_LENGTH}
                                  (?:$WSP*\,$WSP*$RE_LENGTH{A_LENGTH})*$/x;
 $RE_DASHARRAY{SPLIT}       = qr/$WSP*\,$WSP*/;
 
+# polyline / polygon
+our %RE_POLY = ();
+{
+    my  $cp = qr/$RE_NUMBER{A_NUMBER}$CWSP?$RE_NUMBER{A_NUMBER}/;
+    my  $pm = qr/$cp(?:$CWSP$cp)*/;  # point multiple
+    $RE_POLY{p_POINTS_LIST} = qr/^$WSP*$pm$WSP*$/;
+    $RE_POLY{POINTS_SPLIT}  = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
+                                  ($RE_NUMBER{A_NUMBER})$CWSP?
+                                  ($pm?)$/x;
+}
+
 1;
 
 
@@ -295,84 +308,142 @@ __END__
 
 =head1 DESCRIPTION
 
-The following regular expressions are used at different locations of
-the code to validate or extract user input. It is not part of the
-interface where exactly they are used. They are documented for
-inspection only. They are compiled into other expressions so
-changing them will probably not achieve what you might expect. The
-exception to this rule is the C<PACKAGE_NAME> variable. The other
-items are more or less a direct translation of parts of the Backus
-Naur form given by the C<SVG> specification for the C<transform>
-attribute
-(L<http://www.w3.org/TR/SVG11/coords.html#TransformAttribute>).
+This package offers a set of regular expressions for export. Many of
+them are precompiled into downstream expressions, therefore changing
+them would probably not have the desired outcome. Therefore they are
+also not documented in full detail, see the code for the details.
+
+=head2 C<A> versus C<P>
+
+Floating point number expressions are divided into C<A> (for
+attribute) and C<P> (for property) versions,
+e.g. C<$RE_NUMBER{A_FLOAT}> and C<$RE_NUMBER{P_FLOAT}>. The reason
+for that is that apparently, the C<CSS> specification prohibits
+floating point numbers in scientific notation
+(e.g. C<3e-7>). However, the C<XML> standard allows such numbers in
+attribute values. Currently, however, C<SVG::Rasterize> does not
+make use of this distinction and always uses the C<A>
+version. Therefore, it will not complain if you provide a number in
+scientific notation within a C<style> attribute although strictly,
+this is forbidden by the specification. This may or may not change
+in the future.
+
+=head2 C<p> and C<w>
+
+The regular expressions from this package might be used to build
+more complex expressions, but are also used to validate values which
+should match the expression fully (not a substring). Therefore, some
+expressions have C<p> (for pure) and C<w> (for white space)
+versions. If C<$RE> is an expression then C<$p_RE> will be
+C<qr/^$RE$/>, and C<$w_RE> will be C<qr/^$WSP*$RE$WSP*$/>.
+
+=head1 LIST OF EXPRESSIONS
+
+Two expressions are exported directly as scalars, the other ones are
+organized in a set of hashes:
 
 =over 4
 
-=item * PACKAGE_PART
+=item * $WSP  = qr/[\x{20}\x{9}\x{D}\x{A}]/
 
-  qr/[a-zA-Z][a-zA-Z0-9\_]*/
+This is one white space character as defined by the C<SVG>
+specification (inherited from C<XML> I suppose). The character class
+consists of C<SPACE>, C<TAB>, C<CR>, and C<LF>.
 
-=item * PACKAGE_NAME
+=item * $CWSP = qr/(?:$WSP+\,?$WSP*|\,$WSP*)/
 
-  qr/^$PACKAGE_PART(?:\:\:PACKAGE_PART)*$/
+White space or comma, possibly surrounded by white space.
 
-Package names given to methods in this distribution, namely the
-C<engine_class> parameters have to match this regular expression. I
-am not sure which package names exactly are allowed. If you know
-where in the Perl manpages or the Camel book this is described,
-please point me to it. If this pattern is too strict for your
-favourite package name, you can change this variable.
+=item * %RE_PACKAGE
 
-=item * INTEGER
+Currently, this hash contains only one entry:
 
-  qr/[\+\-]?\d+/;
+    $RE_PACKAGE{p_PACKAGE_NAME} =
+	qr/^$package_part(?:\:\:$package_part)*$/;
 
-Note that this allows leading zeroes like '00030'. This is for
-compliance with the C<SVG> specification.
+where C<$package_part> is a lexical variable with the value
+C<qr/[a-zA-Z][a-zA-Z0-9\_]*/>.
 
-=item * FRACTION
+Package names given to some methods in this distribution have to
+match this regular expression. I am not sure which package names
+exactly are allowed. If you know where in the Perl manpages or the
+Camel book this is described, please point me to it. If this pattern
+is too strict for your favourite package name, you can change this
+variable.
 
-  qr/[\+\-]?(?:\d*\.\d+|\d+\.)/;
+=item * %RE_NUMBER
 
-Floating point number in non-scientific notation.
-Note that this allows leading zeroes like '000.123'. This is for
-compliance with the C<SVG> specification.
+Contains expressions for integer and floating point numbers. The
+reasons for building own regular expressions are that the format is
+specified in terms of a Backus Naur form in the C<SVG>
+specification, e.g. here:
+L<http://www.w3.org/TR/SVG11/coords.html#TransformAttribute>. Note
+that these expressions allow leading zeroes like '00030' or
+'000.123'.
 
-=item * EXPONENT
+=item * %RE_LENGTH
 
-  qr/[eE][\+\-]?\d+/;
+Lengths in C<SVG> consist of a number and optionally a length
+unit. See L<Units|SVG::Rasterize/Units> in C<SVG::Rasterize>.
 
-=item * FLOAT
+=item * %RE_COLOR
 
-  qr/$FRACTION$EXPONENT?|$INTEGER$EXPONENT/;
+Currently only contains C<$RE_COLOR{p_RGB}> representing an C<SVG>
+color specification as something like C<rgb(0, 255, 31)>. It will
+probably be expanded when C<SVG::Rasterize> supports color profiles
+and such.
 
-Floating point number in decimal or scientific notation.
+=item * %RE_TRANSFORM
 
-=item * P_NUMBER
+Regular expressions required to parse values of the C<transform>
+attribute. These expressions are constructed according to the
+Backus Naur form at
+L<http://www.w3.org/TR/SVG11/coords.html#TransformAttribute>.
 
-  qr/$INTEGER|$FRACTION/;
+=item * %RE_VIEW_BOX
 
-Number allowed in C<CSS> compliant style properties: integer
-or float in decimal notation.
+Regular expressions required to parse values of the C<viewBox> and
+C<preserveAspectRatio> attributes.
 
-=item * A_NUMBER
+=item * %RE_PATH
 
-  qr/$INTEGER|$FLOAT/;
+Regular expressions required to parse path data strings. These
+expressions are constructed according to the Backus Naur form at
+L<http://www.w3.org/TR/SVG11/paths.html#PathDataBNF>.
 
-Number allowed in C<XML> attributes. Integer or float in either
-decimal or scientific notation.
+=item * %RE_DASHARRAY
 
-=item * UNIT
+Regular expressions required to parse values of the
+C<stroke-dasharray> property.
 
-  qr/em|ex|px|pt|pc|cm|mm|in|\%/;
+=item * %RE_POLY
 
-=item * P_LENGTH
+Regular expressions required to parse values of the C<points>
+attribute of C<polyline> and C<polygon> elements. These expressions
+are constructed according to the Backus Naur form at
+L<http://www.w3.org/TR/SVG11/shapes.html#PointsBNF>.
 
-  qr/$P_NUMBER$UNIT?/;
+=back
 
-=item * A_LENGTH
 
-  qr/$A_NUMBER$UNIT?/;
+=head1 C<EXPORT_TAGS>
+
+The following export tags can be used like
+
+  use SVG::Rasterize::Regexes qw(:whitespace);
+
+=over 4
+
+=item * C<:all>
+
+=item * C<:whitespace>
+
+C<$WSP> and C<$CWSP>.
+
+=item * C<:attributes>
+
+C<%RE_NUMBER>, C<%RE_LENGTH>, C<%RE_COLOR>, C<%RE_TRANSFORM>,
+C<%RE_VIEW_BOX>, C<%RE_PATH>, C<%RE_DASHARRAY>, C<%RE_POLY>.
 
 =back
 

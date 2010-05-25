@@ -1,5 +1,18 @@
 Revision history for SVG-Rasterize
 
+0.002000 Tue May 25 15:42:09 NZST 2010
+	 Documentation updates.
+
+0.001006 Tue May 25 15:06:16 NZST 2010 (unpublished)
+	 - Adds support for all basic shapes
+	   - rect
+	   - circle
+	   - ellipse
+	   - (line was already supported)
+	   - polyline
+	   - polygon
+	 - Revision of large parts of the docu.
+
 0.001005 Sun May 23 21:39:39 NZST 2010
 	 - Color filling (no gradients, patterns etc.).
 	 - (Semi-)transparent stroking and filling including

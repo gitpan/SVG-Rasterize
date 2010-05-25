@@ -7,7 +7,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Specification.pm 5710 2010-05-23 09:04:11Z mullet $
+# $Id: Specification.pm 5749 2010-05-24 20:14:17Z mullet $
 
 =head1 NAME
 
@@ -15,11 +15,11 @@ C<SVG::Rasterize::Specification> - data structures derived from DTD
 
 =head1 VERSION
 
-Version 0.001005
+Version 0.001006
 
 =cut
 
-our $VERSION = '0.001005';
+our $VERSION = '0.001006';
 
 our @EXPORT    = qw(%CHILDREN %ATTR_VAL %ATTR_HINTS);
 our @EXPORT_OK = qw();
@@ -6839,7 +6839,7 @@ our %ATTR_VAL =
                                                                   regex    => qr/visiblePainted|visibleFill|visibleStroke|visible|painted|fill|stroke|all|none|inherit/},
                                'points'                       => {optional => 0,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_POLY{p_POINTS_LIST}},
                                'requiredExtensions'           => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr//},
@@ -6992,7 +6992,7 @@ our %ATTR_VAL =
                                                                   regex    => qr/visiblePainted|visibleFill|visibleStroke|visible|painted|fill|stroke|all|none|inherit/},
                                'points'                       => {optional => 0,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_POLY{p_POINTS_LIST}},
                                'requiredExtensions'           => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr//},

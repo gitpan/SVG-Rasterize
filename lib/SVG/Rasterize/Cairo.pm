@@ -9,24 +9,19 @@ use 5.008009;
 use Carp;
 use Cairo;
 
-# $Id: Cairo.pm 5716 2010-05-23 09:25:38Z mullet $
+# $Id: Cairo.pm 5743 2010-05-24 08:02:58Z mullet $
 
 =head1 NAME
 
 C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
-=head1 INHERITANCE
-
-  SVG::Rasterize::Cairo is a
-    L<Class::Accessor|Class::Accessor>
-
 =head1 VERSION
 
-Version 0.001005
+Version 0.001006
 
 =cut
 
-our $VERSION = '0.001005';
+our $VERSION = '0.001006';
 
 
 __PACKAGE__->mk_accessors(qw(width height));
@@ -199,22 +194,6 @@ sub _fill_and_stroke {
     $context->paint;
 }
 
-sub draw_line {
-    my ($self, $state, $x1, $y1, $x2, $y2) = @_;
-    my $context                            = $self->{context};
-    
-    $context->save;
-
-    $context->set_matrix(Cairo::Matrix->init(@{$state->matrix}));
-
-    $context->move_to($x1, $y1);
-    $context->line_to($x2, $y2);
-
-    $self->_stroke($state->properties);
-    $context->restore;
-    return;
-}
-
 sub draw_path {
     my ($self, $state, @instructions) = @_;
     my $context                       = $self->{context};
@@ -268,12 +247,12 @@ sub draw_path {
 	if($_->[0] eq 'V') {
 	    @last_control = ();
 	    my @curr = $context->get_current_point;
-	    $context->line_to($curr[0], $_->[2]);
+	    $context->line_to($curr[0], $_->[1]);
 	    next;
 	}
 	if($_->[0] eq 'v') {
 	    @last_control = ();
-	    $context->rel_line_to(0, $_->[2]);
+	    $context->rel_line_to(0, $_->[1]);
 	    next;
 	}
 	if($_->[0] eq 'C') {
@@ -513,8 +492,6 @@ have to implement.
 
 These are the methods which alternative rasterization engines have
 to implement.
-
-=head3 draw_line
 
 =head3 draw_path
 

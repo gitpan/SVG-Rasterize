@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 177;
+use Test::More tests => 182;
 
 use SVG;
 use Test::Exception;
@@ -352,6 +352,17 @@ sub dasharray_validation {
        '1.2, 1.8pt,3em ,  7%');
 }
 
+sub poly_points_validation {
+    ok('1 2 3 4' =~ $RE_POLY{p_POINTS_LIST},
+       q{poly '1 2 3 4'});
+    ok('1 2 3' !~ $RE_POLY{p_POINTS_LIST},
+       q{poly '1 2 3'});
+    my ($x, $y, $rest) = '1 2 3 4' =~ $RE_POLY{POINTS_SPLIT};
+    is($x, 1, 'split x');
+    is($y, 2, 'split y');
+    is($rest, '3 4', 'split rest');
+}
+
 transform_validation;
 units;
 typeglobs;
@@ -361,3 +372,4 @@ path_data_splitting;
 angle;
 adjust_arc_radii;
 dasharray_validation;
+poly_points_validation;

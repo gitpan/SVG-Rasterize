@@ -13,10 +13,11 @@ use SVG::Rasterize::Regexes qw(:whitespace
                                %RE_PACKAGE
                                %RE_NUMBER
                                %RE_LENGTH
-                               %RE_PATH);
+                               %RE_PATH
+                               %RE_POLY);
 use SVG::Rasterize::State;
 
-# $Id: Rasterize.pm 5720 2010-05-23 09:37:42Z mullet $
+# $Id: Rasterize.pm 5766 2010-05-25 03:22:50Z mullet $
 
 =head1 NAME
 
@@ -29,11 +30,11 @@ C<SVG::Rasterize> - rasterize SVG content to pixel graphics
 
 =head1 VERSION
 
-Version 0.001005
+Version 0.002000
 
 =cut
 
-our $VERSION = '0.001005';
+our $VERSION = '0.002000';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -405,16 +406,7 @@ sub end_node_hook {
 #                                                                         #
 ###########################################################################
 
-sub _draw_line {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $x1             = $state->map_length($attributes->{x1} || 0);
-    my $y1             = $state->map_length($attributes->{y1} || 0);
-    my $x2             = $state->map_length($attributes->{x2} || 0);
-    my $y2             = $state->map_length($attributes->{y2} || 0);
-
-    return $self->{engine}->draw_line($state, $x1, $y1, $x2, $y2);
-}
+################################## Paths ##################################
 
 sub _split_path_data {
     my ($self, $d)    = @_;
@@ -430,7 +422,7 @@ sub _split_path_data {
 	my $key = shift(@sub_path_data);
 
 	if($key eq 'M' or $key eq 'm') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -444,7 +436,7 @@ sub _split_path_data {
 		    $key = 'l' if($key eq 'm');
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
@@ -454,7 +446,7 @@ sub _split_path_data {
 	    next;
 	}
 	if($key eq 'L' or $key eq 'l') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -464,13 +456,13 @@ sub _split_path_data {
 		    $arg_sequence = $3;
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
 	}
 	if($key eq 'H' or $key eq 'h') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -480,13 +472,13 @@ sub _split_path_data {
 		    $arg_sequence = $2;
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
 	}
 	if($key eq 'V' or $key eq 'v') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -496,13 +488,13 @@ sub _split_path_data {
 		    $arg_sequence = $2;
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
 	}
 	if($key eq 'C' or $key eq 'c') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -512,13 +504,13 @@ sub _split_path_data {
 		    $arg_sequence = $7;
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
 	}
 	if($key eq 'S' or $key eq 's') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -528,13 +520,13 @@ sub _split_path_data {
 		    $arg_sequence = $5;
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
 	}
 	if($key eq 'Q' or $key eq 'q') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -544,13 +536,13 @@ sub _split_path_data {
 		    $arg_sequence = $5;
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
 	}
 	if($key eq 'T' or $key eq 't') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -560,13 +552,13 @@ sub _split_path_data {
 		    $arg_sequence = $3;
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
 	}
 	if($key eq 'A' or $key eq 'a') {
-	    $self->_in_error(sprintf($parse_error, $d))
+	    $self->in_error(sprintf($parse_error, $d))
 		if(!@sub_path_data);
 	    $arg_sequence = shift(@sub_path_data);
 
@@ -584,14 +576,14 @@ sub _split_path_data {
 		    $arg_sequence = $8;
 		}
 		else {
-		    $self->_in_error(sprintf($parse_error, $d));
+		    $self->in_error(sprintf($parse_error, $d));
 		}
 	    }
 	    next;
 	}
 
 	# If we arrive here we are in trouble.
-	$self->_in_error(sprintf($parse_error, $d));
+	$self->in_error(sprintf($parse_error, $d));
     }
 
     return @instructions;
@@ -599,12 +591,223 @@ sub _split_path_data {
 
 sub _draw_path {
     my ($self, $state) = @_;
-    my $path_data      = $state->node_attributes->{d} || '';
+    my $path_data      = $state->node_attributes->{d};
 
     return if(!$path_data);
 
     return $self->{engine}->draw_path
 	($state, $self->_split_path_data($path_data));
+}
+
+############################### Basic Shapes ##############################
+
+sub _draw_rect {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+    my $x              = $state->map_length($attributes->{x} || 0);
+    my $y              = $state->map_length($attributes->{y} || 0);
+    my $w              = $attributes->{width};
+    my $h              = $attributes->{height};
+    my $rx             = $attributes->{rx};
+    my $ry             = $attributes->{ry};
+
+    $self->in_error("Rectangle without width.\n")  if(!defined($w));
+    $self->in_error("Rectangle without height.\n") if(!defined($h));
+
+    $w = $state->map_length($w);
+    $h = $state->map_length($h);
+    $self->in_error("Negative rectangle width ($w).\n")  if($w < 0);
+    $self->in_error("Negative rectangle height ($h).\n") if($h < 0);
+    return if(!$w or !$h);
+
+    if(defined($rx)) {
+	$rx = $state->map_length($rx);
+	$self->in_error("Negative rectangle corner x radius ($rx).\n")
+	    if($rx < 0);
+	$ry = $rx if(!defined($ry));
+    }
+    if(defined($ry)) {
+	$ry = $state->map_length($ry);
+	$self->in_error("Negative rectangle corner y radius ($ry).\n")
+	    if($ry < 0);
+	$rx = $ry if(!defined($rx));
+    }
+
+    $rx = $ry = 0 if(!$rx or !$ry);
+    $rx = $w / 2 if($rx > $w / 2);
+    $ry = $h / 2 if($ry > $h / 2);
+
+    my $engine = $self->{engine};
+    if($engine->can('draw_rect')) {
+	return $engine->draw_rect($state, $x, $y, $w, $h, $rx, $ry);
+    }
+    else {
+	if($rx) {
+	    return $engine->draw_path
+		($state,
+		 ['M', $x, $y + $ry],
+		 ['a', $rx, $ry, 0, 0, 1, $rx, -$ry],
+		 ['h', $w - 2*$rx],
+		 ['a', $rx, $ry, 0, 0, 1, $rx, $ry],
+		 ['v', $h - 2*$ry],
+		 ['a', $rx, $ry, 0, 0, 1, -$rx, $ry],
+		 ['h', -($w - 2*$rx)],
+		 ['a', $rx, $ry, 0, 0, 1, -$rx, -$ry],
+		 ['Z']);
+	}
+	else {
+	    return $engine->draw_path
+		($state,
+		 ['M', $x, $y],
+		 ['h', $w],
+		 ['v', $h],
+		 ['h', -$w],
+		 ['Z']);
+	}
+    }
+}
+
+sub _draw_circle {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+    my $cx             = $state->map_length($attributes->{cx} || 0);
+    my $cy             = $state->map_length($attributes->{cy} || 0);
+    my $r              = $attributes->{r};
+
+    $self->in_error("Circle without radius.\n") if(!defined($r));
+
+    $r = $state->map_length($r);
+    $self->in_error("Negative circle radius ($r).\n") if($r < 0);
+    return if(!$r);
+
+    my $engine = $self->{engine};
+    if($engine->can('draw_circle')) {
+	return $engine->draw_circle($state, $cx, $cy, $r);
+    }
+    else {
+	return $engine->draw_path
+	    ($state,
+	     ['M', $cx + $r, $cy],
+	     ['A', $r, $r, 0, 1, 1, $cx, $cy - $r],
+	     ['A', $r, $r, 0, 0, 1, $cx + $r, $cy],
+	     ['Z']);
+    }
+}
+
+sub _draw_ellipse {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+    my $cx             = $state->map_length($attributes->{cx} || 0);
+    my $cy             = $state->map_length($attributes->{cy} || 0);
+    my $rx             = $attributes->{rx};
+    my $ry             = $attributes->{ry};
+
+    $self->in_error("Ellipse without x radius.\n") if(!defined($rx));
+    $self->in_error("Ellipse without y radius.\n") if(!defined($ry));
+
+    $rx = $state->map_length($rx);
+    $ry = $state->map_length($ry);
+    $self->in_error("Negative ellipse x radius ($rx).\n") if($rx < 0);
+    $self->in_error("Negative ellipse y radius ($ry).\n") if($ry < 0);
+    return if(!$rx or !$ry);
+
+    my $engine = $self->{engine};
+    if($engine->can('draw_ellipse')) {
+	return $engine->draw_ellipse($state, $cx, $cy, $rx, $ry);
+    }
+    else {
+	return $engine->draw_path
+	    ($state,
+	     ['M', $cx + $rx, $cy],
+	     ['A', $rx, $ry, 0, 1, 1, $cx, $cy - $ry],
+	     ['A', $rx, $ry, 0, 0, 1, $cx + $rx, $cy],
+	     ['Z']);
+    }
+}
+
+sub _draw_line {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+    my $x1             = $state->map_length($attributes->{x1} || 0);
+    my $y1             = $state->map_length($attributes->{y1} || 0);
+    my $x2             = $state->map_length($attributes->{x2} || 0);
+    my $y2             = $state->map_length($attributes->{y2} || 0);
+    my $engine         = $self->{engine};
+
+    if($engine->can('draw_line')) {
+	return $engine->draw_line($state, $x1, $y1, $x2, $y2);
+    }
+    else {
+	return $engine->draw_path
+	    ($state, ['M', $x1, $y1], ['L', $x2, $y2]);
+    }
+}
+
+sub _draw_polyline {
+    my ($self, $state) = @_;
+    my $points_str     = $state->node_attributes->{points};
+    my $parse_error    =
+	"Failed to process the polyline points string %s correctly. ".
+	"Please report this as a bug and include the string into the ".
+	"bug report.\n";
+
+    return if(!$points_str);
+
+    my @points;
+    while($points_str) {
+	if($points_str =~ $RE_POLY{POINTS_SPLIT}) {
+	    push(@points, [$1, $2]);
+	    $points_str = $3;
+	}
+	else {
+	    $self->in_error(sprintf($parse_error, $points_str));
+	}
+    }
+
+    my $engine = $self->{engine};
+    if($engine->can('draw_polyline')) {
+	return $engine->draw_polyline($state, @points);
+    }
+    else {
+	return $engine->draw_path
+	    ($state,
+	     ['M', @{shift(@points)}],
+	     map { ['L', @$_] } @points);
+    }
+}
+
+sub _draw_polygon {
+    my ($self, $state) = @_;
+    my $points_str     = $state->node_attributes->{points};
+    my $parse_error    =
+	"Failed to process the polygon points string %s correctly. ".
+	"Please report this as a bug and include the string into the ".
+	"bug report.\n";
+
+    return if(!$points_str);
+
+    my @points;
+    while($points_str) {
+	if($points_str =~ $RE_POLY{POINTS_SPLIT}) {
+	    push(@points, [$1, $2]);
+	    $points_str = $3;
+	}
+	else {
+	    $self->in_error(sprintf($parse_error, $points_str));
+	}
+    }
+
+    my $engine = $self->{engine};
+    if($engine->can('draw_polygon')) {
+	return $engine->draw_polygon($state, @points);
+    }
+    else {
+	return $engine->draw_path
+	    ($state,
+	     ['M', @{shift(@points)}],
+	     (map { ['L', @$_] } @points),
+	     ['Z']);
+    }
 }
 
 ###########################################################################
@@ -613,7 +816,7 @@ sub _draw_path {
 #                                                                         #
 ###########################################################################
 
-sub _in_error {
+sub in_error {
     my ($self, $message) = @_;
 
     croak $message;
@@ -720,8 +923,20 @@ sub rasterize {
 	}
 	else {
 	    # do something
-	    $self->_draw_line($state) if($state->node_name eq 'line');
-	    $self->_draw_path($state) if($state->node_name eq 'path');
+	    $self->_draw_path($state)
+		if($state->node_name eq 'path');
+	    $self->_draw_rect($state)
+		if($state->node_name eq 'rect');
+	    $self->_draw_circle($state)
+		if($state->node_name eq 'circle');
+	    $self->_draw_ellipse($state)
+		if($state->node_name eq 'ellipse');
+	    $self->_draw_line($state)
+		if($state->node_name eq 'line');
+	    $self->_draw_polyline($state)
+		if($state->node_name eq 'polyline');
+	    $self->_draw_polygon($state)
+		if($state->node_name eq 'polygon');
 
 	    $self->end_node_hook->($self, $state);
 	    $state = pop @stack;
@@ -789,19 +1004,19 @@ priority for C<SVG::Rasterize> is accuracy, not speed.
 
 =head2 Status
 
-The support of transform attributes and the establishment of the
-initial viewport are fully implemented. The following elements are
-drawn at the moment:
+The following elements are drawn at the moment:
 
 =over 4
 
-=item * line
+=item * C<path>
 
-=item * path.
+=item * all basic shapes: C<rect>, C<circle>, C<ellipse>, C<line>,
+C<polyline>, C<polygon>.
 
 =back
 
-The following attributes are at least partly interpreted:
+The inheritance of styling properties is implemented. The following
+attributes are at least partly interpreted:
 
 =over
 
@@ -827,20 +1042,6 @@ stage.
 Here is my current view of the next part of the roadmap:
 
 =over 4
-
-=item Version 0.002
-
-=over 4
-
-=item paths
-
-=item basic shapes
-
-=item solid filling
-
-=item opacity
-
-=back
 
 =item Version 0.003
 
@@ -1011,7 +1212,7 @@ C<write> method hands all parameters over to the backend. See
 L<write|SVG::Rasterize::Cairo/write> in C<SVG::Rasterize::Cairo> for
 an example.
 
-=head2 Methods for Subclass Developers
+=head2 Methods for Developers
 
 =head3 init
 
@@ -1024,6 +1225,11 @@ name to initialize the attribute. If such an accessor (or in fact,
 any method of that name) does not exist a warning is printed and the
 argument is ignored. Readonly attributes that are allowed to be set
 at initialization time are set separately at the beginning.
+
+=head3 in_error
+
+Currently, this method is just an alias for C<croak>. This will
+change in the future.
 
 =head2 Class Methods
 
@@ -1414,17 +1620,17 @@ Executed right after creation of the
 L<SVG::Rasterize::State|SVG::Rasterize::State> object. The
 attributes have been parsed,
 L<properties|SVG::Rasterize::State/properties> and
-L<matrix|SVG::Rasterize::State/matrix> have been set etc. The
-method receives the C<SVG::Rasterize> object and the
-L<SVG::Rasterize::State|SVG::Rasterize::State> object.
+L<matrix|SVG::Rasterize::State/matrix> have been set etc. The method
+receives the C<SVG::Rasterize> object and the
+L<SVG::Rasterize::State|SVG::Rasterize::State> object as parameters.
 
 =item * end_node_hook
 
 Executed right before the
-L<SVG::Rasterize::State|SVG::Rasterize::State> runs out of
-scope because the current node is done with. The
-method receives the C<SVG::Rasterize> object and the
-L<SVG::Rasterize::State|SVG::Rasterize::State> object.
+L<SVG::Rasterize::State|SVG::Rasterize::State> runs out of scope
+because the current node is done with. The method receives the
+C<SVG::Rasterize> object and the
+L<SVG::Rasterize::State|SVG::Rasterize::State> object as parameters.
 
 =back
 
@@ -1436,12 +1642,12 @@ B<Examples:>
 
 C<SVG::Rasterize> does not render pixel graphics itself. By default,
 it uses the L<cairo|http://www.cairographics.org/> library through
-its L<Perl bindings|Cairo>. The interface is provided by
+its L<Perl bindings|Cairo>. The interface is documented in
 L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>. However, this
 interface could also be implemented by other backends. In the
 future, it will be documented in
 L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>. Currently, it has to
-be consisered unstable, though, and the documentation is sparse.
+be considered unstable, though, and the documentation is sparse.
 
 =head3 engine
 
@@ -1456,6 +1662,14 @@ The attribute is readonly, but, of course, you are able to
 manipulate the object directly via its methods. However, this is
 not part of the normal workflow and you do this on your own risk
 ;-).
+
+
+=head1 EXAMPLES
+
+There are a few example scripts in the C<examples> directory of the
+tar ball. However, they rather illustrate the currently supported
+C<SVG> subset than options of C<SVG::Rasterize>.
+
 
 =head1 DIAGNOSTICS
 
@@ -1601,8 +1815,6 @@ favourite package name, you can change this variable.
 
 =over 4
 
-=item * _in_error
-
 =item * _create_engine
 
 =item * _process_initial_viewport_length
@@ -1613,11 +1825,15 @@ favourite package name, you can change this variable.
 
 =item * _angle
 
-=item * _draw_line
-
 =item * _split_path_data
 
 =item * _draw_path
+
+=item * _draw_rect
+
+=item * _draw_circle
+
+=item * _draw_line
 
 =back
 

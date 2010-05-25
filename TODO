@@ -1,10 +1,5 @@
 Roadmap
 -------
-Version 0.002
-- paths
-- basic shapes
-- solid filling
-
 Version 0.003
 - error processing
 - parameter validation
@@ -13,7 +8,6 @@ Version 0.004
 - text basics
 
 Version 0.005
-- opacity
 - gradients and patterns
 - clipping paths
 - masks
@@ -29,11 +23,7 @@ which are not listed here because I won't forget them.
 - document engine_class attribute
 - introduce engine_args attribute
 - documentation on SVG validation.
-- method _in_error needs to be public (to be used by State).
-- document all regexes
 - ID and NMTOKEN in %ATTR_VAL
-- validation possible for those attributes that still have type
-  CDATA?
 
 done
 ----
@@ -68,3 +58,8 @@ done
 - stroke-dasharray and stroke-dashoffset
 - clamp color values only at presentation time
 - update docu: The state is not that much proof of concept any more.
+- method _in_error needs to be public (to be used by State).
+- document all regexes
+- validation possible for those attributes that still have type
+  CDATA? - Some stuff will have to (further) validated in State or
+  Rasterize. However, the engine should get clean stuff.
