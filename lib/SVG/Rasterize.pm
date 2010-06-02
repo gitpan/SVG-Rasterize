@@ -6,8 +6,7 @@ use strict;
 
 use 5.008009;
 
-use Carp;
-use Params::Validate qw(validate validate_pos :types);
+use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(:whitespace
                                %RE_PACKAGE
@@ -15,37 +14,35 @@ use SVG::Rasterize::Regexes qw(:whitespace
                                %RE_LENGTH
                                %RE_PATH
                                %RE_POLY);
+use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::State;
 
-# $Id: Rasterize.pm 5766 2010-05-25 03:22:50Z mullet $
+# $Id: Rasterize.pm 5899 2010-06-02 08:40:19Z mullet $
 
 =head1 NAME
 
 C<SVG::Rasterize> - rasterize SVG content to pixel graphics
 
-=head1 INHERITANCE
-
-  SVG::Rasterize is a
-    L<Class::Accessor|Class::Accessor>
-
 =head1 VERSION
 
-Version 0.002000
+Version 0.003000
 
 =cut
 
-our $VERSION = '0.002000';
+our $VERSION = '0.003000';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
                              svg
                              width
                              height
-                             engine_class));
+                             engine_class
+                             engine_args));
 
 __PACKAGE__->mk_ro_accessors(qw(engine
                                 width
-                                height));
+                                height
+                                state));
 
 ###########################################################################
 #                                                                         #
@@ -77,7 +74,7 @@ sub multiply_matrices {
 sub _angle {
     shift(@_) if(@_ % 2);
     my ($x1, $y1, $x2, $y2) = @_;
-    my $l_prod     = sqrt(($x1**2 + $y1**2) * ($x2**2 + $y2**2));
+    my $l_prod              = sqrt(($x1**2 + $y1**2) * ($x2**2 + $y2**2));
 
     return undef if($l_prod == 0);
 
@@ -182,32 +179,40 @@ sub init {
     foreach(keys %args) {
 	my $meth = $_;
 	if($self->can($meth)) { $self->$meth($args{$meth}) }
-	else { carp "Unrecognized init parameter $meth.\n" }
+	else { warn "Unrecognized init parameter $meth.\n" }
     }
+
+    $self->{in_error_hook} ||= sub {
+	my ($self, $state) = @_;
+	my $engine         = $self->engine or return;
+	my $width          = $engine->width;
+	my $height         = $engine->height;
+	my $min            = $width < $height ? $width : $height;
+	my $edge           = $min / 8;
+	my $properties     = $state->properties;
+
+	$properties->{'fill'}         = [45, 45, 45];
+	$properties->{'fill-opacity'} = 0.6;
+	
+	my $x = 0;
+	while($x < $width) {
+	    my $y = 0;
+	    while($y < $height) {
+		$engine->draw_path($state,
+				   ['M', $x, $y],
+				   ['h', $edge],
+				   ['v', $edge],
+				   ['h', -$edge],
+				   ['z']);
+		$y += 2 * $edge;
+	    }
+	    $x += 2 * $edge;
+	}
+
+	return;
+    };
 
     return $self;
-}
-
-sub _process_initial_viewport_length {
-    my ($self, $length, $description) = @_;
-    my $eff_length;
-
-    if($length) {
-	# a length of 100% is as good as none here
-	return undef if($length =~ /^$WSP*100\%$WSP*$/);
-
-	$eff_length = eval { $self->map_abs_length($length) };
-	if($@) {
-	    # should be impossible because checked in rasterize
-	    croak("Invalid $description ($length) specified:\n$@\n");
-	}
-	$eff_length = int($eff_length + 0.5);
-	if($eff_length < 0) {
-	    croak("Negative $description ($length) specified.\n");
-	}
-    }
-
-    return $eff_length;
 }
 
 sub _initial_viewport {
@@ -216,64 +221,101 @@ sub _initial_viewport {
     my @width                               = ();
     my @height                              = ();
 
-    # collecting information
-    # width set by user in rasterize
-    $width[0]  = $self->_process_initial_viewport_length
-	($args_ptr->{width}, 'external width');
-    $width[1]  = $self->_process_initial_viewport_length
-	($node_attributes->{width}, 'width attribute');
-    $height[0] = $self->_process_initial_viewport_length
-	($args_ptr->{height}, 'external height');
-    $height[1] = $self->_process_initial_viewport_length
-	($node_attributes->{height}, 'height attribute');
+    # NB: $node_attributes are not validated and can have any value
+    # at this point. However, the values of $args_ptr have been
+    # validated.
 
+    # collecting information
+    # width
+    $width[0] = defined($args_ptr->{width})
+	? int($self->map_abs_length($args_ptr->{width}) + 0.5) : undef;
+    $self->ex_su_iw($width[0]) if(($width[0] || 0) < 0);
+
+    $width[1] = defined($node_attributes->{width})
+	? $node_attributes->{width} : undef;
+    if($width[1]) {
+	$self->ex_su_iw($width[1])
+	    if($width[1] !~ $RE_LENGTH{p_A_LENGTH});
+	$width[1] = undef if($width[1] eq '100%');
+    }
+    if($width[1]) {
+	if($width[1] !~ $RE_LENGTH{p_ABS_A_LENGTH}) {
+	    $self->ex_us_si("Relative length (different from 100%) for ".
+			    "width of root element ($width[1])");
+	}
+	$width[1] = int($self->map_abs_length($width[1]) + 0.5);
+	$self->ex_su_iw($width[1]) if($width[1] < 0);
+    }
+    
+    # height
+    $height[0] = defined($args_ptr->{height})
+	? int($self->map_abs_length($args_ptr->{height}) + 0.5) : undef;
+    $self->ex_su_iw($height[0]) if(($height[0] || 0) < 0);
+
+    $height[1] = defined($node_attributes->{height})
+	? $node_attributes->{height} : undef;
+    if($height[1]) {
+	$self->ex_su_iw($height[1])
+	    if($height[1] !~ $RE_LENGTH{p_A_LENGTH});
+	$height[1] = undef if($height[1] eq '100%');
+    }
+    if($height[1]) {
+	if($height[1] !~ $RE_LENGTH{p_ABS_A_LENGTH}) {
+	    $self->ex_us_si("Relative length (different from 100%) for ".
+			    "height of root element ($height[1])");
+	}
+	$height[1] = int($self->map_abs_length($height[1]) + 0.5);
+	$self->ex_su_iw($height[1]) if($height[1] < 0);
+    }
+    
     # width mapping
     if($width[0]) {
 	if($width[1]) { $matrix->[0] = $width[0] / $width[1]  }
 	else          { $node_attributes->{width} = $width[0] }
     }
     elsif($width[1]) { $width[0] = $width[1] }
-    else { 
-	croak("Failed to determine the width of the ".
-	      "initial viewport.\n");
-    }
+    else             { $width[0] = 0         }
+
     # same for height
     if($height[0]) {
 	if($height[1]) { $matrix->[3] = $height[0] / $height[1]  }
 	else           { $node_attributes->{height} = $height[0] }
     }
     elsif($height[1]) { $height[0] = $height[1] }
-    else { 
-	croak("Failed to determine the height of the ".
-	      "initial viewport.\n");
-    }
+    else              { $height[0] = 0          }
 
     $args_ptr->{width}  = $width[0];
     $args_ptr->{height} = $height[0];
     $args_ptr->{matrix} = $matrix;
+
+    return;
 }
 
 sub _create_engine {
     my ($self, $args_ptr) = @_;
+
+    # The values of $args_ptr have been validated, but
+    # $args_ptr->{engine_args} is only validated to be a HASH
+    # reference (if it exists at all).
+
     my $default           = 'SVG::Rasterize::Cairo';
     my %engine_args       = (width  => $args_ptr->{width},
-			     height => $args_ptr->{height});
+			     height => $args_ptr->{height},
+			     %{$args_ptr->{engine_args} || {}});
 
-    # TODO: class name testing
     $args_ptr->{engine_class} ||= $default;
     my $load_success = eval "require $args_ptr->{engine_class}";
     if(!$load_success and $args_ptr->{engine_class} ne $default) {
-	carp("Unable to load $args_ptr->{engine_class}: $!. ".
+	warn("Unable to load $args_ptr->{engine_class}: $!. ".
 	     "Falling back to $default.\n");
 	$args_ptr->{engine_class} = $default;
 	$load_success = eval "require $args_ptr->{engine_class}";
     }
-    if(!$load_success) {
-	croak("Unable to load $args_ptr->{engine_class}: $!. ".
-	      "Bailing out.\n");
-    }
+    if(!$load_success) { ex_se_en_lo($args_ptr->{engine_class}, $!) }
 
     $self->{engine} = $args_ptr->{engine_class}->new(%engine_args);
+
+    return $self->{engine};
 }
 
 ###########################################################################
@@ -286,8 +328,9 @@ sub px_per_in {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
-			      optional => 1 });
+	validate_with(params  => \@args,
+		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{px_per_in} = $args[0];
     }
 
@@ -300,8 +343,9 @@ sub in_per_cm {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
-			      optional => 1 });
+	validate_with(params  => \@args,
+		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{in_per_cm} = $args[0];
     }
 
@@ -312,8 +356,9 @@ sub in_per_mm {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
-			      optional => 1 });
+	validate_with(params  => \@args,
+		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{in_per_mm} = $args[0];
     }
 
@@ -324,8 +369,9 @@ sub in_per_pt {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
-			      optional => 1 });
+	validate_with(params  => \@args,
+		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{in_per_pt} = $args[0];
     }
 
@@ -336,8 +382,9 @@ sub in_per_pc {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, { regex    => $RE_NUMBER{p_A_NUMBER},
-			      optional => 1 });
+	validate_with(params  => \@args,
+		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{in_per_pc} = $args[0];
     }
 
@@ -347,11 +394,11 @@ sub in_per_pc {
 sub map_abs_length {
     my ($self, @args) = @_;
 
-    # To me it is unclear if leading/trailing white space is allowed
-    # in a length attribute. I allow it.
     my ($number, $unit);
     if(@args < 2) {
-	validate_pos(@args, {regex => $RE_LENGTH{p_A_LENGTH}});
+	validate_with(params  => \@args,
+		      spec    => [{regex => $RE_LENGTH{p_A_LENGTH}}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	($number, $unit) =
 	    $args[0] =~ /^($RE_NUMBER{A_NUMBER})($RE_LENGTH{UNIT}?)$/;
     }
@@ -359,24 +406,27 @@ sub map_abs_length {
 
     my $dpi = $self->px_per_in;
     if(!$unit)           { return $number }
-    elsif($unit eq 'em') { croak "Unit em in map_abs_length.\n" }
-    elsif($unit eq 'ex') { croak "Unit ex in map_abs_length.\n" }
+    elsif($unit eq 'em') { $self->ex_pm_rl($number.$unit) }
+    elsif($unit eq 'ex') { $self->ex_pm_rl($number.$unit) }
     elsif($unit eq 'px') { return $number }
     elsif($unit eq 'pt') { return $number * $self->in_per_pt * $dpi }
     elsif($unit eq 'pc') { return $number * $self->in_per_pc * $dpi }
     elsif($unit eq 'cm') { return $number * $self->in_per_cm * $dpi }
     elsif($unit eq 'mm') { return $number * $self->in_per_mm * $dpi }
     elsif($unit eq 'in') { return $number * $dpi }
-    elsif($unit eq '%')  { croak "Lenght in % in map_abs_length.\n" }
+    elsif($unit eq '%')  { $self->ex_pm_rl($number.$unit) }
 }
 
 sub before_node_hook {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, {type => CODEREF|UNDEF});
+	validate_with(params  => \@args,
+		      spec    => [{type => CODEREF|UNDEF}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{before_node_hook} = $args[0];
     }
+
     return $self->{before_node_hook} || sub {};
 }
 
@@ -384,9 +434,12 @@ sub start_node_hook {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, {type => CODEREF|UNDEF});
+	validate_with(params  => \@args,
+		      spec    => [{type => CODEREF|UNDEF}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{start_node_hook} = $args[0];
     }
+
     return $self->{start_node_hook} || sub {};
 }
 
@@ -394,10 +447,26 @@ sub end_node_hook {
     my ($self, @args) = @_;
 
     if(@args) {
-	validate_pos(@args, {type => CODEREF|UNDEF});
+	validate_with(params  => \@args,
+		      spec    => [{type => CODEREF|UNDEF}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{end_node_hook} = $args[0];
     }
+
     return $self->{end_node_hook} || sub {};
+}
+
+sub in_error_hook {
+    my ($self, @args) = @_;
+
+    if(@args) {
+	validate_with(params  => \@args,
+		      spec    => [{type => CODEREF|UNDEF}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
+	$self->{in_error_hook} = $args[0];
+    }
+
+    return $self->{in_error_hook} || sub {};
 }
 
 ###########################################################################
@@ -410,20 +479,20 @@ sub end_node_hook {
 
 sub _split_path_data {
     my ($self, $d)    = @_;
-    my @sub_path_data = grep { /\S/ } split(qr/\s*([a-zA-Z])\s*/, $d);
+    my @sub_path_data = grep { /\S/ } split(qr/$WSP*([a-zA-Z])$WSP*/, $d);
     my @instructions  = ();
-    my $parse_error   =
-	"Failed to process the path data string %s correctly. Please ".
-	"report this as a bug and include the string into the bug ".
-	"report.\n";
+    my $in_error      = 0;
 
     my $arg_sequence;
+  INSTR_SEQ:
     while(@sub_path_data) {
 	my $key = shift(@sub_path_data);
 
 	if($key eq 'M' or $key eq 'm') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -436,7 +505,8 @@ sub _split_path_data {
 		    $key = 'l' if($key eq 'm');
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
@@ -446,8 +516,10 @@ sub _split_path_data {
 	    next;
 	}
 	if($key eq 'L' or $key eq 'l') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -456,14 +528,17 @@ sub _split_path_data {
 		    $arg_sequence = $3;
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
 	}
 	if($key eq 'H' or $key eq 'h') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -472,14 +547,17 @@ sub _split_path_data {
 		    $arg_sequence = $2;
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
 	}
 	if($key eq 'V' or $key eq 'v') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -488,14 +566,17 @@ sub _split_path_data {
 		    $arg_sequence = $2;
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
 	}
 	if($key eq 'C' or $key eq 'c') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -504,14 +585,17 @@ sub _split_path_data {
 		    $arg_sequence = $7;
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
 	}
 	if($key eq 'S' or $key eq 's') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -520,14 +604,17 @@ sub _split_path_data {
 		    $arg_sequence = $5;
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
 	}
 	if($key eq 'Q' or $key eq 'q') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -536,14 +623,17 @@ sub _split_path_data {
 		    $arg_sequence = $5;
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
 	}
 	if($key eq 'T' or $key eq 't') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -552,14 +642,17 @@ sub _split_path_data {
 		    $arg_sequence = $3;
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
 	}
 	if($key eq 'A' or $key eq 'a') {
-	    $self->in_error(sprintf($parse_error, $d))
-		if(!@sub_path_data);
+	    if(!@sub_path_data) {
+		$in_error = 1;
+		last INSTR_SEQ;
+	    }
 	    $arg_sequence = shift(@sub_path_data);
 
 	    while($arg_sequence) {
@@ -576,60 +669,62 @@ sub _split_path_data {
 		    $arg_sequence = $8;
 		}
 		else {
-		    $self->in_error(sprintf($parse_error, $d));
+		    $in_error = 1;
+		    last INSTR_SEQ;
 		}
 	    }
 	    next;
 	}
 
 	# If we arrive here we are in trouble.
-	$self->in_error(sprintf($parse_error, $d));
+	$in_error = 1;
+	last INSTR_SEQ;
     }
 
-    return @instructions;
+    return($in_error, @instructions);
 }
 
 sub _draw_path {
-    my ($self, $state) = @_;
-    my $path_data      = $state->node_attributes->{d};
+    my ($self)    = @_;
+    my $state     = $self->{state};
+    my $path_data = $state->node_attributes->{d};
 
     return if(!$path_data);
 
-    return $self->{engine}->draw_path
-	($state, $self->_split_path_data($path_data));
+    my ($in_error, @instructions) = $self->_split_path_data($path_data);
+    my $result = $self->{engine}->draw_path($state, @instructions);
+    
+    if($in_error) { $self->ie_at_pd($path_data) }
+    else          { return $result              }
 }
 
 ############################### Basic Shapes ##############################
 
 sub _draw_rect {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $x              = $state->map_length($attributes->{x} || 0);
-    my $y              = $state->map_length($attributes->{y} || 0);
-    my $w              = $attributes->{width};
-    my $h              = $attributes->{height};
-    my $rx             = $attributes->{rx};
-    my $ry             = $attributes->{ry};
-
-    $self->in_error("Rectangle without width.\n")  if(!defined($w));
-    $self->in_error("Rectangle without height.\n") if(!defined($h));
+    my ($self)     = @_;
+    my $state      = $self->{state};
+    my $attributes = $state->node_attributes;
+    my $x          = $state->map_length($attributes->{x} || 0);
+    my $y          = $state->map_length($attributes->{y} || 0);
+    my $w          = $attributes->{width};
+    my $h          = $attributes->{height};
+    my $rx         = $attributes->{rx};
+    my $ry         = $attributes->{ry};
 
     $w = $state->map_length($w);
     $h = $state->map_length($h);
-    $self->in_error("Negative rectangle width ($w).\n")  if($w < 0);
-    $self->in_error("Negative rectangle height ($h).\n") if($h < 0);
+    $self->ie_at_re_nw($w) if($w < 0);
+    $self->ie_at_re_nh($h) if($h < 0);
     return if(!$w or !$h);
 
     if(defined($rx)) {
 	$rx = $state->map_length($rx);
-	$self->in_error("Negative rectangle corner x radius ($rx).\n")
-	    if($rx < 0);
+	$self->ie_at_re_nr($rx) if($rx < 0);
 	$ry = $rx if(!defined($ry));
     }
     if(defined($ry)) {
 	$ry = $state->map_length($ry);
-	$self->in_error("Negative rectangle corner y radius ($ry).\n")
-	    if($ry < 0);
+	$self->ie_at_re_nr($ry) if($ry < 0);
 	$rx = $ry if(!defined($rx));
     }
 
@@ -668,16 +763,15 @@ sub _draw_rect {
 }
 
 sub _draw_circle {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $cx             = $state->map_length($attributes->{cx} || 0);
-    my $cy             = $state->map_length($attributes->{cy} || 0);
-    my $r              = $attributes->{r};
-
-    $self->in_error("Circle without radius.\n") if(!defined($r));
+    my ($self)     = @_;
+    my $state      = $self->{state};
+    my $attributes = $state->node_attributes;
+    my $cx         = $state->map_length($attributes->{cx} || 0);
+    my $cy         = $state->map_length($attributes->{cy} || 0);
+    my $r          = $attributes->{r};
 
     $r = $state->map_length($r);
-    $self->in_error("Negative circle radius ($r).\n") if($r < 0);
+    $self->ie_at_ci_nr($r) if($r < 0);
     return if(!$r);
 
     my $engine = $self->{engine};
@@ -695,20 +789,18 @@ sub _draw_circle {
 }
 
 sub _draw_ellipse {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $cx             = $state->map_length($attributes->{cx} || 0);
-    my $cy             = $state->map_length($attributes->{cy} || 0);
-    my $rx             = $attributes->{rx};
-    my $ry             = $attributes->{ry};
-
-    $self->in_error("Ellipse without x radius.\n") if(!defined($rx));
-    $self->in_error("Ellipse without y radius.\n") if(!defined($ry));
+    my ($self)     = @_;
+    my $state      = $self->{state};
+    my $attributes = $state->node_attributes;
+    my $cx         = $state->map_length($attributes->{cx} || 0);
+    my $cy         = $state->map_length($attributes->{cy} || 0);
+    my $rx         = $attributes->{rx};
+    my $ry         = $attributes->{ry};
 
     $rx = $state->map_length($rx);
     $ry = $state->map_length($ry);
-    $self->in_error("Negative ellipse x radius ($rx).\n") if($rx < 0);
-    $self->in_error("Negative ellipse y radius ($ry).\n") if($ry < 0);
+    $self->ie_at_el_nr($rx) if($rx < 0);
+    $self->ie_at_el_nr($ry) if($ry < 0);
     return if(!$rx or !$ry);
 
     my $engine = $self->{engine};
@@ -726,14 +818,15 @@ sub _draw_ellipse {
 }
 
 sub _draw_line {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $x1             = $state->map_length($attributes->{x1} || 0);
-    my $y1             = $state->map_length($attributes->{y1} || 0);
-    my $x2             = $state->map_length($attributes->{x2} || 0);
-    my $y2             = $state->map_length($attributes->{y2} || 0);
-    my $engine         = $self->{engine};
+    my ($self)     = @_;
+    my $state      = $self->{state};
+    my $attributes = $state->node_attributes;
+    my $x1         = $state->map_length($attributes->{x1} || 0);
+    my $y1         = $state->map_length($attributes->{y1} || 0);
+    my $x2         = $state->map_length($attributes->{x2} || 0);
+    my $y2         = $state->map_length($attributes->{y2} || 0);
 
+    my $engine = $self->{engine};
     if($engine->can('draw_line')) {
 	return $engine->draw_line($state, $x1, $y1, $x2, $y2);
     }
@@ -744,12 +837,9 @@ sub _draw_line {
 }
 
 sub _draw_polyline {
-    my ($self, $state) = @_;
-    my $points_str     = $state->node_attributes->{points};
-    my $parse_error    =
-	"Failed to process the polyline points string %s correctly. ".
-	"Please report this as a bug and include the string into the ".
-	"bug report.\n";
+    my ($self)     = @_;
+    my $state      = $self->{state};
+    my $points_str = $state->node_attributes->{points};
 
     return if(!$points_str);
 
@@ -759,30 +849,29 @@ sub _draw_polyline {
 	    push(@points, [$1, $2]);
 	    $points_str = $3;
 	}
-	else {
-	    $self->in_error(sprintf($parse_error, $points_str));
-	}
+	else { last }
     }
 
     my $engine = $self->{engine};
+    my $result;
     if($engine->can('draw_polyline')) {
-	return $engine->draw_polyline($state, @points);
+	$result = $engine->draw_polyline($state, @points);
     }
     else {
-	return $engine->draw_path
+	$result = $engine->draw_path
 	    ($state,
 	     ['M', @{shift(@points)}],
 	     map { ['L', @$_] } @points);
     }
+
+    if($points_str) { $self->ie_at_po($state->node_attributes->{points}) }
+    else            { return $result }
 }
 
 sub _draw_polygon {
-    my ($self, $state) = @_;
-    my $points_str     = $state->node_attributes->{points};
-    my $parse_error    =
-	"Failed to process the polygon points string %s correctly. ".
-	"Please report this as a bug and include the string into the ".
-	"bug report.\n";
+    my ($self)     = @_;
+    my $state      = $self->{state};
+    my $points_str = $state->node_attributes->{points};
 
     return if(!$points_str);
 
@@ -792,22 +881,24 @@ sub _draw_polygon {
 	    push(@points, [$1, $2]);
 	    $points_str = $3;
 	}
-	else {
-	    $self->in_error(sprintf($parse_error, $points_str));
-	}
+	else { last }
     }
 
     my $engine = $self->{engine};
+    my $result;
     if($engine->can('draw_polygon')) {
-	return $engine->draw_polygon($state, @points);
+	$result = $engine->draw_polygon($state, @points);
     }
     else {
-	return $engine->draw_path
+	$result = $engine->draw_path
 	    ($state,
 	     ['M', @{shift(@points)}],
 	     (map { ['L', @$_] } @points),
 	     ['Z']);
     }
+
+    if($points_str) { $self->ie_at_po($state->node_attributes->{points}) }
+    else            { return $result }
 }
 
 ###########################################################################
@@ -817,25 +908,31 @@ sub _draw_polygon {
 ###########################################################################
 
 sub in_error {
-    my ($self, $message) = @_;
+    my ($self, $exception) = @_;
+    my $state              = SVG::Rasterize::State->new
+	(rasterize       => $self,
+	 node_name       => 'g',
+	 node_attributes => {});
 
-    croak $message;
+    $self->in_error_hook->($self, $state);
+
+    die $exception;
 }
 
 sub _process_normalize_attributes {
-    my ($self, $normalize, @args) = @_;
+    my ($self, $normalize, $attr) = @_;
 
-    $args[0] ||= {};
+    my %attributes = %{$attr || {}};
 
     if($normalize) {
-	foreach(keys %{$args[0]}) {
-	    $args[0]->{$_} =~ s/^$WSP*//;
-	    $args[0]->{$_} =~ s/$WSP*$//;
-	    $args[0]->{$_} =~ s/$WSP+/ /g;
+	foreach(keys %attributes) {
+	    $attributes{$_} =~ s/^$WSP*//;
+	    $attributes{$_} =~ s/$WSP*$//;
+	    $attributes{$_} =~ s/$WSP+/ /g;
 	}
     }
 
-    return $args[0];
+    return \%attributes;
 }
 
 sub rasterize {
@@ -853,24 +950,30 @@ sub rasterize {
         if(!exists($args{height}) and exists($self->{height}));
     $args{engine_class}         = $self->{engine_class}
         if(!exists($args{engine_class}) and exists($self->{engine_class}));
+    $args{engine_args}          = $self->{engine_args}
+        if(!exists($args{engine_args}) and exists($self->{engine_args}));
 
     my @args = %args;
-    %args = validate
-	(@args,
-	 {normalize_attributes => {default  => 1,
-				   type     => BOOLEAN},
-	  svg                  => {can      => ['getNodeName',
-						'getAttributes']},
-	  width                => {optional => 1,
-				   type     => SCALAR,
-				   regex    => $RE_LENGTH{p_A_LENGTH}},
-	  height               => {optional => 1,
-				   type     => SCALAR,
-				   regex    => $RE_LENGTH{p_A_LENGTH}},
-	  engine_class         => {default  => 'SVG::Rasterize::Cairo',
-				   type     => SCALAR,
-				   regex    =>
-				       $RE_PACKAGE{p_PACKAGE_NAME}}});
+    %args = validate_with
+	(params => \@args,
+	 spec   =>
+	     {normalize_attributes => {default  => 1,
+				       type     => BOOLEAN},
+	      svg                  => {can      => ['getNodeName',
+						    'getAttributes']},
+	      width                => {optional => 1,
+				       type     => SCALAR,
+				       regex    => $RE_LENGTH{p_A_LENGTH}},
+	      height               => {optional => 1,
+				       type     => SCALAR,
+				       regex    => $RE_LENGTH{p_A_LENGTH}},
+	      engine_class         => {default  => 'SVG::Rasterize::Cairo',
+				       type     => SCALAR,
+				       regex    =>
+					   $RE_PACKAGE{p_PACKAGE_NAME}},
+	      engine_args          => {optional => 1,
+				       type     => HASHREF}},
+	on_fail => sub { $self->ex_pv($_[0]) });
 
     # process initial node and establish initial viewport
     my $node            = $args{svg}->getNodeName eq 'document'
@@ -880,26 +983,35 @@ sub rasterize {
 	($args{normalize_attributes}, scalar($node->getAttributes));
 
     $self->_initial_viewport($node_attributes, \%args);
+    if(!$args{width}) {
+	warn "Surface width is 0, nothing to do.\n";
+	return;
+    }
+    if(!$args{height}) {
+	warn "Surface height is 0, nothing to do.\n";
+	return;
+    }
+
     $self->_create_engine(\%args);
 
     $self->before_node_hook->($self,
 			      $node,
 			      $node_name,
 			      $node_attributes);
-    my $state           = SVG::Rasterize::State->new
+    $self->{state} = SVG::Rasterize::State->new
 	(rasterize       => $self,
 	 node            => $node,
 	 node_name       => $node_name,
 	 node_attributes => $node_attributes,
 	 matrix          => $args{matrix});
-    $self->start_node_hook->($self, $state);
+    $self->start_node_hook->($self, $self->{state});
 
     my @stack = ();
-    while($state) {
-	if($state->hasChildren) {
-	    $node = $state->nextChild;
+    while($self->{state}) {
+	if($self->{state}->hasChildren) {
+	    $node = $self->{state}->nextChild;
 	    if($node) {
-		push(@stack, $state);
+		push(@stack, $self->{state});
 		$node_name       = $node->getNodeName;
 		$node_attributes = $self->_process_normalize_attributes
 		    ($args{normalize_attributes},
@@ -908,40 +1020,36 @@ sub rasterize {
 					  $node,
 					  $node_name,
 					  $node_attributes);
-		$state           = SVG::Rasterize::State->new
+		$self->{state} = SVG::Rasterize::State->new
 		    (rasterize       => $self,
-		     parent          => $state,
+		     parent          => $self->{state},
 		     node            => $node,
 		     node_name       => $node_name,
 		     node_attributes => $node_attributes);
-		$self->start_node_hook->($self, $state);
+		$self->start_node_hook->($self, $self->{state});
 	    }
 	    else {
-		$self->end_node_hook->($self, $state);
-		$state = pop @stack;
+		$self->end_node_hook->($self, $self->{state});
+		$self->{state} = pop @stack;
 	    }
 	}
 	else {
 	    # do something
-	    $self->_draw_path($state)
-		if($state->node_name eq 'path');
-	    $self->_draw_rect($state)
-		if($state->node_name eq 'rect');
-	    $self->_draw_circle($state)
-		if($state->node_name eq 'circle');
-	    $self->_draw_ellipse($state)
-		if($state->node_name eq 'ellipse');
-	    $self->_draw_line($state)
-		if($state->node_name eq 'line');
-	    $self->_draw_polyline($state)
-		if($state->node_name eq 'polyline');
-	    $self->_draw_polygon($state)
-		if($state->node_name eq 'polygon');
+	    my $this_node_name = $self->{state}->node_name;
+	    $self->_draw_path     if($this_node_name eq 'path');
+	    $self->_draw_rect     if($this_node_name eq 'rect');
+	    $self->_draw_circle	  if($this_node_name eq 'circle');
+	    $self->_draw_ellipse  if($this_node_name eq 'ellipse');
+	    $self->_draw_line     if($this_node_name eq 'line');
+	    $self->_draw_polyline if($this_node_name eq 'polyline');
+	    $self->_draw_polygon  if($this_node_name eq 'polygon');
 
-	    $self->end_node_hook->($self, $state);
-	    $state = pop @stack;
+	    $self->end_node_hook->($self, $self->{state});
+	    $self->{state} = pop @stack;
 	}
     }
+
+    return;
 }
 
 sub write { return shift(@_)->{engine}->write(@_) }
@@ -1020,17 +1128,17 @@ attributes are at least partly interpreted:
 
 =over
 
-=item * transform
+=item * C<transform>
 
-=item * viewBox
+=item * C<viewBox>
 
-=item * preserveAspectRatio
+=item * C<preserveAspectRatio>
 
-=item * style
+=item * C<style>
 
-=item * fill and all associated properties
+=item * C<fill> and all associated properties
 
-=item * stroke and all associated properties
+=item * C<stroke> and all associated properties
 
 =back
 
@@ -1042,16 +1150,6 @@ stage.
 Here is my current view of the next part of the roadmap:
 
 =over 4
-
-=item Version 0.003
-
-=over 4
-
-=item error processing
-
-=item parameter validation
-
-=back
 
 =item Version 0.004
 
@@ -1088,15 +1186,15 @@ Creates a new C<SVG::Rasterize> object and calls
 L<init(%args)|/init>. If you subclass C<SVG::Rasterize> overload
 L<init|/init>, not C<new>.
 
-L<init|/init> goes through the arguments given to new. If a method
-of the same name exists it is called with the respective value as
-argument. This can be used for attribute initialization. Some of the
-values can be also given to L<rasterize|/rasterize> to temporarily
-override the attribute values. The values of these overridable
-attributes are only validated once they are used by
-L<rasterize|/rasterize>.
+L<init|/init> goes through the arguments given to C<new>. If a
+method of the same name exists it is called with the respective
+value as argument. This can be used for attribute
+initialization. Some of the values can be also given to
+L<rasterize|/rasterize> to temporarily override the attribute
+values. The values of these overridable attributes are only
+validated once they are used by L<rasterize|/rasterize>.
 
-Supported arguments include:
+The most commonly used arguments are:
 
 =over 4
 
@@ -1106,13 +1204,10 @@ Supported arguments include:
 image
 
 =item * height (optional): height (in pixels) of the generated
-output image
+output image.
 
 =back
 
-Any additional arguments are silently ignored. Note that the
-attribute values are only validated once their are used by
-rasterize.
 
 =head2 Public Attributes
 
@@ -1121,7 +1216,7 @@ rasterize.
 Holds the C<DOM> object to render. It does not have to be a
 L<SVG|SVG> object, but it has to offer a C<getNodeName>, a
 C<getAttributes>, and a C<getChildren> method analogous to those
-defined by the <SVG|SVG> class. If a different object is given to
+defined by the L<SVG|SVG> class. If a different object is given to
 L<rasterize|/rasterize> then the latter one overrules this value
 temporarily (i.e. without overwriting it).
 
@@ -1132,6 +1227,12 @@ The width of the generated output in pixels.
 =head3 height
 
 The height of the generated output in pixels.
+
+=head3 state
+
+Readonly attribute. Holds the current
+L<SVG::Rasterize::State|SVG::Rasterize::State> object during tree
+traversal.
 
 There are other attributes that influence unit conversions,
 white space handling, and the choice of the underlying rasterization
@@ -1161,6 +1262,9 @@ the value of the L<svg|/svg> attribute is used. One of them has to
 be set and has to provide the C<getNodeName>, C<getAttributes>, and
 C<getChildren> C<DOM> methods.
 
+The element can be any valid C<SVG> element, e.g. C<< <svg> >>, C<<
+<g> >>, or even just a basic shape element or so.
+
 =item * width (optional): width of the target image in pixels,
 temporarily overrides the L<width|/width> attribute.
 
@@ -1169,15 +1273,38 @@ temporarily overrides the L<height|/height> attribute.
 
 =item * engine_class (optional): alternative engine class to
 L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>, temporarily
-overrides the L<engine_class|/engine_class> attribute. See
+overrides the C<engine_class> attribute. See
 L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> for details on the
-interface. The value has to match the regular expression saved in
-L<PACKAGE_NAME|/PACKAGE_NAME>.
+interface. The value has to match the regular
+L<p_PACKAGE_NAME|SVG::Rasterize::Regexes/%RE_PACKAGE>.
+
+=item * engine_args (optional): arguments for the constructor of the
+rasterization engine, temporarily overriding the C<engine_args>
+attribute (NB: in the future, this behaviour might be changed such
+that the two hashes are merged and only the values given here
+override the values in the attribute C<engine_args>; however, at the
+moment, the whole hash is temporarily replaced if the parameter
+exists). The width and height of the output image can be set in
+several ways. The following values for the width are used with
+decreasing precedence (the same hierarchy applies to the height):
+
+=over 4
+
+=item 1. C<< engine_args->{width} >>, given to C<rasterize>
+
+=item 2. C<< $rasterize->engine_args->{width} >>
+
+=item 3. C<width>, given to C<rasterize>
+
+=item 4. C<< $rasterize->width >>
+
+=item 5. the width attribute of the root C<SVG> object.
+
+=back
 
 =item * normalize_attributes (optional): Influences L<White Space
 Handling|/White Space Handling>, temporarily overrides the
-L<normalize_attributes|/normalize_attributes> attribute. Defaults to
-1.
+C<normalize_attributes> attribute. Defaults to 1.
 
 =back
 
@@ -1228,8 +1355,14 @@ at initialization time are set separately at the beginning.
 
 =head3 in_error
 
-Currently, this method is just an alias for C<croak>. This will
-change in the future.
+Expects an exception object or error message. Creates a fresh
+L<SVG::Rasterize::State|SVG::Rasterize::State> object (without any
+transfrom etc.) and calls L<in_error_hook|/in_error_hook> (which by
+default draws a translucent checkerboard across the image). After
+that, it dies with the given message.
+
+Before you call C<in_error> directly, check out
+L<SVG::Rasterize::Exception|SVG::Rasterize::Exception>.
 
 =head2 Class Methods
 
@@ -1251,9 +1384,9 @@ reference with 6 entries representing the product matrix.
 The method can be called either as subroutine or as class
 method or as object method:
 
-  $product = multiply_matrices($m, $n);
-  $product = SVG::Rasterize->multiply_matrices($m, $n);
-  $product = $rasterize->multiply_matrices($m, $n);
+  $product = multiply_matrices($m, $n)
+  $product = SVG::Rasterize->multiply_matrices($m, $n)
+  $product = $rasterize->multiply_matrices($m, $n)
 
 Note that C<multiply_matrices> does not perform any input check. It
 expects that you provide (at least) two ARRAY references with (at
@@ -1308,7 +1441,10 @@ precision). The first case should have been checked before (note
 that no rounding problems can occur here because no arithmetics is
 done with the passed values) because in this case the arc should be
 turned into a line. In the second case, the arc should just not be
-drawn.
+drawn. Be aware that this latter case includes a full ellipse. This
+means that a full ellipse cannot be drawn as one arc. The C<SVG>
+specification is very clear on that point. However, an ellipse can
+be drawn as two arcs.
 
 Note that the input values are not validated (e.g. if the values are
 numbers, if the flags are either 0 or 1 and so on). It is assumed
@@ -1355,8 +1491,8 @@ are increased automatically if the given values are too small to
 connect the given endpoints (see
 L<http://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes>).
 This situation can arise from rounding errors, but also for example
-during an animation. Moreover, if given radii are negative then the
-absolute values are to be taken. This method takes care of these
+during an animation. Moreover, if a given radius is negative then
+the absolute value is to be used. This method takes care of these
 adjustments and returns the new values plus some intermediate values
 that might be useful for callers, namely
 L<endpoint_to_center|/endpoint_to_center>.
@@ -1384,8 +1520,8 @@ positive x axis (in radiant)
 
 Note that the input values are not validated (e.g. if the values are
 numbers etc.). It is assumed that this has been checked before.
-Furthermore, it is not checked if the radii are very close to 0 or
-start and end point are nearly equal.
+Furthermore, it is not checked if the radii are very close to C<0>
+or start and end point are nearly equal.
 
 The following values are guaranteed to be returned:
 
@@ -1473,8 +1609,8 @@ a change, but it would hardly make sense.
 
 =item * in_per_pt
 
-Inches per point. Defaults to 1/72. According to L<[1]|/[1]>, this
-default was introduced by the Postscript language. There are other
+Inches per point. Defaults to 1/72. According to [1], this default
+was introduced by the C<Postscript> language. There are other
 definitions. However, the C<CSS> specification is quite firm about
 it.
 
@@ -1497,8 +1633,8 @@ B<Examples:>
   $x = $rasterize->map_abs_length('5.08cm');  # returns 180
   $x = $rasterize->map_abs_length(10);        # returns 10
   $x = $rasterize->map_abs_length(10, 'pt')   # returns 12.5
-  $x = $rasterize->map_abs_length('  1in ');  # croaks
-  $x = $rasterize->map_abs_length('50%')      # croaks
+  $x = $rasterize->map_abs_length('  1in ');  # error
+  $x = $rasterize->map_abs_length('50%')      # error
 
 The unit has to be absolute, C<em>, C<ex>, and C<%> trigger an
 exception. See L<map_length|SVG::Rasterize::State/map_length>
@@ -1516,7 +1652,9 @@ is absolute.
 
 =back
 
-The corresponding class attributes are:
+The corresponding class attributes are listed below. Note that these
+values are not validated. Take care that you only set them to
+numbers.
 
 =over 4
 
@@ -1586,7 +1724,8 @@ where
   $WSP = qr/[\x{20}\x{9}\x{D}\x{A}]/;  # space, tab, CR, LF
 
 To prevent this normalization, you can set the
-C<normalize_attributes> attribute to a false value.
+C<normalize_attributes> attribute (as object attribute or as
+parameter to L<rasterize|/rasterize> to a false value.
 
 =head2 Hooks
 
@@ -1599,7 +1738,7 @@ moment and likely to change. Right now, to set your own hooks you
 can set one of the following attributes to a code reference of your
 choice.
 
-Currently, there are three hooks:
+Currently, there are for hooks:
 
 =over 4
 
@@ -1632,6 +1771,13 @@ because the current node is done with. The method receives the
 C<SVG::Rasterize> object and the
 L<SVG::Rasterize::State|SVG::Rasterize::State> object as parameters.
 
+=item * in_error_hook
+
+Executed right before C<die> when the document is in error (see L<In
+error|/In error> below. Receives the C<SVG::Rasterize> object and a
+newly created L<SVG::Rasterize::State|SVG::Rasterize::State> object
+as parameters.
+
 =back
 
 B<Examples:>
@@ -1649,6 +1795,20 @@ future, it will be documented in
 L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>. Currently, it has to
 be considered unstable, though, and the documentation is sparse.
 
+=head3 engine_class
+
+This attribute defaults to C<SVG::Rasterize::Cairo>. It can be set
+as an object attribute or temporarily as a parameter to the
+L<rasterize|/rasterize> method.
+
+=head3 engine_args
+
+This attribute can hold a HASH reference. The corresponding hash is
+given to the constructor of the rasterization engine when it is
+called by L<rasterize|/rasterize>. C<engine_args> can be set as an
+object attribute or temporarily as a parameter to the
+L<rasterize|/rasterize> method.
+
 =head3 engine
 
   $rasterize->engine
@@ -1663,6 +1823,15 @@ manipulate the object directly via its methods. However, this is
 not part of the normal workflow and you do this on your own risk
 ;-).
 
+=head2 C<SVG> Validation
+
+C<SVG::Rasterize> is not an C<SVG> validator. It does check a lot of
+things including the validity of the element hierarchy, the required
+presence and absence of attributes and the values of all attributes
+in interpretes plus some that it does not interprete. However, it
+does not (and probably will never) claim to detect all errors in an
+C<SVG> document.
+
 
 =head1 EXAMPLES
 
@@ -1673,14 +1842,6 @@ C<SVG> subset than options of C<SVG::Rasterize>.
 
 =head1 DIAGNOSTICS
 
-=head2 Exceptions
-
-Not documented, yet. Sorry.
-
-=head2 Warnings
-
-Not documented, yet. Sorry.
-
 =head2 Error processing
 
 The C<SVG> documentation specifies how C<SVG> interpreters
@@ -1688,11 +1849,92 @@ should react to certain incidents. The relevant section can be
 found here:
 L<http://www.w3.org/TR/SVG11/implnote.html#ErrorProcessing>.
 
-This section will describe how some of these instructions are
+This section describes how some of these instructions are
 implemented by C<SVG::Rasterize> and how it reacts in some other
 situations in which the specification does not give instructions.
-However, at the moment, C<SVG::Rasterize> usually croaks whenever
-it is unhappy.
+
+=head3 In error
+
+According to the C<SVG> specification (see
+L<http://www.w3.org/TR/SVG11/implnote.html#ErrorProcessing>, a
+document is "in error" if:
+
+=over 4
+
+=item * "the content does not conform to the C<XML 1.0>
+specification, such as the use of incorrect C<XML> syntax"
+
+C<SVG::Rasterize> currently does not parse C<SVG> files and will
+therefore not detect such an error.
+
+=item * "an element or attribute is encountered in the document
+which is not part of the C<SVG DTD> and which is not properly
+identified as being part of another namespace"
+
+Currently, C<SVG::Rasterize> will also reject elements that B<are>
+properly identified as being part of another namespace.
+
+=item * "an element has an attribute or property value which is not
+permissible according to this specification"
+
+This is checked for those attributes and properties that are
+currently supported by C<SVG::Rasterize>. Values that are currently
+ignored may or may not be checked.
+
+=item * "Other situations that are described as being I<in error> in
+this specification"
+
+=back
+
+In these cases, the rendering is supposed to stop before the
+incriminated element. Exceptions are C<path>, C<polyline>, and
+C<polygon> elements which are supposed to be partially rendered up
+to the point where the error occurs.
+
+Furthermore, a "highly perceivable indication of error shall
+occur. For visual rendering situations, an example of an indication
+of error would be to render a translucent colored pattern such as a
+checkerboard on top of the area where the SVG content is rendered."
+
+In C<SVG::Rasterize> this is done by the
+L<in_error_hook|/in_error_hook>. By default, it indeed draws a
+translucent (C<rgb(45, 45, 45)> with opacity C<0.6>) checkerboard
+with 8 fields along the width or height (whichever is shorter). This
+behaviour can be changed by setting the
+L<in_error_hook|/in_error_hook>. Setting the hook to C<undef> or
+C<sub {}> will disable the process.
+
+=head3 C<SVG::Rasterize> exceptions
+
+When C<SVG::Rasterize> encounters a problem it usually throws an
+exception. The cases where only a warning is issued a rare. This
+behaviour has several reasons:
+
+=over 4
+
+=item * If the document is in error (see section above) the C<SVG>
+specification requires that the rendering stops.
+
+=item * In case of failed parameter validation,
+L<Params::Validate|Params::Validate> expects the code execution to
+stop. One could work around this in an onerous and fragile way, but
+I will not do this.
+
+=item * Often there is no good fallback without knowing what the
+user inteded to do. In these cases, it is better to just bail out
+and let the user fix the problem himself.
+
+=item * A too forgiving user agent deludes the user into bad
+behaviour. I think that if the rules are clear, a program should
+enforce them rather strictly.
+
+=back
+
+The exceptions are thrown in form of objects. See
+L<Exception::Class|Exception::Class> for a detailed description. See
+L<below|/Exceptions> for a description of the classes used in this
+distribution. All error messages are described in
+L<SVG::Rasterize::Exception|SVG::Rasterize::Exception>.
 
 =head3 Invalid and numerically unstable values
 
@@ -1711,6 +1953,93 @@ authors. Instead it is left to them to check for these border
 cases. However, the underlying rasterization engine might still
 impose boundaries.
 
+=head2 Exceptions
+
+C<SVG::Rasterize> currently uses the following exception
+classes. This framework is experimental and might change
+considerably in future versions. See
+L<Exception::Class|Exception::Class> on how you can make use of this
+framework. See
+L<SVG::Rasterize::Exception|SVG::Rasterize::Exception> for a
+detailed list of error messages.
+
+=over 4
+
+=item * C<SVG::Rasterize::Exception::Base>
+
+Base class for the others. Defines the state attribute which holds
+the current L<SVG::Rasterize::State> object at the time the
+exception is thrown.
+
+=item * C<SVG::Rasterize::Exception::InError>
+
+The processing encountered an error in the C<SVG> content.
+
+=item * C<SVG::Rasterize::Exception::Setting>
+
+The exception was triggered by an error during the general
+preparation of the processing, e.g. an error during initialization
+of the rasterization backend.
+
+=item * C<SVG::Rasterize::Exception::Parse>
+
+An error occured during parsing (usually of an attribute value). An
+exception of this class always indicates an inconsistency between
+validation and parsing of this value and should be reported as a
+bug.
+
+=item * C<SVG::Rasterize::Exception::Unsupported>
+
+The document (or user) tried to use a feature that is currently
+unsupported.
+
+=item * C<SVG::Rasterize::Exception::ParamsValidate>
+
+A method parameter did not pass a
+L<Params::Validate|Params::Validate> check.
+
+=item * C<SVG::Rasterize::Exception::Param>
+
+A method parameter passed the L<Params::Validate|Params::Validate>
+check, but is still invalid (an example is that the
+L<Params::Validate|Params::Validate> check only included that the
+value must be a number, but it also has to be in a certain range
+which is checked individually later).
+
+=back
+
+=head2 Warnings
+
+=over 4
+
+=item * "Unrecognized init parameter %s."
+
+You have given a parameter to the L<new|/new> method which does not
+have a corresponding method. The parameter is ignored in that case.
+
+=item * "Unable to load %s: %s. Falling back to
+SVG::Rasterize::Cairo."
+
+The C<engine_class> you were trying to use for rasterization could
+not be loaded. C<SVG::Rasterize> then tries to use its default
+backend L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>. If that also
+fails, it gives up.
+
+=item * "Surface width is 0, nothing to do."
+
+The width of output image evaluates to C<0>. This value is rounded
+to an integer number of pixels, therefore this warning does not mean
+that you have provided an explicit number of C<0> (it could also
+have been e.g. C<0.005in> at a resolution of C<90dpi>). In this
+case, nothing is drawn.
+
+=item * "Surface height is 0, nothing to do."
+
+Like above.
+
+=back
+
+
 =head1 DEPENDENCIES
 
 =over 4
@@ -1721,22 +2050,25 @@ impose boundaries.
 
 =item * L<Cairo|Cairo>, version 1.061 or higher
 
-With respect to the actual code, the dependency on L<Cairo|Cairo> is
-not strict. The code only requires L<Cairo|Cairo> in case no other
-rasterization engine is specified. However, if you do not provide a
-different rasterization backend, which would probably at least
-require a wrapper written by you, then you cannot do anything
-without L<Cairo|Cairo>. Therefore I have included it as a strict
-dependency. Feel free take that out of the Makefile.PL if you know
-what you are doing.
+With respect to the module code, the dependency on L<Cairo|Cairo> is
+not strict.  The code only requires L<Cairo|Cairo> in case no other
+rasterization engine is specified (see documentation for
+details). However, if you do not provide a different backend, which
+would probably at least require a wrapper written by you, then you
+cannot do anything without L<Cairo|Cairo>. Therefore I have included
+it as a strict dependency. You could take it out of the Makefile.PL
+if you know what you are doing. However, the distribution will not
+pass the test suite without L<Cairo|Cairo>.
 
 =item * L<Params::Validate|Params::Validate>, version 0.91 or higher
+
+=item * L<Scalar::Util|Scalar::Util>, version 1.19 or higher
+
+=item * L<Exception::Class>, version 1.29 or higher
 
 =item * L<Test::More|Test::More>, version 0.86 or higher
 
 =item * L<Test::Exception|Test::Exception>, version 0.27 or higher
-
-=item * L<Scalar::Util|Scalar::Util>, version 1.19 or higher
 
 =back
 
@@ -1813,27 +2145,101 @@ favourite package name, you can change this variable.
 
 =head2 Internal Methods
 
+These methods are just documented for myself. You can read on to
+satisfy your voyeuristic desires, but be aware of that they might
+change or vanish without notice in a future version.
+
 =over 4
 
 =item * _create_engine
 
-=item * _process_initial_viewport_length
-
-=item * _initial_viewport
+Expects a HASH reference as parameter. No validation is
+performed. The entries C<width>, C<height>, and C<engine_class> are
+used and expected to be valid if present.
 
 =item * _process_normalize_attributes
 
+Expects a flag (to indicate if normalization is to be performed) and
+a HASH reference. The second parameter can be false, but if it is
+true it is expected (without validation) to be a HASH
+reference. Makes a copy of the hash and returns it after removing
+(if the flag is true) enclosing white space from each value.
+
+=item * _initial_viewport
+
+Expects two HASH references. The first one is expected to be defined
+and a HASH reference, but the content can be arbitrary. The second
+is expected to be validated. Does not return anything.
+
 =item * _angle
+
+  $angle = _angle($x1, $y1, $x2, $y2)
+  $angle = SVG::Rasterize->_angle($x1, $y1, $x2, $y2)
+  $angle = $rasterize->_angle($x1, $y1, $x2, $y2)
+
+Expects two vectors and returns the angle between them in C<rad>. No
+parameter validation is performed. If one of the vectors is C<0>
+(and only if it is exactly C<0>), C<undef> is returned.
 
 =item * _split_path_data
 
+Expects a path data string. This is expected (without validation) to
+be defined. Everything else is checked within the method.
+
+Returns a list. The first entry is either C<1> or C<0> indicating if
+an error has occured (i.e. if the string is not fully valid). The
+rest is a list of ARRAY references containing the instructions to
+draw the path.
+
 =item * _draw_path
+
+Does not take any parameters (i.e. ignores them). Expects the
+following:
+
+=over 4
+
+=item * C<< $self->state >> is defined and valid.
+
+=back
+
+The rest is handed over to the rasterization backend (which has -
+nota bene - its expectations.
 
 =item * _draw_rect
 
+Does not take any parameters (i.e. ignores them). Expects the
+following:
+
+=over 4
+
+=item * C<< $self->state >> is defined and valid.
+
+=item * C<< $state->node_attributes >> have been validated.
+
+=back
+
+The rest is handed over to the rasterization backend (which has -
+nota bene - its expectations.
+
 =item * _draw_circle
 
+Same es L<_draw_rect|/_draw_rect>.
+
+=item * _draw_ellipse
+
+Same es L<_draw_rect|/_draw_rect>.
+
 =item * _draw_line
+
+Same es L<_draw_rect|/_draw_rect>.
+
+=item * _draw_polyline
+
+Same es L<_draw_path|/_draw_path>.
+
+=item * _draw_polygon
+
+Same es L<_draw_path|/_draw_path>.
 
 =back
 
@@ -1852,13 +2258,15 @@ for writing".
 
 =over 4
 
+=item * L<http://www.w3.org/TR/SVG11/>
+
 =item * L<SVG|SVG>
 
 =item * L<SVG::Parser|SVG::Parser>
 
 =item * L<Cairo|Cairo>
 
-=item * L<http://www.w3.org/TR/SVG11/>.
+=item * L<Exception::Class|Exception::Class>
 
 =back
 

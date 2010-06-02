@@ -2,6 +2,7 @@ Changes
 examples/arcs.pl
 examples/basic_shapes.pl
 examples/fill_rule.pl
+examples/in_error.pl
 examples/line.pl
 examples/path.pl
 examples/polygon.pl
@@ -23,6 +24,7 @@ inc/Module/Install/WriteAll.pm
 lib/SVG/Rasterize.pm
 lib/SVG/Rasterize/Cairo.pm
 lib/SVG/Rasterize/Colors.pm
+lib/SVG/Rasterize/Exception.pm
 lib/SVG/Rasterize/Properties.pm
 lib/SVG/Rasterize/Regexes.pm
 lib/SVG/Rasterize/Specification.pm
@@ -39,7 +41,8 @@ t/020_geometry.t
 t/025_render_interface.t
 t/027_dtd.t
 t/030_styling.t
-t/035_paths.t
+t/035_exceptions.t
+t/040_paths.t
 t/700_boilerplate.t
 t/705_manifest.t
 t/750_pod.t

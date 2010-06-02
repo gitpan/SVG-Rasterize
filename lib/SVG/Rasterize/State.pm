@@ -6,7 +6,6 @@ use strict;
 
 use 5.008009;
 
-use Carp;
 use Params::Validate qw(:all);
 use Scalar::Util qw(blessed looks_like_number);
 use List::Util qw(min max);
@@ -16,8 +15,9 @@ use SVG::Rasterize::Regexes qw(:whitespace
 use SVG::Rasterize::Specification;
 use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
+use SVG::Rasterize::Exception qw(:all);
 
-# $Id: State.pm 5767 2010-05-25 03:44:10Z mullet $
+# $Id: State.pm 5878 2010-06-01 08:41:47Z mullet $
 
 =head1 NAME
 
@@ -25,16 +25,17 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.002000
+Version 0.002002
 
 =cut
 
-our $VERSION = '0.002000';
+our $VERSION = '0.002002';
 
 
 __PACKAGE__->mk_accessors(qw());
 
-__PACKAGE__->mk_ro_accessors(qw(hasChildren
+__PACKAGE__->mk_ro_accessors(qw(rasterize
+                                hasChildren
                                 node_name
                                 node
                                 matrix
@@ -65,21 +66,23 @@ sub new {
 
 sub init {
     my ($self, @args) = @_;
-    my %args = validate
-	(@args,
-	 {rasterize       => {isa      => 'SVG::Rasterize'},
-	  parent          => {isa      => 'SVG::Rasterize::State',
-			      optional => 1},
-	  node_name       => {type     => SCALAR},
-	  node_attributes => {type     => HASHREF},
-	  node            => {can      => ['getChildren'],
-			      optional => 1},
-	  matrix          => {type     => ARRAYREF,
-			      optional => 1}});
+    my %args          = validate_with
+	(params => \@args,
+	 spec   =>
+	     {rasterize       => {isa      => 'SVG::Rasterize'},
+	      parent          => {isa      => 'SVG::Rasterize::State',
+				  optional => 1},
+	      node_name       => {type     => SCALAR},
+	      node_attributes => {type     => HASHREF},
+	      node            => {can      => ['getChildren'],
+				  optional => 1},
+	      matrix          => {type     => ARRAYREF,
+				  optional => 1}},
+	on_fail => sub { SVG::Rasterize->ex_pv($_[0]) });
 
     # read only and private arguments
     $self->{_parent}         = $args{parent} if(exists($args{parent}));
-    $self->{_rasterize}      = $args{rasterize};
+    $self->{rasterize}       = $args{rasterize};
     $self->{node_name}       = $args{node_name};
     $self->{node_attributes} = $args{node_attributes};
     $self->{node}            = $args{node}   if(exists($args{node}));
@@ -110,12 +113,7 @@ sub _process_transform_attribute {
 	    push(@atoms, $1);
 	    $str = $2;
 	}
-	else {
-	    warn("Failed to process the transform string '$transform' ".
-		 "correctly. Please report this as a bug and include ".
-		 "the string into the bug report.\n");
-	    return;
-	}
+	else { $self->ex_pa('transform', $transform) }
     }
     
     # process the single transformations
@@ -165,17 +163,13 @@ sub _process_transform_attribute {
 		$cm = [1, sin($params[0] / 180 * PI) / $cos, 0, 1, 0, 0];
 	    }
 	}
-	else {
-	    warn("Failed to process the transform string '$transform' ".
-		 "correctly. Please report this as a bug and include ".
-		 "the string into the bug report.\n");
-	    return;
-	}
+	else { $self->ex_pa('transform', $transform) }
 
 	$sm = multiply_matrices($sm, $cm);
     }
 
     $self->{matrix} = $sm;
+    return;
 }
 
 sub _process_viewBox_attribute {
@@ -189,27 +183,30 @@ sub _process_viewBox_attribute {
     my $width  = $attributes->{width};
     my $height = $attributes->{height};
     if(!$width or !$height) {
-	croak("Element with viewBox but without both width and ".
-	      "height is currently unsupported (is it allowed?).\n");
+	$self->ex_us_si("Element with viewBox, but without both ".
+			"width and height");
     }
 
     # viewBox
     my ($min_x, $min_y, $vB_width, $vB_height) =
 	$viewBox =~ $RE_VIEW_BOX{p_VIEW_BOX};
-    if($vB_width <= 0) {
-	warn("Invalid viewBox width ($vB_width). ".
-	     "Ignoring viewBox.\n");
-	return;
+    if($vB_width < 0) {
+	$self->ie_at_vb_nw($vB_width);
     }
-    if($vB_height <= 0) {
-	warn("Invalid viewBox height ($vB_height). ".
-	     "Ignoring viewBox.\n");
-	return;
+    if($vB_width == 0) {
+	$self->ex_us_is("A viewBox width of 0");
+    }
+    if($vB_height < 0) {
+	$self->ie_at_vb_nw($vB_height);
+    }
+    if($vB_height == 0) {
+	$self->ex_us_is("A viewBox height of 0");
     }
 
     # preserveAspectRatio
     my ($defer, $align, $meetOrSlice);
-    if(my $pAR = $attributes->{preserveAspectRatio}) {
+    my $pAR = $attributes->{preserveAspectRatio};
+    if($pAR) {
 	if($pAR =~ /^defer +$RE_VIEW_BOX{ALIGN} +$RE_VIEW_BOX{MOS}$/) {
 	    ($defer, $align, $meetOrSlice) = ('defer', $1, $2);
 	}
@@ -223,10 +220,7 @@ sub _process_viewBox_attribute {
 	    ($defer, $align, $meetOrSlice) = ('', $1, 'meet');
 	}
 	else {
-	    warn("Failed to process the preserveAspectRatio string ".
-		 "'$pAR' correctly. Please report this as a bug and ".
-		 "include the string into the bug report.\n");
-	    ($defer, $align, $meetOrSlice) = (undef, undef, undef);
+	    $self->ex_pa('preserveAspectRatio', $pAR);
 	}
     }
 
@@ -247,23 +241,13 @@ sub _process_viewBox_attribute {
 	if($x_str eq 'xMin')    { $x_tr = 0 }
 	elsif($x_str eq 'xMid') { $x_tr = ($width - $sc * $vB_width) / 2 }
 	elsif($x_str eq 'xMax') { $x_tr = $width - $sc * $vB_width }
-	else {
-	    warn("Failed to process the preserveAspectRatio string ".
-		 "'".$attributes->{preserveAspectRatio}."' ".
-		 "correctly. Please report this as a bug and include ".
-		 "the string into the bug report.\n");
-	    $x_tr = 0;
-	}
+	else { $self->ex_pa('preserveAspectRatio', $pAR) }
+
 	if($y_str eq 'YMin')    { $y_tr = 0 }
 	elsif($y_str eq 'YMid') { $y_tr = ($height - $sc * $vB_height) /2 }
 	elsif($y_str eq 'YMax') { $y_tr = $height - $sc * $vB_height }	
-	else {
-	    warn("Failed to process the preserveAspectRatio string ".
-		 "'".$attributes->{preserveAspectRatio}."' ".
-		 "correctly. Please report this as a bug and include ".
-		 "the string into the bug report.\n");
-	    $y_tr = 0;
-	}
+	else { $self->ex_pa('preserveAspectRatio', $pAR) }
+
 	$matrix = multiply_matrices([1, 0, 0, 1, $x_tr, $y_tr], $matrix);
     }
     else {
@@ -272,10 +256,11 @@ sub _process_viewBox_attribute {
     }
 
     $self->{matrix} = multiply_matrices($self->{matrix}, $matrix);
+    return;
 }
 
 sub _process_styling_properties {
-    my ($self) = @_;
+    my ($self)      = @_;
     my $name        = $self->{node_name};
     my $attributes  = $self->{node_attributes};
     my @prop_names  = grep { $ATTR_VAL{$name}->{$_} } keys %PROPERTIES;
@@ -285,18 +270,13 @@ sub _process_styling_properties {
 
     # parse style attribute
     if($attributes->{style}) {
-	if($attributes->{style}) {
-	    foreach(split(/$WSP*\;$WSP*/, $attributes->{style})) {
-		my $prop_pattern = qr/([^\:]+)\:(.+)/;
-		if(my ($prop_name, $prop_value) = $_ =~ $prop_pattern) {
-		    # deal with whitespace
-		    $css->{lc($prop_name)} = $prop_value;
-		}
-		else {
-		    warn("Failed to parse css property setting $_, ".
-			 "skipping.\n");
-		}
+	foreach(split(/$WSP*\;$WSP*/, $attributes->{style})) {
+	    my $prop_pattern = qr/([^\:]+)\:(.+)/;
+	    if(my ($prop_name, $prop_value) = $_ =~ $prop_pattern) {
+		# deal with whitespace
+		$css->{lc($prop_name)} = $prop_value;
 	    }
+	    else { ex_pa('css property', $_) }
 	}
     }
 
@@ -309,16 +289,25 @@ sub _process_styling_properties {
 	    delete $val->{default};
 	    
 	    if(defined($css->{$_})) {
-		validate_with(params      => $css,
-			      spec        => {$_ => $val},
-			      allow_extra => 1);
+		validate_with
+		    (params      => $css,
+		     spec        => {$_ => $val},
+		     allow_extra => 1,
+		     on_fail     =>
+		         sub { $self->ie_pr_pv($_, $_[0]) });
 		$properties->{$_} = $css->{$_}
 		    unless($css->{$_} eq 'inherit');
 	    }
 	    else {
-		validate_with(params      => $attributes,
-			      spec        => {$_ => $val},
-			      allow_extra => 1);
+		# the following validation is redundant as long as
+		# the property validation uses the attribute
+		# validation framework
+		validate_with
+		    (params      => $attributes,
+		     spec        => {$_ => $val},
+		     allow_extra => 1,
+		     on_fail     =>
+		         sub { $self->ie_pr_pv($_, $_[0]) });
 		$properties->{$_} = $attributes->{$_}
 		    unless($attributes->{$_} eq 'inherit');
 	    }
@@ -348,10 +337,7 @@ sub _process_styling_properties {
 	    elsif(exists($COLORS{$properties->{$_}})) {
 		$properties->{$_} = $COLORS{$properties->{$_}};
 	    }
-	    else {
-		croak("Invalid color specification ".
-		      "($properties->{$_}).\n");
-	    }
+	    else { $self->ie_pr_co_iv($properties->{$_}) }
 	}
 
 	# lengths
@@ -363,9 +349,7 @@ sub _process_styling_properties {
 	# stroke-miterlimit
 	if($_ eq 'stroke-miterlimit') {
 	    if($properties->{$_} < 1) {
-	    croak('Value of stroke-miterlimit ('.
-		  $properties->{$_}.
-		  ') out of range (must be at least 1).'."\n");
+		$self->ie_pr_st_nm($properties->{$_});
 	    }
 	}
 
@@ -381,8 +365,7 @@ sub _process_styling_properties {
 			 split($RE_DASHARRAY{SPLIT}, $properties->{$_})];
 		    foreach my $dash (@{$properties->{$_}}) {
 			if($dash < 0) {
-			    croak("Negative value ($dash) in ".
-				  "stroke-dasharray.");
+			    $self->ie_pr_st_nd($dash);
 			}
 		    }
 		    if(@{$properties->{$_}} % 2) {
@@ -395,26 +378,31 @@ sub _process_styling_properties {
     }
 
     $self->{properties} = $properties;
+    return $properties;  # just a return value that makes sense
 }
 
 sub _process_node {
-    my ($self, @args) = @_;
-    my $name          = $self->{node_name};
-    my $attributes    = $self->{node_attributes};
+    my ($self)     = @_;
+    my $name       = $self->{node_name};
+    my $attributes = $self->{node_attributes};
 
-    # allowed child element?
     if($self->{_parent}) {
+	# allowed child element?
 	my $p_node_name = $self->{_parent}->node_name;
 	if(!$CHILDREN{$p_node_name}->{$name}) {
-	    $self->{_rasterize}->in_error
-		(sprintf(q{Element '%s' is not a valid child of }.
-			 q{element '%s'.}, $name, $p_node_name));
+	    $self->ie_el($name, $p_node_name);
 	}
+    }
+    else {
+	# valid element itself
+	$self->ie_el($name) if(!exists($CHILDREN{$name}));
     }
 
     # attribute validation
     my @attr_buffer = %$attributes;
-    validate(@attr_buffer, $ATTR_VAL{$name});
+    validate_with(params  => \@attr_buffer,
+		  spec    => $ATTR_VAL{$name},
+		  on_fail => sub { $self->ie_at_pv($_[0]) });
 
     # apply transformations
     $self->{matrix} ||= [1, 0, 0, 1, 0, 0];
@@ -425,6 +413,8 @@ sub _process_node {
     $self->_process_transform_attribute if($attributes->{transform});
     $self->_process_viewBox_attribute   if($attributes->{viewBox});
     $self->_process_styling_properties;
+
+    return;
 }
 
 ###########################################################################
@@ -449,18 +439,19 @@ sub node_attributes {
 sub map_length {
     my ($self, @args) = @_;
 
-    # To me it is unclear if leading/trailing white space is allowed
-    # in a length attribute. I allow it.
-    validate_pos(@args, { regex => $RE_LENGTH{p_A_LENGTH} });
+    validate_with(params  => \@args,
+		  spec    => [{regex => $RE_LENGTH{p_A_LENGTH}}],
+		  on_fail => sub { $self->ie_pv($_[0]) });
+
     my ($number, $unit) =
 	$args[0] =~ /^($RE_NUMBER{A_NUMBER})($RE_LENGTH{UNIT}?)$/;
     
     if(!$unit)           { return $number }
-    elsif($unit eq 'em') { croak "Unit em not supported, yet.\n" }
-    elsif($unit eq 'ex') { croak "Unit ex not supported, yet.\n" }
-    elsif($unit eq '%')  { croak "Lenghts in % not supported, yet.\n" }
+    elsif($unit eq 'em') { $self->ex_us_is("Unit em") }
+    elsif($unit eq 'ex') { $self->ex_us_is("Unit ex") }
+    elsif($unit eq '%')  { $self->ex_us_is("Unit %")  }
 
-    return $self->{_rasterize}->map_abs_length($number, $unit);
+    return $self->{rasterize}->map_abs_length($number, $unit);
 }
 
 sub transform {
@@ -546,6 +537,11 @@ provided; unused except for children, but available for hooks
 
 =head2 Public Attributes
 
+=head3 rasterize
+
+Can only be set at construction time. Stores a weakened reference to
+the L<SVG::Rasterize|SVG::Rasterize> object.
+
 =head3 node
 
 Can only be set at construction time. If the C<SVG> data to
@@ -563,17 +559,19 @@ C<SVG::Rasterize>).
 =head3 node_name
 
 Can only be set at construction time. Stores the name of the current
-node even if L<node|/node> above is undef. If it differs from C<<
-$node->getNodeName >> (usage not recommended), C<node_name> is used.
+node even if L<node|/node> above is C<undef>. If it differs from
+C<< $node->getNodeName >> (usage not recommended), C<node_name> is
+used.
 
 =head3 node_attributes
 
-Can only be set at construction time. Stores the attributes of the
-current node as a HASH reference even if L<node|/node> above is
-undef. The accessor does not create a copy of the hash, so changes
-will affect the hash stored in the object. This is on purpose to
-give you full control e.g. inside a L<hook|SVG::Rasterize/Hooks>. In
-case the node has no attributes an empty hash is returned. If the
+Can only be set at construction time (any arguments to the accessor
+are silently ignored). Stores the attributes of the current node as
+a HASH reference even if L<node|/node> above is C<undef>. The
+accessor does not create a copy of the hash, so changes will affect
+the hash stored in the object. This is on purpose to give you full
+control e.g. inside a L<hook|SVG::Rasterize/Hooks>. In case the node
+has no attributes an empty HASH reference is returned. If the
 content differs from C<< $node->getAttributes >> (usage not
 recommended), C<node_attributes> is used.
 
@@ -605,14 +603,16 @@ hooks which makes them almost a developer.
 
   $state->map_length($length)
 
-This method takes a length and returns the corresponding value
-in C<px> according to the conversion rates above.
+This method takes a length and returns the corresponding value in
+C<px> according to the conversion rates described in the L<ADVANCED
+TOPICS|SVG::Rasterize/Units> section of
+C<SVG::Rasterize>. Surrounding white space is not allowed.
 
 B<Examples:>
 
-  $x = $rasterize->map_length('  1in ');  # returns 90
   $x = $rasterize->map_length('5.08cm');  # returns 180
   $x = $rasterize->map_length(10);        # returns 10
+  $x = $rasterize->map_length('  1in ');  # error
   $x = $rasterize->map_length('50%')      # depends on context
 
 Note that there is no C<< $state->map_length($number, $unit) >>
@@ -688,15 +688,13 @@ Stores a weakened reference to the parent state object. This
 attribute should maybe become public readonly for use in
 hooks.
 
-=item * _rasterize
-
-Stores a weakened reference to the L<SVG::Rasterize|SVG::Rasterize>
-object. This attribute should maybe become public readonly for use
-in hooks.
-
 =back
 
 =head2 Internal Methods
+
+These methods are just documented for myself. You can read on to
+satisfy your voyeuristic desires, but be aware of that they might
+change or vanish without notice in a future version.
 
 =over 4
 
@@ -705,16 +703,26 @@ in hooks.
 Called after creation of the state object. Checks for relevant
 attributes and processes them.
 
+Does not take any arguments and does not return anything.
+
 =item * _process_transform_attribute
 
 Parses the string given in a C<transform> attribute and sets the
 L<matrix|/matrix> attribute accordingly.
+
+Does not take any parameters and does not return anything. Expects
+that C<< $self->{matrix} >> is set properly (which it is in
+L<_process_node|/_process_node>).
 
 =item * _process_viewBox_attribute
 
 Parses the C<viewBox> and C<preserveAspectRatio> attributes (if
 present) of the current node and modifies the current transformation
 matrix accordingly.
+
+Does not take any parameters and does not return anything. Expects
+that C<< $self->{matrix} >> is set properly (which it is in
+L<_process_node|/_process_node>).
 
 =item * _process_style_properties
 
@@ -723,6 +731,8 @@ Creates a hash with current style properties which are taken from
 respective property attribute or (if inheritable) from the parent
 state or from the hash of default values in
 L<SVG::Rasterize::Properties|SVG::Rasterize::Properties>.
+
+Does not take any arguments. Returns the properties HASH reference.
 
 =back
 

@@ -188,50 +188,50 @@ sub path_data_splitting {
     my $d;
 
     is_deeply([$rasterize->_split_path_data('M3 -4')],
-	      [['M', 3, -4]],
+	      [0, ['M', 3, -4]],
 	      q{path data 'M3 -4'});
     is_deeply([$rasterize->_split_path_data('M3 -4 12.3')],
-	      [['M', 3, -4], ['L', '12.', 3]],
+	      [0, ['M', 3, -4], ['L', '12.', 3]],
 	      q{path data 'M3 -4 12.3'});
     is_deeply([$rasterize->_split_path_data('M3 -4 M12.3')],
-	      [['M', 3, -4], ['M', '12.', 3]],
+	      [0, ['M', 3, -4], ['M', '12.', 3]],
 	      q{path data 'M3 -4 M12.3'});
     is_deeply([$rasterize->_split_path_data('M3 -4 12.23')],
-	      [['M', 3, -4], ['L', 12.2, 3]],
+	      [0, ['M', 3, -4], ['L', 12.2, 3]],
 	      q{path data 'M3 -4 12.23'});
     is_deeply([$rasterize->_split_path_data('M-13')],
-	      [['M', -1, 3]],
+	      [0, ['M', -1, 3]],
 	      q{path data 'M-13'});
     is_deeply([$rasterize->_split_path_data('M-13.4')],
-	      [['M', '-13.', 4]],
+	      [0, ['M', '-13.', 4]],
 	      q{path data 'M-13.4'});
     is_deeply([$rasterize->_split_path_data('M3-1l100Z')],
-	      [['M', 3, -1], ['l', 10, 0], ['Z']],
+	      [0, ['M', 3, -1], ['l', 10, 0], ['Z']],
 	      q{path data 'M3-1l100Z'});
     is_deeply([$rasterize->_split_path_data('M-1-2H.4 3')],
-	      [['M', -1, -2], ['H', '.4'], ['H', 3]],
+	      [0, ['M', -1, -2], ['H', '.4'], ['H', 3]],
 	      q{path data 'M-1-2H.4 3'});
     is_deeply([$rasterize->_split_path_data('C1 2 3 4 5 6 1 2 3 4 5 6')],
-	      [['C', 1, 2, 3, 4, 5, 6], ['C', 1, 2, 3, 4, 5, 6]],
+	      [0, ['C', 1, 2, 3, 4, 5, 6], ['C', 1, 2, 3, 4, 5, 6]],
 	      q{path data 'C1 2 3 4 5 6 1 2 3 4 5 6'});
     is_deeply([$rasterize->_split_path_data('S1 2 3 4 5 6 1 2')],
-	      [['S', 1, 2, 3, 4], ['S', 5, 6, 1, 2]],
+	      [0, ['S', 1, 2, 3, 4], ['S', 5, 6, 1, 2]],
 	      q{path data 'S1 2 3 4 5 6 1 2'});
     is_deeply([$rasterize->_split_path_data('Q1 2 3 4t56')],
-	      [['Q', 1, 2, 3, 4], ['t', 5, 6]],
+	      [0, ['Q', 1, 2, 3, 4], ['t', 5, 6]],
 	      q{path data 'Q1 2 3 4t56'});
     is_deeply([$rasterize->_split_path_data('A1 2 -3 0 0 1 4')],
-	      [['A', 1, 2, -3, 0, 0, 1, 4]],
+	      [0, ['A', 1, 2, -3, 0, 0, 1, 4]],
 	      q{path data 'A1 2 -3 0 0 1 4'});
     $d = 'M 125,75 a100,50 0 0,0 100,50';
     ok($d =~ $RE_PATH{p_PATH_LIST}, $d);
     is_deeply([$rasterize->_split_path_data($d)],
-	      [['M', 125, 75], ['a', 100, 50, 0, 0, 0, 100, 50]],
+	      [0, ['M', 125, 75], ['a', 100, 50, 0, 0, 0, 100, 50]],
 	      qq{path data '$d'});
     $d = 'M 125 , 75 L 100 50 20 30 H 1  C 1 2 3 4 5 6 a 1 2 3 0 1 4 5';
     ok($d =~ $RE_PATH{p_PATH_LIST}, $d);
     is_deeply([$rasterize->_split_path_data($d)],
-	      [['M', 125, 75], ['L', 100, 50], ['L', 20, 30], ['H', 1],
+	      [0, ['M', 125, 75], ['L', 100, 50], ['L', 20, 30], ['H', 1],
 	       ['C', 1, 2, 3, 4, 5, 6], ['a', 1, 2, 3, 0, 1, 4, 5]],
 	      qq{path data '$d'});
 }

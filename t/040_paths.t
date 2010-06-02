@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 4;
+use Test::More tests => 7;
 
 use SVG;
 use Test::Exception;
@@ -13,6 +13,7 @@ sub path_data {
     my $svg;
     my $hook;
     my @expected;
+    my $ex;
 
     $rasterize = SVG::Rasterize->new;
     $svg       = SVG->new(width => 400, height => 300);
@@ -39,6 +40,23 @@ sub path_data {
     };
     $rasterize->start_node_hook($hook);
     $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->path(id => 'p01', d => 'M100 100 L1 1');
+    lives_ok(sub { $rasterize->rasterize(svg => $svg) },
+	     'valid string');
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->path(id => 'p01', d => 'M100 100 L1');
+    eval { $rasterize->rasterize(svg => $svg) };
+    $ex = $@;
+    isa_ok($ex, 'SVG::Rasterize::Exception::InError');
+    ok($ex->message =~ /Path data string \'M100 100 L1\' is invalid\./,
+       'message');
 }
 
 path_data;

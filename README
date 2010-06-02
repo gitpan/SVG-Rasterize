@@ -31,18 +31,20 @@ Class::Accessor,  version 0.30  or higher
 SVG,              version 2.37  or higher
 Cairo,            version 1.061 or higher
 Params::Validate, version 0.91  or higher
+Scalar::Util,     version 1.19  or higher
+Exception::Class, version 1.29  or higher
 Test::More,       version 0.86  or higher
 Test::Exception   version 0.27  or higher
-Scalar::Util,     version 1.19  or higher
 
-With respect to the actual code, the dependency on Cairo is not
+With respect to the module code, the dependency on Cairo is not
 strict.  The code only requires Cairo in case no other rasterization
 engine is specified (see documentation for details). However, if you
 do not provide a different backend, which would probably at least
 require a wrapper written by you, then you cannot do anything
 without Cairo. Therefore I have included it as a strict
-dependency. Feel free take that out of the Makefile.PL if you know
-what you are doing.
+dependency. You could take it out of the Makefile.PL if you know
+what you are doing. However, the distribution will not pass the test
+suite without Cairo.
 
 SUPPORT AND DOCUMENTATION
 

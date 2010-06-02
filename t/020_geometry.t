@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 190;
+use Test::More tests => 188;
 use Test::Exception;
 
 use SVG;
@@ -230,13 +230,6 @@ sub initial_viewport {
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes});
 
-    throws_ok(sub { $rasterize->_initial_viewport() },
-	      qr/Failed to determine the width of the initial viewport/,
-	      'initial viewport no parameters');
-    throws_ok(sub { $rasterize->_initial_viewport({$svg->getAttributes},
-						  {width => 5}) },
-	      qr/Failed to determine the height of the initial viewport/,
-	      'initial viewport no height');
     $attributes = {width => 100, height => 50};
     $rasterize->_initial_viewport({$svg->getAttributes},
 				  $attributes);

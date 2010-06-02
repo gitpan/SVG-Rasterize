@@ -12,6 +12,7 @@ requires 'SVG'                   => '2.37';
 requires 'Cairo'                 => '1.061';
 requires 'Params::Validate'      => '0.91';
 requires 'Scalar::Util'          => '1.19';
+requires 'Exception::Class'      => '1.29';
 
 build_requires 'Test::More'      => '0.80';
 build_requires 'Test::Exception' => '0.27';

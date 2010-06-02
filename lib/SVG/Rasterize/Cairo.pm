@@ -6,10 +6,12 @@ use strict;
 
 use 5.008009;
 
-use Carp;
 use Cairo;
+use Params::Validate qw(:all);
 
-# $Id: Cairo.pm 5743 2010-05-24 08:02:58Z mullet $
+use SVG::Rasterize::Regexes qw(%RE_NUMBER);
+
+# $Id: Cairo.pm 5889 2010-06-02 07:49:31Z mullet $
 
 =head1 NAME
 
@@ -17,16 +19,18 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.001006
+Version 0.002003
 
 =cut
 
-our $VERSION = '0.001006';
+our $VERSION = '0.002003';
 
 
-__PACKAGE__->mk_accessors(qw(width height));
+__PACKAGE__->mk_accessors(qw());
 
-__PACKAGE__->mk_ro_accessors(qw(context));
+__PACKAGE__->mk_ro_accessors(qw(context
+                                width
+                                height));
 
 ###########################################################################
 #                                                                         #
@@ -50,19 +54,20 @@ sub new {
 
 sub init {
     my ($self, @args) = @_;
+    my %args          = validate_with
+	(params  => \@args,
+	 spec    => {width  => {regex => $RE_NUMBER{p_NNINTEGER}},
+		     height => {regex => $RE_NUMBER{p_NNINTEGER}}},
+	 on_fail => sub { SVG::Rasterize->ex_pv($_[0]) });
 
-    # parameter checking, width, height must be there
-    my %args = @args;
-
-    foreach(keys %args) {
-	my $meth = $_;
-	if($self->can($meth)) { $self->$meth($args{$meth}) }
-	else { carp "Unrecognized init parameter $meth.\n" }
-    }
+    $self->{width}  = $args{width};
+    $self->{height} = $args{height};
 
     my $surface = ($args{surface_class} || 'Cairo::ImageSurface')->create
 	('argb32', $args{width}, $args{height});
     $self->{context} = Cairo::Context->create($surface);
+
+    return $self;
 }
 
 ###########################################################################
@@ -94,6 +99,8 @@ sub _prepare_fill {
 	    $context->set_fill_rule('even-odd');
 	}
     }
+
+    return;
 }
 
 sub _prepare_stroke {
@@ -138,6 +145,8 @@ sub _prepare_stroke {
 	}
 	$context->set_dash(@dash);
     }
+
+    return;
 }
 
 sub _fill {
@@ -150,6 +159,8 @@ sub _fill {
     else {
 	$self->{context}->new_path;
     }
+
+    return;
 }
 
 sub _stroke {
@@ -162,6 +173,8 @@ sub _stroke {
     else {
 	$self->{context}->new_path;
     }
+
+    return;
 }
 
 sub _fill_and_stroke {
@@ -192,6 +205,8 @@ sub _fill_and_stroke {
 
     $context->pop_group_to_source;
     $context->paint;
+
+    return;
 }
 
 sub draw_path {
@@ -415,20 +430,21 @@ sub draw_path {
 
     $self->_fill_and_stroke($state->properties);
     $context->restore;
+
     return;
 }
 
 sub write {
     my ($self, @args) = @_;
 
-    # TODO: check args
-    my %args = @args;
-    if(!$args{type}) {
-	carp "No output type specified.\n";
-    }
-    elsif(lc($args{type}) eq 'png') {
+    my %args = validate_with
+	(params  => \@args,
+	 spec    => {type => {regex => qr/^(?:png)$/}},
+	 on_fail => sub { SVG::Rasterize->ex_pv($_[0]) });
+
+    if($args{type} eq 'png') {
 	if(!$args{file_name}) {
-	    carp("Unable to write png file. No file name specified.\n");
+	    warn("Unable to write png file. No file name specified.\n");
 	    return undef;
 	}
 
@@ -436,8 +452,10 @@ sub write {
 	$self->{context}->get_target->write_to_png($args{file_name});
     }
     else {
-	carp "Unknown output type ($args{type}).\n";
+	warn "Unknown output type ($args{type}).\n";
     }
+
+    return;
 }
 
 1;
@@ -446,11 +464,20 @@ __END__
 
 =head1 SYNOPSIS
 
+  # explicit construction (unusual)
+  use SVG::Rasterize::Cairo;
+  my $engine = SVG::Rasterize::Cairo->new(width  => 640,
+                                          height => 480);
 
 =head1 DESCRIPTION
 
-The interface of this class has to be considered unstable. Therefore
-it is also only very sparsely documented.
+This class provides a rasterization backend for
+L<SVG::Rasterize|SVG::Rasterize> based on the L<Cairo|Cairo>
+library. At the same time, it defines the interface that alternative
+backends have to provide.
+
+This class is only instantiated by the L<rasterize
+method|SVG::Rasterize/rasterize> of C<SVG::Rasterize>.
 
 =head1 INTERFACE
 
@@ -468,16 +495,13 @@ If you subclass C<SVG::Rasterize::Cairo> overload C<init>, not C<new>.
   $cairo->init(%args)
 
 If you overload C<init>, your method should also call this one.
-It provides the following functions:
+It initializes the attributes L<width|/width> and L<height|/height>
+which are mandatory parameters and have to be non-negative integers.
 
-=over 4
-
-=item * For each given argument (which has not been deleted by
-the previous actions) it calls the accessor with the same name to
-initialize the attribute. If such an accessor does not exist a
-warning is printed and the argument is ignored.
-
-=back
+Other backends are also required to validate their init parameters
+because the L<engine_args|SVG::Rasterize/engine_args> hash given by
+the user to C<SVG::Rasterize> is handed over to the C<new>
+constructor of the engine class without validation.
 
 =head2 Public Attributes
 
@@ -486,7 +510,13 @@ have to implement.
 
 =head3 width
 
+Can only be set and construction time. Saves the width of the output
+image.
+
 =head3 height
+
+Can only be set and construction time. Saves the height of the
+output image.
 
 =head2 Methods for Developers
 
@@ -494,6 +524,36 @@ These are the methods which alternative rasterization engines have
 to implement.
 
 =head3 draw_path
+
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
+a list of instructions.None of the parameters are validated, it is
+expected that this has happened before. Each instruction must be an
+ARRAY reference with one of the following sets of entries (the first
+entry is always a letter, the rest are numbers):
+
+=over 4
+
+=item * C<M> or C<m>, followed by two numbers
+
+=item * C<Z>
+
+=item * C<L> or C<l>, followed by two numbers
+
+=item * C<H> or C<h>, followed by one number
+
+=item * C<V> or C<v>, followed by one number
+
+=item * C<C> or C<c>, followed by six numbers
+
+=item * C<S> or C<s>, followed by four numbers
+
+=item * C<Q> or C<q>, followed by four numbers
+
+=item * C<T> or C<t>, followed by two numbers
+
+=item * C<A> or C<a>, followed by seven numbers
+
+=back
 
 =head3 write
 
@@ -506,7 +566,10 @@ B<Example:>
   $engine->write(type => 'png', file_name => 'foo.png');
 
 C<type> and C<file_name> are the only supported parameters at the
-moment and the only supported type is "png".
+moment and the only supported type is "png". If C<file_name> has a
+false value, no output is written and a warning is issued. Besides
+that C<file_name> is not validated at all. Make sure that you
+provide a sane value (whatever that means to you).
 
 =head1 DIAGNOSTICS
 

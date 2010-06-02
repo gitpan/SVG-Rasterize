@@ -7,7 +7,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Specification.pm 5749 2010-05-24 20:14:17Z mullet $
+# $Id: Specification.pm 5850 2010-05-30 08:43:26Z mullet $
 
 =head1 NAME
 
@@ -15,11 +15,11 @@ C<SVG::Rasterize::Specification> - data structures derived from DTD
 
 =head1 VERSION
 
-Version 0.001006
+Version 0.002002
 
 =cut
 
-our $VERSION = '0.001006';
+our $VERSION = '0.002002';
 
 our @EXPORT    = qw(%CHILDREN %ATTR_VAL %ATTR_HINTS);
 our @EXPORT_OK = qw();
@@ -4925,7 +4925,7 @@ our %ATTR_VAL =
                                                                   regex    => qr//},
                                'd'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => $RE_PATH{p_PATH_LIST}},
+                                                                  regex    => $RE_PATH{s_PATH_LIST}},
                                'direction'                    => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/ltr|rtl|inherit/},
@@ -6119,7 +6119,7 @@ our %ATTR_VAL =
                                                                   regex    => qr//},
                                'd'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => $RE_PATH{p_PATH_LIST}},
+                                                                  regex    => $RE_PATH{s_PATH_LIST}},
                                'direction'                    => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/ltr|rtl|inherit/},
@@ -6353,7 +6353,7 @@ our %ATTR_VAL =
                                                                   regex    => qr//},
                                'd'                            => {optional => 0,
                                                                   type     => SCALAR,
-                                                                  regex    => $RE_PATH{p_PATH_LIST}},
+                                                                  regex    => $RE_PATH{s_PATH_LIST}},
                                'display'                      => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/inline|block|list\-item|run\-in|compact|marker|table|inline\-table|table\-row\-group|table\-header\-group|table\-footer\-group|table\-row|table\-column\-group|table\-column|table\-cell|table\-caption|none|inherit/},
@@ -6839,7 +6839,7 @@ our %ATTR_VAL =
                                                                   regex    => qr/visiblePainted|visibleFill|visibleStroke|visible|painted|fill|stroke|all|none|inherit/},
                                'points'                       => {optional => 0,
                                                                   type     => SCALAR,
-                                                                  regex    => $RE_POLY{p_POINTS_LIST}},
+                                                                  regex    => $RE_POLY{s_POINTS_LIST}},
                                'requiredExtensions'           => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr//},
@@ -6992,7 +6992,7 @@ our %ATTR_VAL =
                                                                   regex    => qr/visiblePainted|visibleFill|visibleStroke|visible|painted|fill|stroke|all|none|inherit/},
                                'points'                       => {optional => 0,
                                                                   type     => SCALAR,
-                                                                  regex    => $RE_POLY{p_POINTS_LIST}},
+                                                                  regex    => $RE_POLY{s_POINTS_LIST}},
                                'requiredExtensions'           => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr//},

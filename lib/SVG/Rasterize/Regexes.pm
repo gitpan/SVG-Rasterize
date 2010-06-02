@@ -12,11 +12,11 @@ C<SVG::Rasterize::Regexes> - Commonly used regular expressions
 
 =head1 VERSION
 
-Version 0.002000
+Version 0.002002
 
 =cut
 
-our $VERSION = '0.002000';
+our $VERSION = '0.002002';
 
 our @EXPORT    = qw();
 our @EXPORT_OK = qw($WSP
@@ -58,6 +58,7 @@ our %RE_NUMBER = ();
 our %RE_LENGTH = ();
 {
     $RE_NUMBER{NNINTEGER}    = qr/\d+/;
+    $RE_NUMBER{p_NNINTEGER}  = qr/^$RE_NUMBER{NNINTEGER}$/;
     $RE_NUMBER{INTEGER}      = qr/[\+\-]?$RE_NUMBER{NNINTEGER}/;
     $RE_NUMBER{p_INTEGER}    = qr/^$RE_NUMBER{INTEGER}$/;
     $RE_NUMBER{w_INTEGER}    = qr/^$WSP*$RE_NUMBER{INTEGER}$WSP*$/;
@@ -89,13 +90,22 @@ our %RE_LENGTH = ();
     $RE_NUMBER{p_A_NUMBER}   = qr/^$RE_NUMBER{A_NUMBER}$/;
     $RE_NUMBER{w_A_NUMBER}   = qr/^$WSP*$RE_NUMBER{A_NUMBER}$WSP*$/;
 
-    $RE_LENGTH{UNIT}         = qr/(?:em|ex|px|pt|pc|cm|mm|in|\%)/;
-    $RE_LENGTH{P_LENGTH}     = qr/$RE_NUMBER{P_NUMBER}$RE_LENGTH{UNIT}?/;
-    $RE_LENGTH{p_P_LENGTH}   = qr/^$RE_LENGTH{P_LENGTH}$/;
-    $RE_LENGTH{w_P_LENGTH}   = qr/^$WSP*$RE_LENGTH{P_LENGTH}$WSP*$/;
-    $RE_LENGTH{A_LENGTH}     = qr/$RE_NUMBER{A_NUMBER}$RE_LENGTH{UNIT}?/;
-    $RE_LENGTH{p_A_LENGTH}   = qr/^$RE_LENGTH{A_LENGTH}$/;
-    $RE_LENGTH{w_A_LENGTH}   = qr/^$WSP*$RE_LENGTH{A_LENGTH}$WSP*$/;
+    $RE_LENGTH{UNIT}           = qr/(?:em|ex|px|pt|pc|cm|mm|in|\%)/;
+    $RE_LENGTH{ABS_UNIT}       = qr/(?:px|pt|pc|cm|mm|in)/;
+    $RE_LENGTH{P_LENGTH}       = qr/$RE_NUMBER{P_NUMBER}$RE_LENGTH{UNIT}?/;
+    $RE_LENGTH{p_P_LENGTH}     = qr/^$RE_LENGTH{P_LENGTH}$/;
+    $RE_LENGTH{w_P_LENGTH}     = qr/^$WSP*$RE_LENGTH{P_LENGTH}$WSP*$/;
+    $RE_LENGTH{ABS_P_LENGTH}   = qr/$RE_NUMBER{P_NUMBER}
+                                    $RE_LENGTH{ABS_UNIT}?/x;
+    $RE_LENGTH{p_ABS_P_LENGTH} = qr/^$RE_LENGTH{ABS_P_LENGTH}$/;
+    $RE_LENGTH{w_ABS_P_LENGTH} = qr/^$WSP*$RE_LENGTH{ABS_P_LENGTH}$WSP*$/;
+    $RE_LENGTH{A_LENGTH}       = qr/$RE_NUMBER{A_NUMBER}$RE_LENGTH{UNIT}?/;
+    $RE_LENGTH{p_A_LENGTH}     = qr/^$RE_LENGTH{A_LENGTH}$/;
+    $RE_LENGTH{w_A_LENGTH}     = qr/^$WSP*$RE_LENGTH{A_LENGTH}$WSP*$/;
+    $RE_LENGTH{ABS_A_LENGTH}   = qr/$RE_NUMBER{A_NUMBER}
+                                    $RE_LENGTH{ABS_UNIT}?/x;
+    $RE_LENGTH{p_ABS_A_LENGTH} = qr/^$RE_LENGTH{ABS_A_LENGTH}$/;
+    $RE_LENGTH{w_ABS_A_LENGTH} = qr/^$WSP*$RE_LENGTH{ABS_A_LENGTH}$WSP*$/;
 }
 
 # rgb colors
@@ -246,6 +256,7 @@ our %RE_PATH = ();
     my  $pcgm    = qr/$pcg(?:$WSP*$pcg)*/;      # pcg multiple
 
     $RE_PATH{p_PATH_LIST} = qr/^$WSP*$pcgm$WSP*$/;
+    $RE_PATH{s_PATH_LIST} = qr/^$WSP*$pcgm$WSP*/;
     $RE_PATH{MAS_SPLIT}   = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
                                 ($RE_NUMBER{A_NUMBER})$CWSP?
                                 ($mas?)$/x;
@@ -294,6 +305,7 @@ our %RE_POLY = ();
     my  $cp = qr/$RE_NUMBER{A_NUMBER}$CWSP?$RE_NUMBER{A_NUMBER}/;
     my  $pm = qr/$cp(?:$CWSP$cp)*/;  # point multiple
     $RE_POLY{p_POINTS_LIST} = qr/^$WSP*$pm$WSP*$/;
+    $RE_POLY{s_POINTS_LIST} = qr/^$WSP*$pm$WSP*/;
     $RE_POLY{POINTS_SPLIT}  = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
                                   ($RE_NUMBER{A_NUMBER})$CWSP?
                                   ($pm?)$/x;
