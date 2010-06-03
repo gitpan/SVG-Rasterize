@@ -29,6 +29,9 @@ which are not listed here because I won't forget them.
 - merge engine_args
 - complete docu of SVG::Rasterize::Cairo, then remove sparseness
   remark in SVG::Rasterize docu
+- move processing of node in front of processing of child nodes:
+  Looks like text elements will require processing of the node
+  itself although it does not have child nodes.
 
 done (excerpt)
 -------------

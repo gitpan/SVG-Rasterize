@@ -1,5 +1,14 @@
 Revision history for SVG-Rasterize
 
+0.003001 Thu Jun  3 20:36:38 NZST 2010
+	 - Main purpose for this (kind of premature) release: Fixes
+	   bug in SVG::Rasterize::Cairo that prohibit the
+	   specification of an output file name.
+	 - New dependency Pango (1.220 or higher)...postponed in
+	   order to allow testing my perl 5.8.9 installation.
+	 - Fixes bug in validation of attributes with a list of
+	   valid values.
+
 0.003000 Wed Jun  2 20:41:08 NZST 2010
 	 Identical to 0.002003.
 

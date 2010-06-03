@@ -7,11 +7,12 @@ use strict;
 use 5.008009;
 
 use Cairo;
+#use Pango;
 use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(%RE_NUMBER);
 
-# $Id: Cairo.pm 5889 2010-06-02 07:49:31Z mullet $
+# $Id: Cairo.pm 5918 2010-06-03 08:39:47Z mullet $
 
 =head1 NAME
 
@@ -19,11 +20,11 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.002003
+Version 0.003001
 
 =cut
 
-our $VERSION = '0.002003';
+our $VERSION = '0.003001';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -439,7 +440,8 @@ sub write {
 
     my %args = validate_with
 	(params  => \@args,
-	 spec    => {type => {regex => qr/^(?:png)$/}},
+	 spec    => {type      => {regex => qr/^(?:png)$/},
+		     file_name => {type  => SCALAR}},
 	 on_fail => sub { SVG::Rasterize->ex_pv($_[0]) });
 
     if($args{type} eq 'png') {
@@ -568,8 +570,9 @@ B<Example:>
 C<type> and C<file_name> are the only supported parameters at the
 moment and the only supported type is "png". If C<file_name> has a
 false value, no output is written and a warning is issued. Besides
-that C<file_name> is not validated at all. Make sure that you
+that, C<file_name> is not validated at all. Make sure that you
 provide a sane value (whatever that means to you).
+
 
 =head1 DIAGNOSTICS
 

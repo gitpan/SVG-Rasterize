@@ -17,7 +17,7 @@ use SVG::Rasterize::Regexes qw(:whitespace
 use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::State;
 
-# $Id: Rasterize.pm 5899 2010-06-02 08:40:19Z mullet $
+# $Id: Rasterize.pm 5913 2010-06-03 06:56:20Z mullet $
 
 =head1 NAME
 
@@ -25,11 +25,11 @@ C<SVG::Rasterize> - rasterize SVG content to pixel graphics
 
 =head1 VERSION
 
-Version 0.003000
+Version 0.003001
 
 =cut
 
-our $VERSION = '0.003000';
+our $VERSION = '0.003001';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -2059,6 +2059,12 @@ cannot do anything without L<Cairo|Cairo>. Therefore I have included
 it as a strict dependency. You could take it out of the Makefile.PL
 if you know what you are doing. However, the distribution will not
 pass the test suite without L<Cairo|Cairo>.
+
+=item * L<Pango|Pango>, version 1.220 or higher
+
+What has been said about C<Cairo> above is also true for C<Pango>.
+Both are loaded by L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>
+and that is only loaded if no other backend has been specified.
 
 =item * L<Params::Validate|Params::Validate>, version 0.91 or higher
 
