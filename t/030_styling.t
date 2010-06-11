@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 54;
+use Test::More tests => 63;
 
 use SVG;
 use Test::Exception;
@@ -19,9 +19,12 @@ sub set_property {
     $svg->firstChild->attrib('stroke-width' => '9pt');
     is($svg->firstChild->attrib('stroke-width'), '9pt', 'check attrib');
     $hook      = sub {
-	if($_[2] eq 'svg') {
-	    is($_[3]->{'stroke-width'}, '9pt', 'xsl stroke-width');
+	my ($rasterize, %state_args) = @_;
+	if($state_args{node_name} eq 'svg') {
+	    is($state_args{node_attributes}->{'stroke-width'}, '9pt',
+	       'xsl stroke-width');
 	}
+	return %state_args;
     };
     $rasterize->before_node_hook($hook);
     $rasterize->rasterize(svg => $svg);
@@ -34,13 +37,16 @@ sub set_property {
     is($svg->firstChild->attrib('stroke-width'), '9pt', 'check attrib');
     is($svg->firstChild->attrib('id'), 'svg', 'check attrib');
     $hook = sub {
-	if($_[3]->{id} eq 'svg') {
-	    is($_[3]->{'stroke-width'}, '9pt', 'xsl stroke-width');
+	my ($rasterize, %state_args) = @_;
+	if($state_args{node_attributes}->{id} eq 'svg') {
+	    is($state_args{node_attributes}->{'stroke-width'}, '9pt',
+	       'xsl stroke-width');
 	}
-	if($_[3]->{id} eq 'g01') {
-	    ok(!defined($_[3]->{'stroke-width'}),
+	if($state_args{node_attributes}->{id} eq 'g01') {
+	    ok(!defined($state_args{node_attributes}->{'stroke-width'}),
 	       'xsl stroke-width not on group');
 	}
+	return %state_args;
     };
     $rasterize->before_node_hook($hook);
     $hook = sub {
@@ -122,15 +128,18 @@ sub inherit {
 		'stroke'       => 'none',
 		'stroke-width' => ' inherit');
     $hook = sub {
-	if($_[3]->{id} eq 'svg') {
-	    is($_[3]->{'stroke-width'}, '9pt', 'xsl stroke-width');
+	my ($rasterize, %state_args) = @_;
+	if($state_args{node_attributes}->{id} eq 'svg') {
+	    is($state_args{node_attributes}->{'stroke-width'}, '9pt',
+	       'xsl stroke-width');
 	}
-	if($_[3]->{id} eq 'g01') {
-	    is($_[3]->{'stroke-width'}, 'inherit',
+	if($state_args{node_attributes}->{id} eq 'g01') {
+	    is($state_args{node_attributes}->{'stroke-width'}, 'inherit',
 	       'xsl stroke-width explicit inherit');
-	    is($_[3]->{'stroke'}, 'none',
+	    is($state_args{node_attributes}->{'stroke'}, 'none',
 	       'xsl stroke explicit none');
 	}
+	return %state_args;
     };
     $rasterize->before_node_hook($hook);
     $hook = sub {
@@ -179,10 +188,20 @@ sub color {
 	if($state->node_attributes->{id} eq 'g03') {
 	    is_deeply($state->properties->{'stroke'}, [33, -25, 306],
 	       'property stroke on g03');
+	    is($state->properties->{'stroke-width'}, 90,
+	       'property stroke-width 90 g03');
 	}
     };
     $rasterize->start_node_hook($hook);
     $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id => 'g01', 'style' => 'stroke:');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/process the css property string \'stroke\:\' correctly/,
+	      'Error message invalid css property');
 }
 
 sub whitespace {
@@ -294,8 +313,55 @@ sub dasharray {
 	      'negative value in dasharray');
 }
 
+sub style_as_hash {
+    my $rasterize;
+    my $svg;
+    my $hook;
+    my @expected;
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id => 'g01', style => {'stroke-width' => '1in'});
+    @expected = ('svg', 'g01');
+    $hook = sub {
+	my ($rasterize, $state) = @_;
+	is($state->node_attributes->{id}, shift(@expected),
+	   'expected id');
+	if($state->node_attributes->{id} eq 'g01') {
+	    is($state->properties->{'stroke-width'}, 90,
+	       'property stroke-width 90 g01');
+	}
+    };
+    $rasterize->start_node_hook($hook);
+    $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id    => 'g01',
+		style => {'stroke-width' => '1in',
+			  'stroke'       => 'black'});
+    @expected = ('svg', 'g01');
+    $hook = sub {
+	my ($rasterize, $state) = @_;
+	is($state->node_attributes->{id}, shift(@expected),
+	   'expected id');
+	if($state->node_attributes->{id} eq 'g01') {
+	    is($state->properties->{'stroke-width'}, 90,
+	       'property stroke-width 90 g01');
+	    is_deeply($state->properties->{'stroke'},
+		      [0, 0, 0],
+		      'property stroke processed black g01');
+	}
+    };
+    $rasterize->start_node_hook($hook);
+    $rasterize->rasterize(svg => $svg);
+}
+
 set_property;
 inherit;
 color;
 whitespace;
 dasharray;
+style_as_hash;

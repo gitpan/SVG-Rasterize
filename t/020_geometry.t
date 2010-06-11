@@ -21,6 +21,8 @@ sub matrix {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => [1, 0, 0, 1, 0, 0]);
 
     can_ok($state, 'transform');
@@ -162,12 +164,16 @@ sub transform {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => [1, 0, 0, 1, 0, 0]);
     $state     = SVG::Rasterize::State->new
 	(rasterize       => $rasterize,
 	 parent          => $state,
 	 node            => $node,
 	 node_name       => $node->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$node->getAttributes});
     is_deeply($state->matrix, [1, 0, 0, 1, 10, 10], 'translate matrix');
 
@@ -178,12 +184,16 @@ sub transform {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => [1, 0, 0, 1, 0, 0]);
     $state     = SVG::Rasterize::State->new
 	(rasterize       => $rasterize,
 	 parent          => $state,
 	 node            => $node,
 	 node_name       => $node->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$node->getAttributes});
     is_deeply([$state->transform(-1, 0.5)], [7, 1.5], 'translate scale');
 
@@ -197,6 +207,8 @@ sub transform {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => [1, 0, 0, 1, 0, 0]);
     $node  = $svg->group(transform => "translate(7, -1) scale(3)");
     $state  = SVG::Rasterize::State->new
@@ -204,6 +216,8 @@ sub transform {
 	 parent          => $state,
 	 node            => $node,
 	 node_name       => $node->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$node->getAttributes});
     $node  = $node->group(transform => "translate(-4.2)");
     $state  = SVG::Rasterize::State->new
@@ -211,6 +225,8 @@ sub transform {
 	 parent          => $state,
 	 node            => $node,
 	 node_name       => $node->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$node->getAttributes});
     is_deeply([$state->transform(4, 9)], [6.4, 26], 'double nested');
 }
@@ -228,6 +244,8 @@ sub initial_viewport {
 	(rasterize       => $rasterize,
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$svg->getAttributes});
 
     $attributes = {width => 100, height => 50};
@@ -263,6 +281,8 @@ sub initial_viewport {
 	(rasterize       => $rasterize,
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$svg->getAttributes});
     is($state->node_attributes->{width}, 50, 'width attribute');
     $attributes = {width => 100, height => 50};
@@ -275,6 +295,8 @@ sub initial_viewport {
 	(rasterize       => $rasterize,
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$svg->getAttributes});
     $attributes = {width => 100, height => 50};
     $rasterize->_initial_viewport({$svg->getAttributes},
@@ -289,6 +311,8 @@ sub initial_viewport {
 	(rasterize       => $rasterize,
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$svg->getAttributes});
     $attributes = {};
     $rasterize->_initial_viewport({$svg->getAttributes}, $attributes);
@@ -304,6 +328,8 @@ sub initial_viewport {
 	(rasterize       => $rasterize,
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 node_attributes => {$svg->getAttributes});
     $attributes = {};
     $rasterize->_initial_viewport({$svg->getAttributes}, $attributes);
@@ -333,6 +359,8 @@ sub initial_viewport {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(50, 30)], [0, 0],
 	      'transform with viewBox');
@@ -364,6 +392,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, 0],
 	      'transform with pAR none');
@@ -382,6 +412,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, 0],
 	      'transform with pAR xMinYMin');
@@ -400,6 +432,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, 0],
 	      'transform with pAR xMinYMin meet');
@@ -418,6 +452,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, 0],
 	      'transform with pAR xMinYMin slice');
@@ -436,6 +472,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [200, 0],
 	      'transform with pAR xMidYMin');
@@ -454,6 +492,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, 0],
 	      'transform with pAR xMidYMin slice');
@@ -472,6 +512,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [400, 0],
 	      'transform with pAR xMaxYMin');
@@ -490,6 +532,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, 0],
 	      'transform with pAR xMaxYMin slice');
@@ -508,6 +552,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, 0],
 	      'transform with pAR xMinYMid');
@@ -526,6 +572,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, -300],
 	      'transform with pAR xMinYMid slice');
@@ -544,6 +592,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [200, 0],
 	      'transform with pAR xMidYMid');
@@ -562,6 +612,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, -300],
 	      'transform with pAR xMidYMid slice');
@@ -580,6 +632,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [400, 0],
 	      'transform with pAR xMaxYMid');
@@ -598,6 +652,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, -300],
 	      'transform with pAR xMaxYMid slice');
@@ -616,6 +672,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, 0],
 	      'transform with pAR xMinYMax');
@@ -634,6 +692,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, -600],
 	      'transform with pAR xMinYMax slice');
@@ -652,6 +712,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [200, 0],
 	      'transform with pAR xMidYMax');
@@ -670,6 +732,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, -600],
 	      'transform with pAR xMidYMax slice');
@@ -688,6 +752,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [400, 0],
 	      'transform with pAR xMaxYMax');
@@ -706,6 +772,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(0, 0)], [0, -600],
 	      'transform with pAR xMaxYMax slice');
@@ -730,6 +798,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(200, -500)], [0, 150],
 	      'transform with pAR xMidYMax');
@@ -748,6 +818,8 @@ sub preserve_aspect_ratio {
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
 	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef,
 	 matrix          => $attributes->{matrix});
     is_deeply([$state->transform(200, -500)], [-200, 0],
 	      'transform with pAR xMidYMax');

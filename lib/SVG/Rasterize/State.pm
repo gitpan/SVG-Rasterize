@@ -7,7 +7,7 @@ use strict;
 use 5.008009;
 
 use Params::Validate qw(:all);
-use Scalar::Util qw(blessed looks_like_number);
+use Scalar::Util qw(blessed looks_like_number weaken);
 use List::Util qw(min max);
 
 use SVG::Rasterize::Regexes qw(:whitespace
@@ -17,7 +17,7 @@ use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 use SVG::Rasterize::Exception qw(:all);
 
-# $Id: State.pm 5878 2010-06-01 08:41:47Z mullet $
+# $Id: State.pm 6080 2010-06-11 05:06:32Z mullet $
 
 =head1 NAME
 
@@ -25,21 +25,24 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.002002
+Version 0.003002
 
 =cut
 
-our $VERSION = '0.002002';
+our $VERSION = '0.003002';
 
 
 __PACKAGE__->mk_accessors(qw());
 
-__PACKAGE__->mk_ro_accessors(qw(rasterize
-                                hasChildren
+__PACKAGE__->mk_ro_accessors(qw(parent
+                                rasterize
                                 node_name
+                                cdata
                                 node
                                 matrix
-                                properties));
+                                properties
+                                defer_rasterization
+                                child_states));
 
 ###########################################################################
 #                                                                         #
@@ -67,32 +70,35 @@ sub new {
 sub init {
     my ($self, @args) = @_;
     my %args          = validate_with
-	(params => \@args,
-	 spec   =>
+	(params  => \@args,
+	 spec    =>
 	     {rasterize       => {isa      => 'SVG::Rasterize'},
 	      parent          => {isa      => 'SVG::Rasterize::State',
 				  optional => 1},
 	      node_name       => {type     => SCALAR},
 	      node_attributes => {type     => HASHREF},
-	      node            => {can      => ['getChildren'],
+	      cdata           => {type     => SCALAR|UNDEF},
+	      node            => {type     => OBJECT,
 				  optional => 1},
+	      child_nodes     => {type     => ARRAYREF|UNDEF},
 	      matrix          => {type     => ARRAYREF,
 				  optional => 1}},
 	on_fail => sub { SVG::Rasterize->ex_pv($_[0]) });
 
     # read only and private arguments
-    $self->{_parent}         = $args{parent} if(exists($args{parent}));
-    $self->{rasterize}       = $args{rasterize};
+    if(exists($args{parent})) {
+	$self->{parent} = $args{parent};
+	weaken($self->{parent});
+    }
+    $self->{rasterize} = $args{rasterize};
+    weaken($self->{rasterize});
+
     $self->{node_name}       = $args{node_name};
     $self->{node_attributes} = $args{node_attributes};
+    $self->{child_nodes}     = $args{child_nodes};
+    $self->{cdata}           = $args{cdata};
     $self->{node}            = $args{node}   if(exists($args{node}));
     $self->{matrix}          = $args{matrix} if(exists($args{matrix}));
-
-    if($args{node}) {
-	my $children = eval { $args{node}->getChildren };
-	$self->{children}    = $children ? [@$children] : [];
-	$self->{hasChildren} = defined($children) ? 1 : 0;
-    }
 
     $self->_process_node;
 
@@ -264,7 +270,7 @@ sub _process_styling_properties {
     my $name        = $self->{node_name};
     my $attributes  = $self->{node_attributes};
     my @prop_names  = grep { $ATTR_VAL{$name}->{$_} } keys %PROPERTIES;
-    my $parent_prop = $self->{_parent} ? $self->{_parent}->properties : {};
+    my $parent_prop = $self->{parent} ? $self->{parent}->properties : {};
     my $css         = {};
     my $properties  = {};
 
@@ -276,7 +282,7 @@ sub _process_styling_properties {
 		# deal with whitespace
 		$css->{lc($prop_name)} = $prop_value;
 	    }
-	    else { ex_pa('css property', $_) }
+	    else { $self->ex_pa('css property', $_) }
 	}
     }
 
@@ -377,6 +383,10 @@ sub _process_styling_properties {
 	}
     }
 
+    if($name eq '#text') {
+	$properties = $parent_prop;
+    }
+
     $self->{properties} = $properties;
     return $properties;  # just a return value that makes sense
 }
@@ -386,11 +396,13 @@ sub _process_node {
     my $name       = $self->{node_name};
     my $attributes = $self->{node_attributes};
 
-    if($self->{_parent}) {
+    if($self->{parent}) {
 	# allowed child element?
-	my $p_node_name = $self->{_parent}->node_name;
-	if(!$CHILDREN{$p_node_name}->{$name}) {
-	    $self->ie_el($name, $p_node_name);
+	my $p_node_name = $self->{parent}->node_name;
+	unless($name eq '#text') { # TODO: proper check
+	    if(!$CHILDREN{$p_node_name}->{$name}) {
+		$self->ie_el($name, $p_node_name);
+	    }
 	}
     }
     else {
@@ -400,19 +412,29 @@ sub _process_node {
 
     # attribute validation
     my @attr_buffer = %$attributes;
-    validate_with(params  => \@attr_buffer,
-		  spec    => $ATTR_VAL{$name},
-		  on_fail => sub { $self->ie_at_pv($_[0]) });
+    
+    unless($name eq '#text') { # TODO: proper check
+	validate_with(params  => \@attr_buffer,
+		      spec    => $ATTR_VAL{$name},
+		      on_fail => sub { $self->ie_at_pv($_[0]) });
+    }
 
     # apply transformations
     $self->{matrix} ||= [1, 0, 0, 1, 0, 0];
-    if($self->{_parent} and $self->{_parent}->{matrix}) {
-	$self->{matrix} = multiply_matrices($self->{_parent}->{matrix},
+    if($self->{parent} and $self->{parent}->{matrix}) {
+	$self->{matrix} = multiply_matrices($self->{parent}->{matrix},
 					    $self->{matrix});
     }
     $self->_process_transform_attribute if($attributes->{transform});
     $self->_process_viewBox_attribute   if($attributes->{viewBox});
     $self->_process_styling_properties;
+
+    # defer rasterization
+    $self->{defer_rasterization} = 1 if($name eq 'text');
+    if($self->{parent} and $self->{parent}->defer_rasterization) {
+	$self->{defer_rasterization} = 1;
+	$self->{parent}->push_child_state($self);
+    }
 
     return;
 }
@@ -429,6 +451,40 @@ sub node_attributes {
     $self->{node_attributes} ||= {};
     return $self->{node_attributes};
 }
+
+sub current_text_position {
+    my ($self, @args) = @_;
+
+    if($self->{node_name} eq 'text' or $self->{node_name} eq 'textPath') {
+	if(@args) {
+	    my $callback = sub {
+		my ($value) = @_;
+		return 0 if(!defined($value) or ref($value) ne 'ARRAY');
+		return 0 if(@$value != 2);
+		foreach(@$value) {
+		    return 0 if(!defined($_) or !looks_like_number($_));
+		}
+		return 1;
+	    };
+	    
+	    validate_with
+		(params  => \@args,
+		 spec    => [{type      => ARRAYREF,
+			      callbacks => {'two numbers' => $callback}}],
+		 on_fail => sub { $self->ex_pv($_[0]) });
+	    
+	    $self->{current_text_position} = $args[0];
+	}
+	
+	return $self->{current_text_position};
+    }
+    else {
+	if($self->{parent}) {
+	    return $self->{parent}->current_text_position(@args);
+	}
+	else { $self->ex_co_ct }
+    }
+}    
 
 ###########################################################################
 #                                                                         #
@@ -472,10 +528,26 @@ sub transform {
 #                                                                         #
 ###########################################################################
 
-sub nextChild {
+sub shift_child_node {
     my ($self) = @_;
 
-    return shift(@{$self->{children}});
+    return shift(@{$self->{child_nodes} || []});
+}
+
+sub push_child_state {
+    my ($self, @args) = @_;
+
+    validate_with(params  => \@args,
+		  spec    => [{isa => 'SVG::Rasterize::State'}],
+		  on_fail => sub { $self->ex_pv($_[0]) });
+    $self->{child_states} ||= [];
+    return push(@{$self->{child_states}}, $args[0]);
+}
+
+sub shift_child_state {
+    my ($self) = @_;
+
+    return shift(@{$self->{child_states} || []});
 }
 
 1;
@@ -524,18 +596,37 @@ object
 =item * parent (optional): the parent state object, always
 expected except for the root
 
-=item * node_name (mandatory): name of the current node
+=item * node_name (mandatory): defined scalar, name of the current
+node
 
 =item * node_attributes (mandatory): HASH reference
 
-=item * node (optional): must offer a C<getChildren> method if
-provided; unused except for children, but available for hooks
+=item * cdata (mandatory): C<undef> or scalar (no reference)
+
+=item * child_nodes (mandatory): C<undef> or an ARRAY reference
+
+Array entries are not further validated as they are not used within
+this object. Do not just provide the return value of
+C<getChildNodes> on a node object, because modification of the array
+(e.g. by L<shift_child_node|/shift_child_node>) will (usually)
+affect the list saved in the node object itself. Make a copy,
+e.g. C<< [@{$node->getChildNodes}] >>. Note that changing the
+objects in the list will still affect the child nodes saved in the
+node object unless you perform some kind of deep cloning.
+
+=item * node (optional): must be a blessed reference; unused, but
+available for hooks
 
 =item * matrix (optional): must be an ARRAY reference if provided
 
 =back
 
 =head2 Public Attributes
+
+=head3 parent
+
+Can only be set at construction time. Stores a weakened reference to
+the parent state object.
 
 =head3 rasterize
 
@@ -547,14 +638,17 @@ the L<SVG::Rasterize|SVG::Rasterize> object.
 Can only be set at construction time. If the C<SVG> data to
 rasterize are provided as an L<SVG|SVG> object (or, in fact, some
 C<DOM> object in general) this attribute stores the node object for
-which this state object was created. All processing (except
-children, see L<nextChild|/nextChild>) uses the
+which this state object was created. All processing uses the
 L<node_name|/node_name> and L<node_attributes|/node_attributes>
 attributes which are always present. It is also recommended that you
 use these instead of C<node> wherever possible. For example,
 C<< $node->getAttributes >> might be undefined or not normalized
 (see L<White Space Handling|SVG::Rasterize/White Space Handling> in
 C<SVG::Rasterize>).
+
+This attribute is only provided for use in hooks. Note that it is
+not validated. If set at all it holds a blessed reference, but
+nothing else is checked (within this class).
 
 =head3 node_name
 
@@ -575,6 +669,11 @@ has no attributes an empty HASH reference is returned. If the
 content differs from C<< $node->getAttributes >> (usage not
 recommended), C<node_attributes> is used.
 
+=head3 cdata
+
+Can only be set on construction time. If the node is a character
+data node, those character data can be stored in here.
+
 =head3 matrix
 
 Readonly attribute (you can change the contents, of course, but this
@@ -592,6 +691,47 @@ C<SVG::Rasterize> for more background.
 
 Before you use the matrix directly have a look at
 L<transform|/transform> below.
+
+=head3 defer_rasterization
+
+Readonly attribute. Some elements (namely C<text> elements) can only
+be rasterized once their entire content is known (e.g. for alignment
+issues). If an C<SVG::Rasterize::State> object is initialized with
+such an element or if the parent state is deferring rasterization
+then this attribute is set to C<1> at construction time. The content
+is then only rasterized once the root element of this subtree
+(i.e. the element whose parent is not deferring) is about to run out
+of scope.
+
+=head3 child_states
+
+Readonly attribute (the accessor does not make a copy, though). If
+rasterization is deferred (see above) then child states store
+themselves in this list (see
+L<push_child_state|/push_child_state>). Thereby, it is possible to
+rasterize the subtree when its time comes.
+
+Do not rely on getting an ARRAY reference from the accessor. If no
+child state has been added, the value will be undef. Consider using
+L<shift_child_state|/shift_child_state>.
+
+=head3 current_text_position
+
+For a C<SVG::Rasterize::State> object representing a C<text> or
+C<textPath> element, this attribute saves the current text position,
+i.e. the coordinates where the next text chunk will be drawn.
+
+A C<text> or C<textPath> element can contain multiple C<tspan>
+elements and character data sections. All these nodes do not
+maintain their own current text position, but their rendering
+updates the current text position of their ancestor C<text> or
+C<textPath> element. Therefore, the accessor of this attribute has
+some special behaviour: It only accesses the attribute, if the node
+represented by this object is a C<text> or C<textPath> element. If
+this is not the case it calls the accessor of the parent state
+object. By that, it walks up the state object tree until it reaches
+the first ancestor C<text> or C<textPath> element. If this does not
+exist an exception is raised.
 
 =head2 Methods for Users
 
@@ -632,22 +772,12 @@ value of L<matrix|/matrix>. C<$x> and C<$y> can be numbers or
 lengths (see L<Lengths versus Numbers|SVG::Rasterize/Lengths versus
 Numbers> in C<SVG::Rasterize>).
 
-=head2 Methods for Subclass Developers
+=head2 Methods for Developers
 
 =head3 init
 
 See new for a description of the interface. If you overload C<init>,
 your method should also call this one.
-
-=head3 nextChild
-
-  $node = $state->nextChild
-
-This method only works when traversing through a C<DOM> tree.
-When the state object is instantiated it saves references to all
-children in a list. This method shifts from this list and returns
-the result. If the list is exhausted (or has never been filled
-because there was no node object) then it returns undef.
 
 =head3 multiply_matrices
 
@@ -655,6 +785,47 @@ Alias to L<multiply_matrices|SVG::Rasterize/multiply_matrices> in
 C<SVG::Rasterize>. The alias is established via the typeglob:
 
   *multiply_matrices = \&SVG::Rasterize::multiply_matrices;
+
+=head3 shift_child_node
+
+  $node = $state->shift_child_node
+
+Shifts an element from the C<child_nodes> list and returns it. This
+list has been populated (or not) at construction time via the
+C<child_nodes> argument. This will usually only be the case if we
+are traversing through a C<DOM> tree. If the list is exhausted (or
+has never been filled) then C<undef> is returned.
+
+Note that the elements of the C<child_nodes> list have not been
+validated at all as they are not used within this object. They can
+be anything that has been provided at construction time.
+
+=head3 push_child_state
+
+  $state->push_child_state($child_state)
+
+If rasterization is deferred (see
+L<defer_rasterization|/defer_rasterization>) then a
+C<SVG::Rasterize::State> object representing a child node of this
+one will use this method to add itself to the
+L<child_states|/child_states> list. Thereby the subtree of the
+document can be accessed when the rasterization time comes.
+
+Expects one C<SVG::Rasterize::State> object. Returns the return
+value of C<push> which is the new number of elements in the
+L<child_states|/child_states> list.
+
+=head3 shift_child_state
+
+  $state = $state->shift_child_state
+
+Shifts an element from the C<child_states> list and returns it. This
+list is populated while rasterization is deferred (see
+L<defer_rasterization|/defer_rasterization>). This method is called
+by the L<rasterize|SVG::Rasterize/rasterize> method of
+C<SVG::Rasterize> when the time has come to finally render the
+deferred subtree. If the list is exhausted (or has never been
+filled) then C<undef> is returned.
 
 =head1 DIAGNOSTICS
 
@@ -667,28 +838,7 @@ Not documented, yet. Sorry.
 Not documented, yet. Sorry.
 
 
-=head1 BUGS AND LIMITATIONS
-
-No bugs have been reported. Please report any bugs or feature
-requests to C<bug-svg-rasterize at rt.cpan.org>, or through the web
-interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SVG-Rasterize>. I
-will be notified, and then you will automatically be notified of
-progress on your bug as I make changes.
-
 =head1 INTERNALS
-
-=head2 Private Attributes
-
-=over 4
-
-=item * _parent
-
-Stores a weakened reference to the parent state object. This
-attribute should maybe become public readonly for use in
-hooks.
-
-=back
 
 =head2 Internal Methods
 

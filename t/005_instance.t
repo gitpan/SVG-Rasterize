@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 13;
 
 use SVG::Rasterize;
 use SVG;
@@ -40,19 +40,37 @@ sub svg_rasterize_state {
     my $state;
 
     $rasterize = SVG::Rasterize->new;
-    $svg    = SVG->new->firstChild;
-    $state  = SVG::Rasterize::State->new
+    $svg       = SVG->new->firstChild;
+    $state     = SVG::Rasterize::State->new
 	(rasterize          => $rasterize,
 	 node            => $svg,
 	 node_name       => $svg->getNodeName,
-	 node_attributes => {$svg->getAttributes});
+	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef);
     ok(defined($state), 'state defined');
     isa_ok($state, 'SVG::Rasterize::State');
     can_ok($state,
-	   'node', 'hasChildren',
-	   'nextChild');
+	   'node',
+	   'node_name',
+	   'node_attributes',
+	   'shift_child_node');
+}
+
+sub svg_rasterize_textnode {
+    my $node;
+
+    $node = SVG::Rasterize::TextNode->new(data => '');
+    ok(defined($node), 'node defined');
+    isa_ok($node, 'SVG::Rasterize::TextNode');
+    can_ok($node,
+	   'getNodeName',
+	   'getAttributes',
+	   'getChildNodes',
+	   'getData');
 }
 
 svg_rasterize;
 svg_rasterize_engine;
 svg_rasterize_state;
+svg_rasterize_textnode;

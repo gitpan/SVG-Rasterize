@@ -16,20 +16,21 @@ use SVG::Rasterize::Regexes qw(:whitespace
                                %RE_POLY);
 use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::State;
+use SVG::Rasterize::TextNode;
 
-# $Id: Rasterize.pm 5913 2010-06-03 06:56:20Z mullet $
+# $Id: Rasterize.pm 6090 2010-06-11 08:05:09Z mullet $
 
 =head1 NAME
 
-C<SVG::Rasterize> - rasterize SVG content to pixel graphics
+C<SVG::Rasterize> - rasterize C<SVG> content to pixel graphics
 
 =head1 VERSION
 
-Version 0.003001
+Version 0.003002
 
 =cut
 
-our $VERSION = '0.003001';
+our $VERSION = '0.003002';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -182,7 +183,12 @@ sub init {
 	else { warn "Unrecognized init parameter $meth.\n" }
     }
 
-    $self->{in_error_hook} ||= sub {
+    $self->{before_node_hook} ||= sub {
+	shift(@_);
+	return @_;
+    };
+
+    $self->{in_error_hook}    ||= sub {
 	my ($self, $state) = @_;
 	my $engine         = $self->engine or return;
 	my $width          = $engine->width;
@@ -311,7 +317,9 @@ sub _create_engine {
 	$args_ptr->{engine_class} = $default;
 	$load_success = eval "require $args_ptr->{engine_class}";
     }
-    if(!$load_success) { ex_se_en_lo($args_ptr->{engine_class}, $!) }
+    if(!$load_success) {
+	$self->ex_se_en_lo($args_ptr->{engine_class}, $!);
+    }
 
     $self->{engine} = $args_ptr->{engine_class}->new(%engine_args);
 
@@ -684,10 +692,9 @@ sub _split_path_data {
     return($in_error, @instructions);
 }
 
-sub _draw_path {
-    my ($self)    = @_;
-    my $state     = $self->{state};
-    my $path_data = $state->node_attributes->{d};
+sub _process_path {
+    my ($self, $state) = @_;
+    my $path_data      = $state->node_attributes->{d};
 
     return if(!$path_data);
 
@@ -700,16 +707,15 @@ sub _draw_path {
 
 ############################### Basic Shapes ##############################
 
-sub _draw_rect {
-    my ($self)     = @_;
-    my $state      = $self->{state};
-    my $attributes = $state->node_attributes;
-    my $x          = $state->map_length($attributes->{x} || 0);
-    my $y          = $state->map_length($attributes->{y} || 0);
-    my $w          = $attributes->{width};
-    my $h          = $attributes->{height};
-    my $rx         = $attributes->{rx};
-    my $ry         = $attributes->{ry};
+sub _process_rect {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+    my $x              = $state->map_length($attributes->{x} || 0);
+    my $y              = $state->map_length($attributes->{y} || 0);
+    my $w              = $attributes->{width};
+    my $h              = $attributes->{height};
+    my $rx             = $attributes->{rx};
+    my $ry             = $attributes->{ry};
 
     $w = $state->map_length($w);
     $h = $state->map_length($h);
@@ -762,13 +768,12 @@ sub _draw_rect {
     }
 }
 
-sub _draw_circle {
-    my ($self)     = @_;
-    my $state      = $self->{state};
-    my $attributes = $state->node_attributes;
-    my $cx         = $state->map_length($attributes->{cx} || 0);
-    my $cy         = $state->map_length($attributes->{cy} || 0);
-    my $r          = $attributes->{r};
+sub _process_circle {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+    my $cx             = $state->map_length($attributes->{cx} || 0);
+    my $cy             = $state->map_length($attributes->{cy} || 0);
+    my $r              = $attributes->{r};
 
     $r = $state->map_length($r);
     $self->ie_at_ci_nr($r) if($r < 0);
@@ -788,14 +793,13 @@ sub _draw_circle {
     }
 }
 
-sub _draw_ellipse {
-    my ($self)     = @_;
-    my $state      = $self->{state};
-    my $attributes = $state->node_attributes;
-    my $cx         = $state->map_length($attributes->{cx} || 0);
-    my $cy         = $state->map_length($attributes->{cy} || 0);
-    my $rx         = $attributes->{rx};
-    my $ry         = $attributes->{ry};
+sub _process_ellipse {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+    my $cx             = $state->map_length($attributes->{cx} || 0);
+    my $cy             = $state->map_length($attributes->{cy} || 0);
+    my $rx             = $attributes->{rx};
+    my $ry             = $attributes->{ry};
 
     $rx = $state->map_length($rx);
     $ry = $state->map_length($ry);
@@ -817,14 +821,13 @@ sub _draw_ellipse {
     }
 }
 
-sub _draw_line {
-    my ($self)     = @_;
-    my $state      = $self->{state};
-    my $attributes = $state->node_attributes;
-    my $x1         = $state->map_length($attributes->{x1} || 0);
-    my $y1         = $state->map_length($attributes->{y1} || 0);
-    my $x2         = $state->map_length($attributes->{x2} || 0);
-    my $y2         = $state->map_length($attributes->{y2} || 0);
+sub _process_line {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+    my $x1             = $state->map_length($attributes->{x1} || 0);
+    my $y1             = $state->map_length($attributes->{y1} || 0);
+    my $x2             = $state->map_length($attributes->{x2} || 0);
+    my $y2             = $state->map_length($attributes->{y2} || 0);
 
     my $engine = $self->{engine};
     if($engine->can('draw_line')) {
@@ -836,10 +839,9 @@ sub _draw_line {
     }
 }
 
-sub _draw_polyline {
-    my ($self)     = @_;
-    my $state      = $self->{state};
-    my $points_str = $state->node_attributes->{points};
+sub _process_polyline {
+    my ($self, $state) = @_;
+    my $points_str     = $state->node_attributes->{points};
 
     return if(!$points_str);
 
@@ -868,10 +870,9 @@ sub _draw_polyline {
     else            { return $result }
 }
 
-sub _draw_polygon {
-    my ($self)     = @_;
-    my $state      = $self->{state};
-    my $points_str = $state->node_attributes->{points};
+sub _process_polygon {
+    my ($self, $state) = @_;
+    my $points_str     = $state->node_attributes->{points};
 
     return if(!$points_str);
 
@@ -901,6 +902,52 @@ sub _draw_polygon {
     else            { return $result }
 }
 
+################################### Text ##################################
+
+# actually not limited to text, but fits best here
+sub _process_cdata {
+    my ($self, $state) = @_;
+
+    # TODO: find out if we really want to render the text
+    my ($x, $y) = @{$state->current_text_position};
+    my $cdata   = $state->cdata;
+
+    ($x, $y) = $self->{engine}->draw_text($state, $x, $y, $cdata);
+    $state->current_text_position([$x, $y]);
+
+    return;
+}
+
+sub _process_tspan {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+
+    return;
+}
+
+sub _process_text {
+    my ($self, $state) = @_;
+    my $attributes     = $state->node_attributes;
+
+    # establish current text position unless set already
+    return if($state->current_text_position);
+
+    my @x = (0);
+    if($attributes->{x}) {
+	@x = map { $state->map_length($_) }
+	    split($RE_LENGTH{LENGTHS_SPLIT}, $attributes->{x});
+    }
+    my @y = (0);
+    if($attributes->{y}) {
+	@y = map { $state->map_length($_) }
+	    split($RE_LENGTH{LENGTHS_SPLIT}, $attributes->{y});
+    }
+
+    $state->current_text_position([$x[0], $y[0]]);
+
+    return;
+}
+
 ###########################################################################
 #                                                                         #
 #                             Tree Traversal                              #
@@ -912,7 +959,9 @@ sub in_error {
     my $state              = SVG::Rasterize::State->new
 	(rasterize       => $self,
 	 node_name       => 'g',
-	 node_attributes => {});
+	 node_attributes => {},
+	 cdata           => undef,
+	 child_nodes     => undef);
 
     $self->in_error_hook->($self, $state);
 
@@ -921,11 +970,22 @@ sub in_error {
 
 sub _process_normalize_attributes {
     my ($self, $normalize, $attr) = @_;
+    my %attributes                = %{$attr || {}};  # copy before
+                                                     # manipulation
 
-    my %attributes = %{$attr || {}};
+    if($attributes{style} and ref($attributes{style}) eq 'HASH') {
+	my $style = '';
+	foreach(keys %{$attributes{style}}) {
+	    next if(!defined($attributes{style}->{$_}));
+	    $style .= ';' if($style);
+	    $style .= sprintf("%s:%s", lc($_), $attributes{style}->{$_});
+	}
+	$attributes{style} = $style;
+    }
 
     if($normalize) {
 	foreach(keys %attributes) {
+	    next if(ref($attributes{$_}));
 	    $attributes{$_} =~ s/^$WSP*//;
 	    $attributes{$_} =~ s/$WSP*$//;
 	    $attributes{$_} =~ s/$WSP+/ /g;
@@ -933,6 +993,159 @@ sub _process_normalize_attributes {
     }
 
     return \%attributes;
+}
+
+sub _process_node_object {
+    my ($self, $node, %args) = @_;
+
+    my %state_args =
+       (node            => $node,
+        node_name       => $node->getNodeName,
+	node_attributes => $self->_process_normalize_attributes
+	    ($args{normalize_attributes}, scalar($node->getAttributes)));
+
+    $state_args{cdata} = $state_args{node_name} eq '#text'
+	    ? $node->getData : undef;
+
+    my $child_nodes = $node->getChildNodes;
+    if($node->isa('SVG::Element')) {
+	# For a SVG::Element we can just take the child nodes
+	# directly, because this gives us only the child elements
+	# anyway.
+	# A copy is made to enable manipulation in hooks without
+	# changing the node object.
+	$state_args{child_nodes} =
+	    defined($child_nodes) ? [@$child_nodes] : undef;
+    }
+    else {
+	# For a generic DOM node we only take the children which
+	# are either element or text nodes.
+	$state_args{child_nodes} = [];
+	foreach(@{$child_nodes || []}) {
+	    my $type = $_->getType;
+	    next if($type != 1 and $type != 3);
+	    push(@{$state_args{child_nodes}}, $_);
+	}
+    }
+
+    # extrawurst for text elements in SVG.pm
+    if(eval { $node->isa('SVG::Element') }) {
+	if(my $cdata = $node->getData) {
+	    $state_args{child_nodes} ||= [];
+	    push(@{$state_args{child_nodes}},
+		 SVG::Rasterize::TextNode->new(data => $cdata));
+	}
+    }
+
+    return(%state_args);
+}
+
+sub _rasterize_deferred_subtree {
+    my ($self, $state) = @_;
+
+    my @stack = ();
+    while($state) {
+	my $this_node_name = $state->node_name;
+	$self->_process_path($state)     if($this_node_name eq 'path');
+	$self->_process_rect($state)     if($this_node_name eq 'rect');
+	$self->_process_circle($state)   if($this_node_name eq 'circle');
+	$self->_process_ellipse($state)  if($this_node_name eq 'ellipse');
+	$self->_process_line($state)     if($this_node_name eq 'line');
+	$self->_process_polyline($state) if($this_node_name eq 'polyline');
+	$self->_process_polygon($state)  if($this_node_name eq 'polygon');
+	$self->_process_cdata($state)    if($this_node_name eq '#text');
+	$self->_process_tspan($state)    if($this_node_name eq 'tspan');
+	$self->_process_text($state)     if($this_node_name eq 'text');
+
+	if(my $buffer = $state->shift_child_state) {
+	    push(@stack, $state);
+	    $state = $buffer;
+	}
+	else {
+	    $self->end_node_hook->($self, $state);
+	    $state = pop @stack;
+	}
+    }
+
+    return;
+}
+
+sub _traverse_object_tree {
+    my ($self, %args) = @_;
+
+    # process initial node and establish initial viewport
+    my $node       = $args{svg}->getNodeName eq 'document'
+	? $args{svg}->firstChild : $args{svg};
+    my %state_args = $self->_process_node_object($node, %args);
+
+    $self->_initial_viewport($state_args{node_attributes}, \%args);
+    if(!$args{width}) {
+	warn "Surface width is 0, nothing to do.\n";
+	return;
+    }
+    if(!$args{height}) {
+	warn "Surface height is 0, nothing to do.\n";
+	return;
+    }
+
+    $self->_create_engine(\%args);
+
+    my @buffer = $self->before_node_hook->($self,
+					   %state_args,
+					   rasterize => $self,
+					   matrix    => $args{matrix});
+    $self->ex_ho_bn_on if(!@buffer or @buffer % 2);
+    $self->{state} = SVG::Rasterize::State->new(@buffer);
+    $self->start_node_hook->($self, $self->{state});
+
+    # traverse the node tree
+    my @stack = ();
+    while($self->{state}) {
+	$node = $self->{state}->shift_child_node;
+	if($node) {
+	    push(@stack, $self->{state});
+	    @buffer = $self->before_node_hook->
+		($self,
+		 $self->_process_node_object($node, %args),
+		 rasterize => $self,
+		 parent    => $self->{state});
+	    $self->ex_ho_bn_on if(!@buffer or @buffer % 2);
+	    $self->{state} = SVG::Rasterize::State->new(@buffer);
+	    $self->start_node_hook->($self, $self->{state});
+	}
+	else {
+	    if($self->{state}->defer_rasterization) {
+		my $parent = $self->{state}->parent;
+		if(!$parent or !$parent->defer_rasterization) {
+		    $self->_rasterize_deferred_subtree($self->{state});
+		}
+	    }
+	    else {
+		my $this_node_name = $self->{state}->node_name;
+		$self->_process_path($self->{state})
+		    if($this_node_name eq 'path');
+		$self->_process_rect($self->{state})
+		    if($this_node_name eq 'rect');
+		$self->_process_circle($self->{state})
+		    if($this_node_name eq 'circle');
+		$self->_process_ellipse($self->{state})
+		    if($this_node_name eq 'ellipse');
+		$self->_process_line($self->{state})
+		    if($this_node_name eq 'line');
+		$self->_process_polyline($self->{state})
+		    if($this_node_name eq 'polyline');
+		$self->_process_polygon($self->{state})
+		    if($this_node_name eq 'polygon');
+		$self->_process_cdata($self->{state})
+		    if($this_node_name eq '#text');
+	    }
+
+	    $self->end_node_hook->($self, $self->{state});
+	    $self->{state} = pop @stack;
+	}
+    }
+
+    return;
 }
 
 sub rasterize {
@@ -975,81 +1188,7 @@ sub rasterize {
 				       type     => HASHREF}},
 	on_fail => sub { $self->ex_pv($_[0]) });
 
-    # process initial node and establish initial viewport
-    my $node            = $args{svg}->getNodeName eq 'document'
-	? $args{svg}->firstChild : $args{svg};
-    my $node_name       = $node->getNodeName;
-    my $node_attributes = $self->_process_normalize_attributes
-	($args{normalize_attributes}, scalar($node->getAttributes));
-
-    $self->_initial_viewport($node_attributes, \%args);
-    if(!$args{width}) {
-	warn "Surface width is 0, nothing to do.\n";
-	return;
-    }
-    if(!$args{height}) {
-	warn "Surface height is 0, nothing to do.\n";
-	return;
-    }
-
-    $self->_create_engine(\%args);
-
-    $self->before_node_hook->($self,
-			      $node,
-			      $node_name,
-			      $node_attributes);
-    $self->{state} = SVG::Rasterize::State->new
-	(rasterize       => $self,
-	 node            => $node,
-	 node_name       => $node_name,
-	 node_attributes => $node_attributes,
-	 matrix          => $args{matrix});
-    $self->start_node_hook->($self, $self->{state});
-
-    my @stack = ();
-    while($self->{state}) {
-	if($self->{state}->hasChildren) {
-	    $node = $self->{state}->nextChild;
-	    if($node) {
-		push(@stack, $self->{state});
-		$node_name       = $node->getNodeName;
-		$node_attributes = $self->_process_normalize_attributes
-		    ($args{normalize_attributes},
-		     scalar($node->getAttributes));
-		$self->before_node_hook->($self,
-					  $node,
-					  $node_name,
-					  $node_attributes);
-		$self->{state} = SVG::Rasterize::State->new
-		    (rasterize       => $self,
-		     parent          => $self->{state},
-		     node            => $node,
-		     node_name       => $node_name,
-		     node_attributes => $node_attributes);
-		$self->start_node_hook->($self, $self->{state});
-	    }
-	    else {
-		$self->end_node_hook->($self, $self->{state});
-		$self->{state} = pop @stack;
-	    }
-	}
-	else {
-	    # do something
-	    my $this_node_name = $self->{state}->node_name;
-	    $self->_draw_path     if($this_node_name eq 'path');
-	    $self->_draw_rect     if($this_node_name eq 'rect');
-	    $self->_draw_circle	  if($this_node_name eq 'circle');
-	    $self->_draw_ellipse  if($this_node_name eq 'ellipse');
-	    $self->_draw_line     if($this_node_name eq 'line');
-	    $self->_draw_polyline if($this_node_name eq 'polyline');
-	    $self->_draw_polygon  if($this_node_name eq 'polygon');
-
-	    $self->end_node_hook->($self, $self->{state});
-	    $self->{state} = pop @stack;
-	}
-    }
-
-    return;
+    return $self->_traverse_object_tree(%args);
 }
 
 sub write { return shift(@_)->{engine}->write(@_) }
@@ -1088,7 +1227,8 @@ library (by default, other underlying rasterization engines could be
 added). The direct rasterization of C<SVG> B<files> might be
 implemented in the future, right now you should have a look at
 L<SVG::Parser|SVG::Parser> which can generate an L<SVG|SVG> object
-from an C<svg> file.
+from an C<svg> file. See also L<SVG Input|/SVG Input> in the
+ADVANCED TOPICS section.
 
 =head2 Motivation
 
@@ -1103,7 +1243,7 @@ I would have liked to use, but were unsupported.
 
 So finally, I set out to write my own rasterization engine. The
 ultimate goal is complete compliance with the requirements for a
-C<Conforming Static SVG Viewer> as described in the SVG
+C<Conforming Static SVG Viewer> as described in the C<SVG>
 specification:
 L<http://www.w3.org/TR/SVG11/conform.html#ConformingSVGViewers>.
 Obviously, this is a long way to go. I do not know if any support
@@ -1120,6 +1260,9 @@ The following elements are drawn at the moment:
 
 =item * all basic shapes: C<rect>, C<circle>, C<ellipse>, C<line>,
 C<polyline>, C<polygon>.
+
+=item * text/tspan in a very limited way: position and stroke/fill
+colors can be set, but no alignment, no font properties and so on.
 
 =back
 
@@ -1155,7 +1298,9 @@ Here is my current view of the next part of the roadmap:
 
 =over 4
 
-=item text basics
+=item * text basics
+
+=item * clipping paths
 
 =back
 
@@ -1163,11 +1308,13 @@ Here is my current view of the next part of the roadmap:
 
 =over 4
 
-=item gradients and patterns
+=item * symbol/use
 
-=item clipping paths
+=item * C<tref> and such
 
-=item masks
+=item * gradients and patterns
+
+=item * masks
 
 =back
 
@@ -1214,10 +1361,9 @@ output image.
 =head3 svg
 
 Holds the C<DOM> object to render. It does not have to be a
-L<SVG|SVG> object, but it has to offer a C<getNodeName>, a
-C<getAttributes>, and a C<getChildren> method analogous to those
-defined by the L<SVG|SVG> class. If a different object is given to
-L<rasterize|/rasterize> then the latter one overrules this value
+L<SVG|SVG> object, but it has to offer certain C<DOM> methods (see
+L<SVG Input|/SVG Input> for details). If a different object is given
+to L<rasterize|/rasterize> then the latter one overrules this value
 temporarily (i.e. without overwriting it).
 
 =head3 width
@@ -1259,8 +1405,9 @@ Supported parameters:
 
 =item * svg (optional): C<DOM> object to rasterize. If not specified
 the value of the L<svg|/svg> attribute is used. One of them has to
-be set and has to provide the C<getNodeName>, C<getAttributes>, and
-C<getChildren> C<DOM> methods.
+be set. It does not have to be a L<SVG|SVG> object, but it has to
+provide a certain set of C<DOM> methods (see L<SVG Input|/SVG
+Input>.
 
 The element can be any valid C<SVG> element, e.g. C<< <svg> >>, C<<
 <g> >>, or even just a basic shape element or so.
@@ -1559,6 +1706,66 @@ above). 1 / Lambda - 1 is equal to the radicand in equation
 
 =head1 ADVANCED TOPICS
 
+=head2 C<SVG> Input
+
+In principle, C<SVG> input could be present as a kind of C<XML> tree
+object or as stringified C<XML> document. Therefore
+C<SVG::Rasterize> might eventually offer the following options:
+
+=over 4
+
+=item 1. The input data are provided in form of a L<SVG|SVG> object
+tree generated by the user.
+
+=item 2. The input data are a L<SVG|SVG> object tree generated from
+a file by L<SVG::Parser|SVG::Parser> or a similar piece of software.
+
+=item 3. The input data are an object tree generated by a generic
+C<XML> parser and offer a C<DOM> interface.
+
+=item 4. The input data are stringified C<XML> data in a file.
+
+=item 5. The input data are stringified C<XML> data read from a file
+handle. This case is different from the previous one because a file
+can be read multiple times in order to get collect referenced C<SVG>
+fragments.
+
+=back
+
+Currently, the first three options are at least partly
+implemented. I will not work on the other ones before a substantial
+subset of C<SVG> is supported. If the last two options will ever get
+implemented they will be designed to enable the rendering of files
+which are too large for the first options. Because it is harder to
+deal with cross-references in these cases, chances are that it will
+always be faster to use option 2. or 3. if this is possible.
+
+Option 1. is the best tested one by far. However, option 2. should
+be very similar. To use option 3., the node objects have to provide
+at least the following C<DOM> methods:
+
+=over 4
+
+=item * C<getType>
+
+=item * C<getNodeName>
+
+=item * C<getAttributes>
+
+=item * C<getData>
+
+=item * C<getChildNodes>
+
+=back
+
+Unfortunately, option 3. cannot be treated completely in the same
+way as options 1. and 2. due to the peculiarity of L<SVG|SVG> to
+treat C<CDATA> sections in a special way and not as child nodes of
+the element. C<SVG::Rasterize> tries to support both L<SVG|SVG>
+object trees and generic C<DOM> trees, but this is neither well
+tested nor a main priority at the moment. Please report if you find
+C<SVG::Rasterize> not cooperating with your favourite C<DOM> parser.
+
 =head2 Units
 
 C<SVG> supports the absolute units C<px>, C<pt>, C<pc>, C<cm>,
@@ -1646,9 +1853,9 @@ is not validated. This interface is meant for situations where the
 length string has already been parsed (namely in
 L<map_length|SVG::Rasterize::State/map_length> in
 C<SVG::Rasterize::State>) to avoid duplicate validation. The number
-is expected to match L<A_NUMBER|/A_NUMBER> and the unit to match
-L<UNIT|/UNIT> (see below). However, it is still checked if the unit
-is absolute.
+is expected to be an L<A_NUMBER|SVG::Rasterize::Regexes/%RE_NUMBER>
+and the unit to be a L<UNIT|SVG::Rasterize::Regexes/%RE_LENGTH> (see
+below). However, it is still checked if the unit is absolute.
 
 =back
 
@@ -1686,53 +1893,13 @@ Defaults to 1/6.
 
 =back
 
-=head2 Lengths versus Numbers
-
-The C<SVG> specification determines which values (e.g. in
-attributes) are lengths (numbers possibly with a unit) and which are
-numbers (without a unit). Some attributes have to be numbers
-although a length would make sense (e.g. in the C<viewBox> attribute
-or a C<translate> in a C<transform> attribute). C<SVG::Rasterize>
-aims for strict compliance with the specification. However, in the
-future there might be a C<relax> attribute which when turned to 1 or
-higher allows a more and more relaxed interpretation.
-
-=head2 White Space Handling
-
-The C<XML> specification
-(L<http://www.w3.org/TR/2006/REC-xml11-20060816/#AVNormalize>)
-states that an attribute value unless it is of the type CDATA shall
-be normalized such that leading and trailing white space is removed
-and internal white space is flattened to single space characters.
-C<XML> entities can complicate this normalization, see the
-specification for details.
-
-If the C<SVG> tree to be rasterized by C<SVG::Rasterize> comes out
-of an parsed C<XML> document then the parser should have performed
-this normalization already. However, the tree might also be
-constructed directly using the L<SVG|SVG> module. In order to
-prevent C<SVG::Rasterization> from choking on an attribute like
-C<stroke-width="2pt "> it performs by default an additional
-normalization run:
-
-  $value =~ s/^$WSP*//;
-  $value =~ s/$WSP*$//;
-  $value =~ s/$WSP+/ /g;
-
-where
-
-  $WSP = qr/[\x{20}\x{9}\x{D}\x{A}]/;  # space, tab, CR, LF
-
-To prevent this normalization, you can set the
-C<normalize_attributes> attribute (as object attribute or as
-parameter to L<rasterize|/rasterize> to a false value.
-
 =head2 Hooks
 
 The L<rasterize|/rasterize> method traverses through the C<SVG> tree
-and creates an L<SVG::Rasterize::State|/SVG::Rasterize::State>
-object for each node (at least each node of relevance). Hooks allow
-you to execute your own subroutines at given steps of this
+and creates an L<SVG::Rasterize::State|SVG::Rasterize::State>
+object for each node (node means here element or text node if
+relevant, attributes are not treated as nodes). Hooks allow you to
+execute your own subroutines at given steps of this
 traversal. However, the whole hook business is experimental at the
 moment and likely to change. Right now, to set your own hooks you
 can set one of the following attributes to a code reference of your
@@ -1746,12 +1913,47 @@ Currently, there are for hooks:
 
 Executed at encounter of a new node right before the new
 L<SVG::Rasterize::State|SVG::Rasterize::State> object is created.
-It is called as an object method and receives the C<SVG::Rasterize>
-object, the node object (during C<DOM> tree traversal, otherwise
-undef), the node name, and the the node attributes (as HASH
-reference). The attribute values have already been normalized at
-this stage (see L<White Space Handling|/White Space Handling>
-above).
+It is called as an object method and receives the hash that would be
+passed to the L<SVG::Rasterize::State|SVG::Rasterize::State>
+constructor. It contains the elements listed below. A custom
+C<before_node_hook> is expected to return a hash of the same form
+which will then be handed over to the
+L<SVG::Rasterize::State|SVG::Rasterize::State> constructor. The
+default C<before_node_hook> just returns the input hash.
+
+The argument hash always contains the following elements:
+
+=over 4
+
+=item * C<rasterize>: the C<SVG::Rasterize> object
+
+=item * C<node>: the node object
+
+=item * C<node_name>: the C<DOM> node name
+
+=item * C<node_attributes>: the attributes as HASH reference,
+already L<normalized|/White Space Handling>
+
+=item * C<cdata>: string or C<undef>
+
+=item * C<child_nodes>: ARRAY reference with node objects or
+C<undef>.
+
+=back
+
+In addition, it may contain the following elements:
+
+=over 4
+
+=item * C<matrix>: ARRAY reference with six numbers (see
+L<multiply_matrices|/multiply_matrices>); this element is present
+when processing the root node
+
+=item * C<parent>: the parent
+L<SVG::Rasterize::State|SVG::Rasterize::State> object; this element
+is present when B<not> processing the root node.
+
+=back
 
 =item * start_node_hook
 
@@ -1765,10 +1967,10 @@ L<SVG::Rasterize::State|SVG::Rasterize::State> object as parameters.
 
 =item * end_node_hook
 
-Executed right before the
-L<SVG::Rasterize::State|SVG::Rasterize::State> runs out of scope
-because the current node is done with. The method receives the
-C<SVG::Rasterize> object and the
+Executed right before a
+L<SVG::Rasterize::State|SVG::Rasterize::State> object runs out of
+scope because the respective node is done with. The method receives
+the C<SVG::Rasterize> object and the
 L<SVG::Rasterize::State|SVG::Rasterize::State> object as parameters.
 
 =item * in_error_hook
@@ -1822,6 +2024,36 @@ The attribute is readonly, but, of course, you are able to
 manipulate the object directly via its methods. However, this is
 not part of the normal workflow and you do this on your own risk
 ;-).
+
+=head2 White Space Handling
+
+The C<XML> specification
+(L<http://www.w3.org/TR/2006/REC-xml11-20060816/#AVNormalize>)
+states that an attribute value unless it is of the type CDATA shall
+be normalized such that leading and trailing white space is removed
+and internal white space is flattened to single space characters.
+C<XML> entities can complicate this normalization, see the
+specification for details.
+
+If the C<SVG> tree to be rasterized by C<SVG::Rasterize> comes out
+of an parsed C<XML> document then the parser should have performed
+this normalization already. However, the tree might also be
+constructed directly using the L<SVG|SVG> module. In order to
+prevent C<SVG::Rasterization> from choking on an attribute like
+C<stroke-width="2pt "> it performs by default an additional
+normalization run:
+
+  $value =~ s/^$WSP*//;
+  $value =~ s/$WSP*$//;
+  $value =~ s/$WSP+/ /g;
+
+where
+
+  $WSP = qr/[\x{20}\x{9}\x{D}\x{A}]/;  # space, tab, CR, LF
+
+To prevent this normalization, you can set the
+C<normalize_attributes> attribute (as object attribute or as
+parameter to L<rasterize|/rasterize> to a false value.
 
 =head2 C<SVG> Validation
 
@@ -1894,7 +2126,8 @@ to the point where the error occurs.
 Furthermore, a "highly perceivable indication of error shall
 occur. For visual rendering situations, an example of an indication
 of error would be to render a translucent colored pattern such as a
-checkerboard on top of the area where the SVG content is rendered."
+checkerboard on top of the area where the C<SVG> content is
+rendered."
 
 In C<SVG::Rasterize> this is done by the
 L<in_error_hook|/in_error_hook>. By default, it indeed draws a
@@ -1945,10 +2178,10 @@ situations, C<SVG::Rasterize> checks for these cases and acts
 accordingly. Great care is taken to check directly those values
 which are used as denominator, radicand etc. and not some
 mathematically equivalent expression which might evaluate to a
-slightly different value due to rounding errors. However, it is
-not checked if such an expression is very close to a critical
-value which might render the processing numerically unstable. I
-do not want to impose a certain notion of "too close" on C<SVG>
+slightly different value due to rounding errors. However, it is not
+checked if such an expression is very close to a critical value
+which might render the processing numerically unstable. I do not
+want to impose a certain notion of "too close" on C<SVG>
 authors. Instead it is left to them to check for these border
 cases. However, the underlying rasterization engine might still
 impose boundaries.
@@ -2005,6 +2238,11 @@ check, but is still invalid (an example is that the
 L<Params::Validate|Params::Validate> check only included that the
 value must be a number, but it also has to be in a certain range
 which is checked individually later).
+
+=item * C<SVG::Rasterize::Exception::Return>
+
+A method returned an invalid value (example: the C<before_node_hook>
+did not return a hash).
 
 =back
 
@@ -2082,9 +2320,9 @@ and that is only loaded if no other backend has been specified.
 
 =head2 Bugs
 
-No bugs have been reported. Please report any bugs or feature
-requests to C<bug-svg-rasterize at rt.cpan.org>, or through the web
-interface at
+At time of release, there are no open bugs. Please report any bugs
+or feature requests to C<bug-svg-rasterize at rt.cpan.org>, or
+through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SVG-Rasterize>. I
 will be notified, and then you will automatically be notified of
 progress on your bug as I make changes.
@@ -2105,30 +2343,37 @@ I do not know much about threads and how to make a module thread
 safe. No specific measures have been taken to achieve thread
 safety of this distribution.
 
-=head3 Parameter Checking
 
-C<SVG::Rasterize> uses L<Params::Validate|Params::Validate> for
-parameter validation. However, it currently does not do that as
-thoroughly as one would wish for. Do not rely on that wrong
-stuff will not pass unnoticed.
+=head1 IMPLEMENTATION NOTES
 
-=head3 Test Suite
+This documentation is largely for myself. Read on if you are
+interested, but this section generally does not contain
+documentation on the usage of C<SVG::Rasterize>.
 
-The test suite covers essential features, but is far from
-exhaustive.
+=head2 Deferred Rasterization
+
+Some elements (namely C<text> and C<textPath> elements) can only be
+rasterized once their entire content is known (e.g. for alignment
+issues). In these situations, the
+L<SVG::Rasterize::State|SVG::Rasterize::State> objects representing
+the deferred nodes are kept (by preventing their destruction, see
+L<child_states|SVG::Rasterize::State/child_states> in
+C<SVG::Rasterize::State>). The content is then only rasterized once
+the root element of this subtree is about to run out of scope.
+
 
 =head1 INTERNALS
 
 =head2 Regular Expressions
 
-Some regular expressions are used at different locations of the code
-to validate or extract user input. They are listed in the INTERNALS
-section because it is not part of the interface where exactly they
-are used. They are documented for inspection only. They are compiled
-into other expressions so changing them will probably not achieve
-what you might expect. The exception to this rule is the
-C<PACKAGE_NAME> variable. See
-L<SVG::Rasterize::Regexes|SVG::Rasterize::Regexes> for a full list.
+All reused regular expressions are located in
+L<SVG::Rasterize::Regexes|SVG::Rasterize::Regexes>. In general, they
+should be considered as private variables and are documented there
+for inspection only. Anyway, most of them are compiled into other
+expressions, so changing them would probably not achieve what you
+might expect. The expressions listed here are exceptions to this
+rule. They are considered part of the interface and you can change
+them (at your own risk ;-) ).
 
 =over 4
 
@@ -2136,11 +2381,11 @@ L<SVG::Rasterize::Regexes|SVG::Rasterize::Regexes> for a full list.
 
   qr/[a-zA-Z][a-zA-Z0-9\_]*/
 
-=item * $SVG::Rasterize::Regexes::RE_PACKAGE{p_PACKAGE_NAME}
+=item * C<$SVG::Rasterize::Regexes::RE_PACKAGE{p_PACKAGE_NAME}>
 
   qr/^$package_part(?:\:\:$package_part)*$/
 
-Package names given to methods in this class, namely the
+Package names given to methods in this distribution, namely the
 C<engine_class> parameters have to match this regular expression. I
 am not sure which package names exactly are allowed. If you know
 where in the Perl manpages or the Camel book this is described,
@@ -2163,19 +2408,102 @@ Expects a HASH reference as parameter. No validation is
 performed. The entries C<width>, C<height>, and C<engine_class> are
 used and expected to be valid if present.
 
-=item * _process_normalize_attributes
-
-Expects a flag (to indicate if normalization is to be performed) and
-a HASH reference. The second parameter can be false, but if it is
-true it is expected (without validation) to be a HASH
-reference. Makes a copy of the hash and returns it after removing
-(if the flag is true) enclosing white space from each value.
-
 =item * _initial_viewport
 
 Expects two HASH references. The first one is expected to be defined
 and a HASH reference, but the content can be arbitrary. The second
 is expected to be validated. Does not return anything.
+
+=item * _traverse_object_tree
+
+Called by L<rasterize|/rasterize>. Expects a hash with the
+rasterization parameters after all substitutions and hierarchies of
+defaults have been applied. Handles the traversal of an C<SVG|SVG>
+or generic C<DOM> object tree for rasterization.
+
+=item * _process_node_object
+
+Called by C<_traverse_object_tree>. Expects a node object and a hash
+with the rasterization parameters. Performs
+
+=over 4
+
+=item * extraction of the node name
+
+This uses the C<getNodeName> C<DOM> method. Takes whatever this
+method returns.
+
+=item * extraction and normalization of attributes
+
+This uses the C<getAttributes> C<DOM> method. The return value is
+validated as being either C<undef> or a HASH reference. The result
+is further processed by
+L<_process_normalize_attributes|/_process_normalize_attributes>. The
+final result is guaranteed to be a HASH reference.
+
+=item * extraction of child nodes
+
+This uses the C<getChildNodes> C<DOM> method. The return value is
+validated as being either C<undef> or an ARRAY reference. A copy
+of the array is made to enable addition or removal of child nodes
+(by hooks) without affecting the node object.
+
+=item * transformation of L<SVG::Element|SVG::Element> character
+data into a L<SVG::Rasterize::TextNode|SVG::Rasterize::TextNode>
+object (see there for background information).
+
+=back
+
+Returns a list of the following values. The result is not further
+validated than listed below.
+
+=over 4
+
+=item * the node name, whatever C<getNodeName> on the object
+returned
+
+=item * a HASH reference with the (potentially normalized)
+attributes
+
+=item * an ARRAY reference or C<undef> with the list of child node
+objects (as returned by C<getChildNodes>).
+
+=back
+
+=item * _process_normalize_attributes
+
+Expects a flag (to indicate if normalization is to be performed) and
+a HASH reference. The second parameter can be false, but if it is
+C<true> it is expected (without validation) to be a HASH
+reference. Makes a copy of the hash and returns it after removing
+(if the flag is true) enclosing white space from each value.
+
+Independently of the flag, it processes the C<style> attribute. If
+this is a HASH reference it is turned into a string. This means
+double work, because it is split into a hash again later by
+C<State>, but it is a design decision that C<State> should not see
+if the input data came as an object tree or C<XML> string. So this
+has to be done, and this seemed to be a good place although this
+method was not started for womething like that (maybe it should be
+renamed).
+
+=item * _rasterize_deferred_subtree
+
+Called (possibly indirectly) by L<rasterize|/rasterize> in order to
+rasterize a deferred subtree (see L<Deferred Rasterization|/Deferred
+Rasterization>).
+
+Expects an L<SVG::Rasterize::State|SVG::Rasterize::State> object
+which represents the root of the deferred subtree. Returns nothing.
+
+=item * _process_path
+
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object.
+Expects that C<< $state->node_attributes >> have been validated. The
+C<d> attribute is handed over to
+L<_split_path_data|/_split_path_data> which returns a list of
+instructions to render the path. This is then handed over to the
+rasterization backend (which has its own expectations).
 
 =item * _angle
 
@@ -2197,55 +2525,55 @@ an error has occured (i.e. if the string is not fully valid). The
 rest is a list of ARRAY references containing the instructions to
 draw the path.
 
-=item * _draw_path
+=item * _process_rect
 
-Does not take any parameters (i.e. ignores them). Expects the
-following:
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State>
+object. Expects that C<< $state->node_attributes >> have been
+validated.
 
-=over 4
+The rest is handed over to the rasterization backend (which has its
+own expectations).
 
-=item * C<< $self->state >> is defined and valid.
+=item * _process_circle
 
-=back
+Same es L<_process_rect|/_process_rect>.
 
-The rest is handed over to the rasterization backend (which has -
-nota bene - its expectations.
+=item * _process_ellipse
 
-=item * _draw_rect
+Same es L<_process_rect|/_process_rect>.
 
-Does not take any parameters (i.e. ignores them). Expects the
-following:
+=item * _process_line
 
-=over 4
+Same es L<_process_rect|/_process_rect>.
 
-=item * C<< $self->state >> is defined and valid.
+=item * _process_polyline
 
-=item * C<< $state->node_attributes >> have been validated.
+Same es L<_process_path|/_process_path>.
 
-=back
+=item * _process_polygon
 
-The rest is handed over to the rasterization backend (which has -
-nota bene - its expectations.
+Same es L<_process_path|/_process_path>.
 
-=item * _draw_circle
+=item * _process_text
 
-Same es L<_draw_rect|/_draw_rect>.
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object.
+Expects that C<< $state->node_attributes >> have been
+validated. Establishes the initial current text position.
 
-=item * _draw_ellipse
+=item * _process_tspan
 
-Same es L<_draw_rect|/_draw_rect>.
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object.
+Expects that C<< $state->node_attributes >> have been
+validated. Currently does not do anything. In the future, it will
+establish a new current text position if necessary.
 
-=item * _draw_line
+=item * _process_cdata
 
-Same es L<_draw_rect|/_draw_rect>.
-
-=item * _draw_polyline
-
-Same es L<_draw_path|/_draw_path>.
-
-=item * _draw_polygon
-
-Same es L<_draw_path|/_draw_path>.
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State>
+object. Gets the character data and the current text position from
+the C<State> object and hands them over to the rasterization
+backend. Receives the new current text position and updates it in
+the C<State> object.
 
 =back
 

@@ -1,5 +1,21 @@
 Revision history for SVG-Rasterize
 
+0.003002 Fri Jun 11 20:09:34 NZST 2010
+	 - Now introducing the Pango dependency (see 0.003001).
+	 - Starting support for text elements. This brings some
+	   little, but not backwards compatible changes in the
+	   interface of SVG::Rasterize::State:
+	   - The child nodes are determined outside of state now and
+             handed over to the constructor.
+	   - The method hasChildNodes has gone, and nextChild has
+             been renamed to shift_child_node.
+	 - Additionally, there has been an interface change of the
+           before_node_hook (which was marked as experimental). It
+	   now receives named parameters and is expected to return a
+	   (potentially modified) hash.
+	 - Various bug fixes including RT#58114.
+	 - Detailed audit of the main docu.
+
 0.003001 Thu Jun  3 20:36:38 NZST 2010
 	 - Main purpose for this (kind of premature) release: Fixes
 	   bug in SVG::Rasterize::Cairo that prohibit the

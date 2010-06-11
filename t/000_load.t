@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 8;
+use Test::More tests => 9;
 
 BEGIN {
     use_ok('SVG::Rasterize::Regexes')       || print "Bail out!\n";
@@ -11,6 +11,7 @@ BEGIN {
     use_ok('SVG::Rasterize::Colors')        || print "Bail out!\n";
     use_ok('SVG::Rasterize::State')         || print "Bail out!\n";
     use_ok('SVG::Rasterize::Exception')     || print "Bail out!\n";
+    use_ok('SVG::Rasterize::TextNode')      || print "Bail out!\n";
 }
 
 diag( "Testing SVG::Rasterize $SVG::Rasterize::VERSION, Perl $], $^X" );

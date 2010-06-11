@@ -7,7 +7,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Specification.pm 5914 2010-06-03 07:35:50Z mullet $
+# $Id$
 
 =head1 NAME
 
@@ -15,11 +15,11 @@ C<SVG::Rasterize::Specification> - data structures derived from DTD
 
 =head1 VERSION
 
-Version 0.003001
+Version 0.003002
 
 =cut
 
-our $VERSION = '0.003001';
+our $VERSION = '0.003002';
 
 our @EXPORT    = qw(%CHILDREN %ATTR_VAL %ATTR_HINTS);
 our @EXPORT_OK = qw();
@@ -1031,10 +1031,10 @@ our %ATTR_VAL =
                                                                   regex    => qr/^(?:auto|use\-script|no\-change|reset\-size|ideographic|alphabetic|hanging|mathematical|central|middle|text\-after\-edge|text\-before\-edge|inherit)$/},
                                'dx'                           => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'dy'                           => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'externalResourcesRequired'    => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:false|true)$/},
@@ -1196,7 +1196,7 @@ our %ATTR_VAL =
                                                                   regex    => qr//},
                                'x'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'xlink:actuate'                => {default  => 'onLoad',
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:onLoad)$/},
@@ -1232,7 +1232,7 @@ our %ATTR_VAL =
                                                                   regex    => qr//},
                                'y'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//}},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}}},
      'altGlyphDef'         => {'id'                           => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr//},
@@ -8294,10 +8294,10 @@ our %ATTR_VAL =
                                                                   regex    => qr/^(?:auto|use\-script|no\-change|reset\-size|ideographic|alphabetic|hanging|mathematical|central|middle|text\-after\-edge|text\-before\-edge|inherit)$/},
                                'dx'                           => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'dy'                           => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'externalResourcesRequired'    => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:false|true)$/},
@@ -8465,7 +8465,7 @@ our %ATTR_VAL =
                                                                   regex    => qr/^(?:lr\-tb|rl\-tb|tb\-rl|lr|rl|tb|inherit)$/},
                                'x'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'xml:base'                     => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr//},
@@ -8477,7 +8477,7 @@ our %ATTR_VAL =
                                                                   regex    => qr/^(?:default|preserve)$/},
                                'y'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//}},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}}},
      'textPath'            => {'alignment-baseline'           => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:auto|baseline|before\-edge|text\-before\-edge|middle|central|after\-edge|text\-after\-edge|ideographic|alphabetic|hanging|mathematical|inherit)$/},
@@ -8768,10 +8768,10 @@ our %ATTR_VAL =
                                                                   regex    => qr/^(?:auto|use\-script|no\-change|reset\-size|ideographic|alphabetic|hanging|mathematical|central|middle|text\-after\-edge|text\-before\-edge|inherit)$/},
                                'dx'                           => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'dy'                           => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'externalResourcesRequired'    => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:false|true)$/},
@@ -8933,7 +8933,7 @@ our %ATTR_VAL =
                                                                   regex    => qr//},
                                'x'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'xlink:actuate'                => {default  => 'onLoad',
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:onLoad)$/},
@@ -8969,7 +8969,7 @@ our %ATTR_VAL =
                                                                   regex    => qr//},
                                'y'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//}},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}}},
      'tspan'               => {'alignment-baseline'           => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:auto|baseline|before\-edge|text\-before\-edge|middle|central|after\-edge|text\-after\-edge|ideographic|alphabetic|hanging|mathematical|inherit)$/},
@@ -9008,10 +9008,10 @@ our %ATTR_VAL =
                                                                   regex    => qr/^(?:auto|use\-script|no\-change|reset\-size|ideographic|alphabetic|hanging|mathematical|central|middle|text\-after\-edge|text\-before\-edge|inherit)$/},
                                'dx'                           => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'dy'                           => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'externalResourcesRequired'    => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:false|true)$/},
@@ -9173,7 +9173,7 @@ our %ATTR_VAL =
                                                                   regex    => qr//},
                                'x'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}},
                                'xml:base'                     => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr//},
@@ -9185,7 +9185,7 @@ our %ATTR_VAL =
                                                                   regex    => qr/^(?:default|preserve)$/},
                                'y'                            => {optional => 1,
                                                                   type     => SCALAR,
-                                                                  regex    => qr//}},
+                                                                  regex    => $RE_LENGTH{p_A_LENGTHS}}},
      'use'                 => {'alignment-baseline'           => {optional => 1,
                                                                   type     => SCALAR,
                                                                   regex    => qr/^(?:auto|baseline|before\-edge|text\-before\-edge|middle|central|after\-edge|text\-after\-edge|ideographic|alphabetic|hanging|mathematical|inherit)$/},

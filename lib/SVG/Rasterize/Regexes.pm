@@ -4,7 +4,7 @@ use warnings;
 
 use Exporter 'import';
 
-# $Id$
+# $Id: Regexes.pm 6038 2010-06-09 08:04:50Z mullet $
 
 =head1 NAME
 
@@ -12,11 +12,11 @@ C<SVG::Rasterize::Regexes> - Commonly used regular expressions
 
 =head1 VERSION
 
-Version 0.002002
+Version 0.003002
 
 =cut
 
-our $VERSION = '0.002002';
+our $VERSION = '0.003002';
 
 our @EXPORT    = qw();
 our @EXPORT_OK = qw($WSP
@@ -106,6 +106,10 @@ our %RE_LENGTH = ();
                                     $RE_LENGTH{ABS_UNIT}?/x;
     $RE_LENGTH{p_ABS_A_LENGTH} = qr/^$RE_LENGTH{ABS_A_LENGTH}$/;
     $RE_LENGTH{w_ABS_A_LENGTH} = qr/^$WSP*$RE_LENGTH{ABS_A_LENGTH}$WSP*$/;
+
+    $RE_LENGTH{p_A_LENGTHS}    = qr/^$RE_LENGTH{p_A_LENGTH}
+                                     (?:$CWSP$RE_LENGTH{p_A_LENGTH})*$/x;
+    $RE_LENGTH{LENGTHS_SPLIT}  = qr/$CWSP/;
 }
 
 # rgb colors
@@ -114,8 +118,8 @@ our %RE_COLOR = ();
     my $rgbe = qr/[\+\-]?\d{1,3}\%?/;
 
     $RE_COLOR{p_RGB} = qr/^rgb\($WSP*($rgbe)$WSP*\,
-                               $WSP*($rgbe)$WSP*\,
-                               $WSP*($rgbe)$WSP*\)$/x;
+                                $WSP*($rgbe)$WSP*\,
+                                $WSP*($rgbe)$WSP*\)$/x;
 }
 
 # attribute stuff

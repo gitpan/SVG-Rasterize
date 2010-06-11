@@ -7,12 +7,12 @@ use strict;
 use 5.008009;
 
 use Cairo;
-#use Pango;
+use Pango;
 use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(%RE_NUMBER);
 
-# $Id: Cairo.pm 5918 2010-06-03 08:39:47Z mullet $
+# $Id: Cairo.pm 6086 2010-06-11 07:18:35Z mullet $
 
 =head1 NAME
 
@@ -20,11 +20,11 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.003001
+Version 0.003002
 
 =cut
 
-our $VERSION = '0.003001';
+our $VERSION = '0.003002';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -435,6 +435,37 @@ sub draw_path {
     return;
 }
 
+sub draw_text {
+    my ($self, $state, $x, $y, $cdata) = @_;
+
+    return if(!$cdata);
+
+    my $context = $self->{context};
+    $context->save;
+
+    $context->set_matrix(Cairo::Matrix->init(@{$state->matrix}));
+
+    my $layout = Pango::Cairo::create_layout($self->{context});
+    $layout->set_text($cdata);
+
+    my $extents  = $layout->get_pixel_extents;
+    my $baseline = Pango->PANGO_PIXELS($layout->get_baseline);
+
+    $context->translate($x, $y - $baseline);
+
+    my $properties = $state->properties;
+    if($properties->{stroke}) {
+	Pango::Cairo::layout_path($context, $layout);
+	$self->_fill_and_stroke($properties);
+    }
+    else {
+	$self->_prepare_fill($properties);
+	Pango::Cairo::show_layout($context, $layout);
+    }
+
+    return($x + $extents->{width}, $y);
+}
+
 sub write {
     my ($self, @args) = @_;
 
@@ -528,7 +559,7 @@ to implement.
 =head3 draw_path
 
 Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
-a list of instructions.None of the parameters are validated, it is
+a list of instructions. None of the parameters are validated, it is
 expected that this has happened before. Each instruction must be an
 ARRAY reference with one of the following sets of entries (the first
 entry is always a letter, the rest are numbers):
@@ -573,23 +604,14 @@ false value, no output is written and a warning is issued. Besides
 that, C<file_name> is not validated at all. Make sure that you
 provide a sane value (whatever that means to you).
 
+=head3 draw_text
+
 
 =head1 DIAGNOSTICS
 
 =head2 Exceptions
 
 =head2 Warnings
-
-
-=head1 BUGS AND LIMITATIONS
-
-No bugs have been reported.
-Please report any bugs or feature requests to
-C<bug-svg-rasterize at rt.cpan.org>, or through
-the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SVG-Rasterize>. 
-I will be notified, and then you will automatically be notified
-of progress on your bug as I make changes.
 
 
 =head1 AUTHOR

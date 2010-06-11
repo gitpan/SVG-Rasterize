@@ -5,7 +5,7 @@ use warnings;
 use Exporter 'import';
 use Scalar::Util qw(blessed);
 
-# $Id: Exception.pm 5881 2010-06-01 08:47:50Z mullet $
+# $Id: Exception.pm 6065 2010-06-10 06:44:04Z mullet $
 
 =head1 NAME
 
@@ -13,11 +13,11 @@ C<SVG::Rasterize::Exception> - exception classes
 
 =head1 VERSION
 
-Version 0.002002
+Version 0.003002
 
 =cut
 
-our $VERSION = '0.002002';
+our $VERSION = '0.003002';
 
 our @EXPORT    = ();
 our @EXPORT_OK = qw(ex_se_en_lo
@@ -28,6 +28,8 @@ our @EXPORT_OK = qw(ex_se_en_lo
                     ex_su_iw
                     ex_su_ih
                     ex_pm_rl
+                    ex_co_ct
+                    ex_ho_bn_on
                     ie_pv
                     ie_el
                     ie_at_pv
@@ -68,7 +70,10 @@ use Exception::Class (
 	 description => 'user value failed Params::Validate check'},
     'SVG::Rasterize::Exception::Param' =>
         {isa         => 'SVG::Rasterize::Exception::Base',
-	 description => 'user value failed individual check'}
+	 description => 'user value failed individual check'},
+    'SVG::Rasterize::Exception::Return' =>
+        {isa         => 'SVG::Rasterize::Exception::Base',
+	 description => 'invalid return value'}
 );
 
 sub _get_env {
@@ -141,7 +146,7 @@ sub ex_pv {
 sub ex_su_iw {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Invalid surface width %s.";
+    my $template            = "Invalid surface width %s.\n";
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
@@ -151,7 +156,7 @@ sub ex_su_iw {
 sub ex_su_ih {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Invalid surface height %s.";
+    my $template            = "Invalid surface height %s.\n";
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
@@ -161,11 +166,44 @@ sub ex_su_ih {
 sub ex_pm_rl {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Unexpected relative length (%s).";
+    my $template            = "Unexpected relative length (%s).\n";
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
 	 message => sprintf($template, $value));
+}
+
+sub ex_co_ct {
+    my ($caller)            = @_;
+    my ($rasterize, $state) = _get_env($caller);
+    my $template            =
+	"Method 'current_text_position' called on an element %s".
+	"without any 'text' or 'textPath' ancestor.\n";
+    
+    my $element_string = '';
+    if($state) {
+	$element_string = '('.$state->node_name;
+	if(my $id = $state->node_attributes->{id}) {
+	    $element_string .= " with id $id";
+	}
+	$element_string = ') ';
+    }
+
+    SVG::Rasterize::Exception::Param->throw
+	(state   => $state,
+	 message => sprintf($template, $element_string));
+}
+
+sub ex_ho_bn_on {
+    my ($caller)            = @_;
+    my ($rasterize, $state) = _get_env($caller);
+    my $message             =
+	"The before_node_hook returned no or an odd number of elements. ".
+	"Looks like you forgot to return a hash from a custom hook.\n";
+    
+    SVG::Rasterize::Exception::Return->throw
+	(state   => $state,
+	 message => $message);
 }
 
 sub ie_pv {
@@ -185,7 +223,7 @@ sub ie_el {
     my ($rasterize, $state)       = _get_env($caller);
     my $template                  = $parent
 	? "Element '%s' is not a valid child of element '%s'."
-	: "Element '%s' is not a valid SVG element.";
+	: "Element '%s' is not a valid SVG element.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -199,7 +237,7 @@ sub ie_at_pv {
     my ($caller, $message)  = @_;
     my ($rasterize, $state) = _get_env($caller);
     my $template                     =
-	"Attribute failed validation:\n%s";
+	"Attribute failed validation:\n%s\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -212,7 +250,7 @@ sub ie_at_pv {
 sub ie_at_vb_nw {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Negative viewBox width (%s).";
+    my $template            = "Negative viewBox width (%s).\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -225,7 +263,7 @@ sub ie_at_vb_nw {
 sub ie_at_vb_nh {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Negative viewBox height (%s).";
+    my $template            = "Negative viewBox height (%s).\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -238,7 +276,7 @@ sub ie_at_vb_nh {
 sub ie_at_pd {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Path data string '%s' is invalid.";
+    my $template            = "Path data string '%s' is invalid.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -251,7 +289,7 @@ sub ie_at_pd {
 sub ie_at_po {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Points string '%s' is invalid.";
+    my $template            = "Points string '%s' is invalid.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -264,7 +302,7 @@ sub ie_at_po {
 sub ie_at_re_nw {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Negative rectangle width %s.";
+    my $template            = "Negative rectangle width %s.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -277,7 +315,7 @@ sub ie_at_re_nw {
 sub ie_at_re_nh {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Negative rectangle height %s.";
+    my $template            = "Negative rectangle height %s.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -290,7 +328,7 @@ sub ie_at_re_nh {
 sub ie_at_re_nr {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Negative rectangle corner radius %s.";
+    my $template            = "Negative rectangle corner radius %s.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -303,7 +341,7 @@ sub ie_at_re_nr {
 sub ie_at_ci_nr {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Negative circle radius %s.";
+    my $template            = "Negative circle radius %s.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -316,7 +354,7 @@ sub ie_at_ci_nr {
 sub ie_at_el_nr {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Negative ellipse radius %s.";
+    my $template            = "Negative ellipse radius %s.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -330,7 +368,7 @@ sub ie_pr_pv {
     my ($caller, $name, $message) = @_;
     my ($rasterize, $state)       = _get_env($caller);
     my $template                     =
-	"Property %s failed validation:\n%s";
+	"Property %s failed validation:\n%s\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -343,7 +381,7 @@ sub ie_pr_pv {
 sub ie_pr_co_iv {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Invalid color specification %s.";
+    my $template            = "Invalid color specification %s.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -372,7 +410,7 @@ sub ie_pr_st_nd {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
     my $template            =
-	"Negative value (%s) in stroke-dasharray.";
+	"Negative value (%s) in stroke-dasharray.\n";
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
@@ -459,6 +497,14 @@ Stands for "exception surface invalid height".
 =item * ex_pm_rl
 
 Stands for "exception parameter relative length".
+
+=item * ex_co_ct
+
+Stands for "exception context current text position".
+
+=item * ex_ho_bn_on
+
+Stands for "exception hook before_node odd number".
 
 =item * ie_pv
 

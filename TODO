@@ -1,22 +1,20 @@
 Roadmap
 -------
-Version 0.004
-- text basics
+The roadmap is in the main docu now. I do not want to maintain a
+redundant version here.
 
-Version 0.005
-- gradients and patterns
-- clipping paths
-- masks
-
+TODO
+----
 The following list contains some things I don't want to
-forget. There are many possibly much more important things to do
-which are not listed here because I won't forget them.
+forget. I mainly contains small stuff and specificly no big feature
+plans.
 
 - stricter on percentage in colors
 - ID and NMTOKEN in %ATTR_VAL
 - make sure really all attributes used so far are validated with
   regexes in Specification; it is the goal that each used attribute
   has to pass a non-trivial regex check at this stage
+  - stroke, fill
 - support other output types than png
 - docu error messages
 - idea: provide a simple GD backend, just as proof of concept for
@@ -29,12 +27,33 @@ which are not listed here because I won't forget them.
 - merge engine_args
 - complete docu of SVG::Rasterize::Cairo, then remove sparseness
   remark in SVG::Rasterize docu
-- move processing of node in front of processing of child nodes:
-  Looks like text elements will require processing of the node
-  itself although it does not have child nodes.
+- fix or document color limitation.
+- Specification.pm should represent which elements can hold PCDATA
+- State: What if the construction parameter matrix is an ARRAY
+  reference with invalid data? Is this checked? If not, where does
+  the code crash? Do I want to check this?
+- split specification into modules; loading could be left to the
+  user or done on the fly when a certain element is encountered
+  - ATTR_VAL could in principle stay like this, but not be populated
+    at the start
+  - the validation hash is handed out by a subroutine which checks
+    if the respective module has been loaded and loads it otherwise
+  Use class entities.
+- after release, check links in map_abs_length docu in the HTML
+  POD.
+- support for relative units
+- Class::Accessor methods should throw an exception if argument is
+  readonly.
+- set_default methods for hooks (maybe call them rather restore_...)
+- Cairo docu: draw_text
+- State: remove work arounds for text node children and attr checks
+- rethink order of rasterization in deferred tree (multiple calls!)
+- Can an element have an attribute which a child does not have, but a
+  grandchild is supposed to inherit? Check and fix accordingly.
+- more text attributes
 
-done (excerpt)
--------------
+done (excerpt, containing what I might look at again)
+-----------------------------------------------------
 - document which DOM functions have to be provided by an input
   object
 - homogenize interface docu of methods

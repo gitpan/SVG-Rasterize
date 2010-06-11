@@ -18,8 +18,11 @@ sub tree_traversal {
     $svg->group(id => 'foo')->group(id => 'bar')->line
 	(x1 => 0, y1 => 100, x2 => 50, y2 => 140, id => 'baz');
     @expected = ('svg', 'g', 'g', 'line');
-    $rasterize->before_node_hook
-	(sub { is($_[2], shift(@expected), 'node name') });
+    $rasterize->before_node_hook(sub {
+	my ($rasterize, %state_args) = @_;
+	is($state_args{node_name}, shift(@expected), 'node name');
+	return %state_args;
+    });
     $rasterize->rasterize(svg => $svg);
     is(scalar(@expected), 0, 'all used up');
 
@@ -28,8 +31,12 @@ sub tree_traversal {
     $svg->group(id => 'foo')->group(id => 'bar')->line
 	(x1 => 0, y1 => 100, x2 => 50, y2 => 140, id => 'baz');
     @expected = (undef, 'foo', 'bar', 'baz');
-    $rasterize->before_node_hook
-	(sub { is($_[3]->{id}, shift(@expected), 'node id') });
+    $rasterize->before_node_hook(sub {
+	my ($rasterize, %state_args) = @_;
+	is($state_args{node_attributes}->{id}, shift(@expected),
+	   'node name');
+	return %state_args;
+    });
     $rasterize->rasterize(svg => $svg);
     is(scalar(@expected), 0, 'all used up');
 
