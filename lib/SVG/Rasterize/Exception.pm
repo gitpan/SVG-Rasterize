@@ -5,7 +5,7 @@ use warnings;
 use Exporter 'import';
 use Scalar::Util qw(blessed);
 
-# $Id: Exception.pm 6065 2010-06-10 06:44:04Z mullet $
+# $Id: Exception.pm 6166 2010-06-13 07:31:32Z mullet $
 
 =head1 NAME
 
@@ -13,21 +13,23 @@ C<SVG::Rasterize::Exception> - exception classes
 
 =head1 VERSION
 
-Version 0.003002
+Version 0.003003
 
 =cut
 
-our $VERSION = '0.003002';
+our $VERSION = '0.003003';
 
 our @EXPORT    = ();
-our @EXPORT_OK = qw(ex_se_en_lo
+our @EXPORT_OK = qw(ex_se_lo
                     ex_pa
                     ex_us_si
                     ex_us_pl
                     ex_pv
                     ex_su_iw
                     ex_su_ih
+                    ex_at_ro
                     ex_pm_rl
+                    ex_pm_ma_nu
                     ex_co_ct
                     ex_ho_bn_on
                     ie_pv
@@ -65,6 +67,9 @@ use Exception::Class (
     'SVG::Rasterize::Exception::Unsupported' =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'unsupported feature'},
+    'SVG::Rasterize::Exception::Attribute' =>
+        {isa         => 'SVG::Rasterize::Exception::Base',
+	 description => 'user value failed individual check'},
     'SVG::Rasterize::Exception::ParamsValidate' =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'user value failed Params::Validate check'},
@@ -91,7 +96,7 @@ sub _get_env {
     }
 }
 
-sub ex_se_en_lo {
+sub ex_se_lo {
     my ($caller, $value, $syserror) = @_;
     my ($rasterize, $state)         = _get_env($caller);
     my $template                    = "Unable to load %s: %s.\n";
@@ -163,10 +168,32 @@ sub ex_su_ih {
 	 message => sprintf($template, $value));
 }
 
+sub ex_at_ro {
+    my ($caller, $value)    = @_;
+    my ($rasterize, $state) = _get_env($caller);
+    my $template            = "Attribute %s is readonly.\n";
+
+    SVG::Rasterize::Exception::Attribute->throw
+	(state   => $state,
+	 message => sprintf($template, $value));
+}
+
 sub ex_pm_rl {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
     my $template            = "Unexpected relative length (%s).\n";
+
+    SVG::Rasterize::Exception::Param->throw
+	(state   => $state,
+	 message => sprintf($template, $value));
+}
+
+sub ex_pm_ma_nu {
+    my ($caller, $value)    = @_;
+    my ($rasterize, $state) = _get_env($caller);
+    my $template            =
+	"Entry '%s' in coordinate transformation matrix does not ".
+	"look like a number.\n";
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
@@ -466,9 +493,9 @@ which then provides the respective objects.
 
 =over 4
 
-=item * ex_se_en_lo
+=item * ex_se_lo
 
-Stands for "exception settings engine load".
+Stands for "exception settings load".
 
 =item * ex_pa
 
@@ -494,9 +521,17 @@ Stands for "exception surface invalid width".
 
 Stands for "exception surface invalid height".
 
+=item * ex_at_ro
+
+Stands for "exception attribute readonly".
+
 =item * ex_pm_rl
 
 Stands for "exception parameter relative length".
+
+=item * ex_pm_ma_nu
+
+Stands for "exception parameter matrix number".
 
 =item * ex_co_ct
 

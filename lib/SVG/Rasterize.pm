@@ -18,7 +18,7 @@ use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::State;
 use SVG::Rasterize::TextNode;
 
-# $Id: Rasterize.pm 6090 2010-06-11 08:05:09Z mullet $
+# $Id: Rasterize.pm 6155 2010-06-13 06:08:21Z mullet $
 
 =head1 NAME
 
@@ -26,11 +26,11 @@ C<SVG::Rasterize> - rasterize C<SVG> content to pixel graphics
 
 =head1 VERSION
 
-Version 0.003002
+Version 0.003003
 
 =cut
 
-our $VERSION = '0.003002';
+our $VERSION = '0.003003';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -50,6 +50,22 @@ __PACKAGE__->mk_ro_accessors(qw(engine
 #                      Class Variables and Methods                        # 
 #                                                                         #
 ###########################################################################
+
+sub make_ro_accessor {
+    my($class, $field) = @_;
+
+    return sub {
+        my $self = shift;
+
+        if (@_) {
+            my $caller = caller;
+            $self->ex_at_ro("${class}->${field}");
+        }
+        else {
+            return $self->get($field);
+        }
+    };
+}
 
 use constant TWO_PI => 6.28318530717959;
 
@@ -318,7 +334,7 @@ sub _create_engine {
 	$load_success = eval "require $args_ptr->{engine_class}";
     }
     if(!$load_success) {
-	$self->ex_se_en_lo($args_ptr->{engine_class}, $!);
+	$self->ex_selo($args_ptr->{engine_class}, $!);
     }
 
     $self->{engine} = $args_ptr->{engine_class}->new(%engine_args);
@@ -1853,9 +1869,10 @@ is not validated. This interface is meant for situations where the
 length string has already been parsed (namely in
 L<map_length|SVG::Rasterize::State/map_length> in
 C<SVG::Rasterize::State>) to avoid duplicate validation. The number
-is expected to be an L<A_NUMBER|SVG::Rasterize::Regexes/%RE_NUMBER>
-and the unit to be a L<UNIT|SVG::Rasterize::Regexes/%RE_LENGTH> (see
-below). However, it is still checked if the unit is absolute.
+is expected to be an L<A_NUMBER|SVG::Rasterize::Regexes/LIST OF
+EXPRESSIONS> and the unit to be a
+L<UNIT|SVG::Rasterize::Regexes/LIST OF EXPRESSIONS>. However, it is
+still checked if the unit is absolute.
 
 =back
 
@@ -2226,6 +2243,12 @@ bug.
 The document (or user) tried to use a feature that is currently
 unsupported.
 
+=item * C<SVG::Rasterize::Exception::Attribute>
+
+Attribute means class attribute here, not C<SVG> attribute. An
+example for such an exception is the attempt to change a readonly
+attribute.
+
 =item * C<SVG::Rasterize::Exception::ParamsValidate>
 
 A method parameter did not pass a
@@ -2574,6 +2597,13 @@ object. Gets the character data and the current text position from
 the C<State> object and hands them over to the rasterization
 backend. Receives the new current text position and updates it in
 the C<State> object.
+
+=item * make_ro_accessor
+
+This piece of documentation is mainly here to make the C<POD>
+coverage test happy. C<SVG::Rasterize> overloads C<make_ro_accessor>
+to make the readonly accessors throw an exception object (of class
+C<SVG::Rasterize::Exception::Attribute>) instead of just croaking.
 
 =back
 

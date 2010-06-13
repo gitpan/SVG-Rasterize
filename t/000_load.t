@@ -1,17 +1,43 @@
 #!perl -T
 
-use Test::More tests => 9;
+use Test::More tests => 33;
 
 BEGIN {
-    use_ok('SVG::Rasterize::Regexes')       || print "Bail out!\n";
-    use_ok('SVG::Rasterize')                || print "Bail out!\n";
-    use_ok('SVG::Rasterize::Cairo')         || print "Bail out!\n";
-    use_ok('SVG::Rasterize::Specification') || print "Bail out!\n";
-    use_ok('SVG::Rasterize::Properties')    || print "Bail out!\n";
-    use_ok('SVG::Rasterize::Colors')        || print "Bail out!\n";
-    use_ok('SVG::Rasterize::State')         || print "Bail out!\n";
-    use_ok('SVG::Rasterize::Exception')     || print "Bail out!\n";
-    use_ok('SVG::Rasterize::TextNode')      || print "Bail out!\n";
+    my @modules = qw(SVG::Rasterize::Regexes
+                     SVG::Rasterize
+                     SVG::Rasterize::Cairo
+                     SVG::Rasterize::Specification
+                     SVG::Rasterize::Specification::Use
+                     SVG::Rasterize::Specification::Gradient
+                     SVG::Rasterize::Specification::Shape
+                     SVG::Rasterize::Specification::Description
+                     SVG::Rasterize::Specification::Conditional
+                     SVG::Rasterize::Specification::Clip
+                     SVG::Rasterize::Specification::Mask
+                     SVG::Rasterize::Specification::Text
+                     SVG::Rasterize::Specification::Marker
+                     SVG::Rasterize::Specification::Animation
+                     SVG::Rasterize::Specification::Style
+                     SVG::Rasterize::Specification::Structure
+                     SVG::Rasterize::Specification::TextContent
+                     SVG::Rasterize::Specification::ColorProfile
+                     SVG::Rasterize::Specification::Pattern
+                     SVG::Rasterize::Specification::Cursor
+                     SVG::Rasterize::Specification::FilterPrimitive
+                     SVG::Rasterize::Specification::Font
+                     SVG::Rasterize::Specification::Script
+                     SVG::Rasterize::Specification::Extensibility
+                     SVG::Rasterize::Specification::Filter
+                     SVG::Rasterize::Specification::View
+                     SVG::Rasterize::Specification::Hyperlink
+                     SVG::Rasterize::Specification::Image
+                     SVG::Rasterize::Properties
+                     SVG::Rasterize::Colors
+                     SVG::Rasterize::State
+                     SVG::Rasterize::Exception
+                     SVG::Rasterize::TextNode);
+
+    foreach(@modules) { use_ok($_) || print "Bail out!\n" }
 }
 
 diag( "Testing SVG::Rasterize $SVG::Rasterize::VERSION, Perl $], $^X" );

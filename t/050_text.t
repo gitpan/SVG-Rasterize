@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-# $Id$
+# $Id: 050_text.t 6138 2010-06-12 23:20:59Z mullet $
 
 use Test::More tests => 1;
 

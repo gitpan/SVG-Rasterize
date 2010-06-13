@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 11;
+use Test::More tests => 35;
 
 sub not_in_file_ok {
     my ($filename, %regex) = @_;
@@ -41,15 +41,41 @@ not_in_file_ok(README =>
   "'version information here'"  => qr/to provide version information/,
 );
 
-module_boilerplate_ok('lib/SVG/Rasterize.pm');
-module_boilerplate_ok('lib/SVG/Rasterize/State.pm');
-module_boilerplate_ok('lib/SVG/Rasterize/Cairo.pm');
-module_boilerplate_ok('lib/SVG/Rasterize/Properties.pm');
-module_boilerplate_ok('lib/SVG/Rasterize/Specification.pm');
-module_boilerplate_ok('lib/SVG/Rasterize/Colors.pm');
-module_boilerplate_ok('lib/SVG/Rasterize/Regexes.pm');
-module_boilerplate_ok('lib/SVG/Rasterize/Exception.pm');
-module_boilerplate_ok('lib/SVG/Rasterize/TextNode.pm');
+my @modules = qw(lib/SVG/Rasterize/Regexes.pm
+                 lib/SVG/Rasterize.pm
+                 lib/SVG/Rasterize/Cairo.pm
+                 lib/SVG/Rasterize/Specification.pm
+                 lib/SVG/Rasterize/Specification/Use.pm
+                 lib/SVG/Rasterize/Specification/Gradient.pm
+                 lib/SVG/Rasterize/Specification/Shape.pm
+                 lib/SVG/Rasterize/Specification/Description.pm
+                 lib/SVG/Rasterize/Specification/Conditional.pm
+                 lib/SVG/Rasterize/Specification/Clip.pm
+                 lib/SVG/Rasterize/Specification/Mask.pm
+                 lib/SVG/Rasterize/Specification/Text.pm
+                 lib/SVG/Rasterize/Specification/Marker.pm
+                 lib/SVG/Rasterize/Specification/Animation.pm
+                 lib/SVG/Rasterize/Specification/Style.pm
+                 lib/SVG/Rasterize/Specification/Structure.pm
+                 lib/SVG/Rasterize/Specification/TextContent.pm
+                 lib/SVG/Rasterize/Specification/ColorProfile.pm
+                 lib/SVG/Rasterize/Specification/Pattern.pm
+                 lib/SVG/Rasterize/Specification/Cursor.pm
+                 lib/SVG/Rasterize/Specification/FilterPrimitive.pm
+                 lib/SVG/Rasterize/Specification/Font.pm
+                 lib/SVG/Rasterize/Specification/Script.pm
+                 lib/SVG/Rasterize/Specification/Extensibility.pm
+                 lib/SVG/Rasterize/Specification/Filter.pm
+                 lib/SVG/Rasterize/Specification/View.pm
+                 lib/SVG/Rasterize/Specification/Hyperlink.pm
+                 lib/SVG/Rasterize/Specification/Image.pm
+                 lib/SVG/Rasterize/Properties.pm
+                 lib/SVG/Rasterize/Colors.pm
+                 lib/SVG/Rasterize/State.pm
+                 lib/SVG/Rasterize/Exception.pm
+                 lib/SVG/Rasterize/TextNode.pm);
+
+foreach(@modules) { module_boilerplate_ok($_) }
 
 not_in_file_ok(Changes =>
   "placeholder date/time"       => qr(Date/time)

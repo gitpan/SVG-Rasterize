@@ -1,5 +1,19 @@
 Revision history for SVG-Rasterize
 
+0.003003 Sun Jun 13 20:48:11 NZST 2010
+	 This is a maintenance release covering the following
+	 improvements:
+	 - The specification is split into different modules
+	   (according to the classes in the DTD) which are only
+	   loaded when needed. The avoids loading the 12KB
+	   Specification module at the start even if only small bits
+	   will be used.
+	 - The specification modules now contain information which
+	   elements are allowed to hold parsed character data (other
+	   than white space). This is checked during validation.
+	 - Class::Accessor now also throws an Exception::Class
+	   object if it is attempted to set a readonly attribute.
+
 0.003002 Fri Jun 11 20:09:34 NZST 2010
 	 - Now introducing the Pango dependency (see 0.003001).
 	 - Starting support for text elements. This brings some

@@ -7,6 +7,7 @@ use Test::More tests => 9;
 use SVG;
 use Test::Exception;
 use SVG::Rasterize;
+use SVG::Rasterize::Specification qw(:all);
 
 sub children {
     my $rasterize;

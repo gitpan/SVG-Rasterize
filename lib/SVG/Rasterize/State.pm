@@ -12,12 +12,12 @@ use List::Util qw(min max);
 
 use SVG::Rasterize::Regexes qw(:whitespace
                                :attributes);
-use SVG::Rasterize::Specification;
+use SVG::Rasterize::Specification qw(:all);
 use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 use SVG::Rasterize::Exception qw(:all);
 
-# $Id: State.pm 6080 2010-06-11 05:06:32Z mullet $
+# $Id: State.pm 6165 2010-06-13 07:29:28Z mullet $
 
 =head1 NAME
 
@@ -25,11 +25,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.003002
+Version 0.003003
 
 =cut
 
-our $VERSION = '0.003002';
+our $VERSION = '0.003003';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -49,6 +49,22 @@ __PACKAGE__->mk_ro_accessors(qw(parent
 #                      Class Variables and Methods                        # 
 #                                                                         #
 ###########################################################################
+
+sub make_ro_accessor {
+    my($class, $field) = @_;
+
+    return sub {
+        my $self = shift;
+
+        if (@_) {
+            my $caller = caller;
+            $self->ex_at_ro("${class}->${field}");
+        }
+        else {
+            return $self->get($field);
+        }
+    };
+}
 
 use constant PI => 3.14159265358979;
 
@@ -99,6 +115,13 @@ sub init {
     $self->{cdata}           = $args{cdata};
     $self->{node}            = $args{node}   if(exists($args{node}));
     $self->{matrix}          = $args{matrix} if(exists($args{matrix}));
+
+    # check matrix and set default
+    $self->{matrix} ||= [1, 0, 0, 1, 0, 0];
+    foreach(@{$self->{matrix}}) {
+	$self->ex_pm_ma_nu('undef') if(!defined($_));
+	$self->ex_pm_ma_nu($_)      if(!looks_like_number($_));
+    }
 
     $self->_process_node;
 
@@ -268,18 +291,22 @@ sub _process_viewBox_attribute {
 sub _process_styling_properties {
     my ($self)      = @_;
     my $name        = $self->{node_name};
-    my $attributes  = $self->{node_attributes};
-    my @prop_names  = grep { $ATTR_VAL{$name}->{$_} } keys %PROPERTIES;
     my $parent_prop = $self->{parent} ? $self->{parent}->properties : {};
+
+    return $self->{properties} = {%$parent_prop} if($name eq '#text');
+    
+    my $attributes  = $self->{node_attributes};
+    my @prop_names  = grep { spec_has_attribute($name, $_) }
+        keys %PROPERTIES;
     my $css         = {};
     my $properties  = {};
 
     # parse style attribute
     if($attributes->{style}) {
 	foreach(split(/$WSP*\;$WSP*/, $attributes->{style})) {
-	    my $prop_pattern = qr/([^\:]+)\:(.+)/;
+	    # TODO: is white space really allowed around the ':'?
+	    my $prop_pattern = qr/^\s*([^\:]+?)\s*\:\s*(.+?)\s*$/;
 	    if(my ($prop_name, $prop_value) = $_ =~ $prop_pattern) {
-		# deal with whitespace
 		$css->{lc($prop_name)} = $prop_value;
 	    }
 	    else { $self->ex_pa('css property', $_) }
@@ -288,16 +315,15 @@ sub _process_styling_properties {
 
     foreach(@prop_names) {
 	my $spec  = $PROPERTIES{$_};
-	my $hints = $ATTR_HINTS{$name}->{$_};
 	if(defined($css->{$_}) or defined($attributes->{$_})) {
-	    my $val = {%{$ATTR_VAL{$name}->{$_}}};
-	    $val->{optional} = 1;
-	    delete $val->{default};
+	    my $spec = {%{spec_attribute_validation($name)->{$_}}};
+	    $spec->{optional} = 1;
+	    delete $spec->{default};
 	    
 	    if(defined($css->{$_})) {
 		validate_with
 		    (params      => $css,
-		     spec        => {$_ => $val},
+		     spec        => {$_ => $spec},
 		     allow_extra => 1,
 		     on_fail     =>
 		         sub { $self->ie_pr_pv($_, $_[0]) });
@@ -310,7 +336,7 @@ sub _process_styling_properties {
 		# validation framework
 		validate_with
 		    (params      => $attributes,
-		     spec        => {$_ => $val},
+		     spec        => {$_ => $spec},
 		     allow_extra => 1,
 		     on_fail     =>
 		         sub { $self->ie_pr_pv($_, $_[0]) });
@@ -329,7 +355,7 @@ sub _process_styling_properties {
 	}
 
 	# parse color specs
-	if($hints->{color} and defined($properties->{$_})) {
+	if(spec_is_color($name, $_) and defined($properties->{$_})) {
 	    if(ref($properties->{$_}) eq 'ARRAY') {}
 	    elsif($properties->{$_} =~ $RE_COLOR{p_RGB}) {
 		$properties->{$_} = [$1, $2, $3];
@@ -347,7 +373,7 @@ sub _process_styling_properties {
 	}
 
 	# lengths
-	if($hints->{length} and defined($properties->{$_})) {
+	if(spec_is_length($name, $_) and defined($properties->{$_})) {
 	    $properties->{$_} = $self->map_length($properties->{$_});
 	}
 
@@ -383,12 +409,9 @@ sub _process_styling_properties {
 	}
     }
 
-    if($name eq '#text') {
-	$properties = $parent_prop;
-    }
-
     $self->{properties} = $properties;
-    return $properties;  # just a return value that makes sense
+    return $properties;  # just a return value that makes sense, if
+                         # you change it check #text return above
 }
 
 sub _process_node {
@@ -396,31 +419,37 @@ sub _process_node {
     my $name       = $self->{node_name};
     my $attributes = $self->{node_attributes};
 
+    # element validation either as a child or as existing element
     if($self->{parent}) {
 	# allowed child element?
 	my $p_node_name = $self->{parent}->node_name;
-	unless($name eq '#text') { # TODO: proper check
-	    if(!$CHILDREN{$p_node_name}->{$name}) {
+	if($name eq '#text') {
+	    if(!spec_has_pcdata($p_node_name)) {
+		$self->ie_el($name, $p_node_name);
+	    }	    
+	}
+	else {
+	    if(!spec_has_child($p_node_name, $name)) {
 		$self->ie_el($name, $p_node_name);
 	    }
 	}
     }
     else {
-	# valid element itself
-	$self->ie_el($name) if(!exists($CHILDREN{$name}));
+	# as root element we accept any existing element
+	$self->ie_el($name) if(!spec_is_element($name));
     }
 
-    # attribute validation
-    my @attr_buffer = %$attributes;
-    
-    unless($name eq '#text') { # TODO: proper check
+    # Attribute validation except for text nodes. They have no
+    # attributes and the Specification modules do not hold
+    # validation information for them.
+    unless($name eq '#text') {
+	my @attr_buffer = %$attributes;
 	validate_with(params  => \@attr_buffer,
-		      spec    => $ATTR_VAL{$name},
+		      spec    => spec_attribute_validation($name),
 		      on_fail => sub { $self->ie_at_pv($_[0]) });
     }
 
     # apply transformations
-    $self->{matrix} ||= [1, 0, 0, 1, 0, 0];
     if($self->{parent} and $self->{parent}->{matrix}) {
 	$self->{matrix} = multiply_matrices($self->{parent}->{matrix},
 					    $self->{matrix});
@@ -883,6 +912,14 @@ state or from the hash of default values in
 L<SVG::Rasterize::Properties|SVG::Rasterize::Properties>.
 
 Does not take any arguments. Returns the properties HASH reference.
+
+=item * make_ro_accessor
+
+This piece of documentation is mainly here to make the C<POD>
+coverage test happy. C<SVG::Rasterize::State> overloads
+C<make_ro_accessor> to make the readonly accessors throw an
+exception object (of class C<SVG::Rasterize::Exception::Attribute>)
+instead of just croaking.
 
 =back
 

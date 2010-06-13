@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 32;
+use Test::More tests => 34;
 
 use SVG;
 use Test::Exception;
@@ -112,7 +112,32 @@ sub test_ie_pv {
     is($ex->state->node_name, 'rect', 'node name is rect');
 }
 
+sub readonly {
+    my $rasterize;
+    my $svg;
+    my $state;
+
+    $rasterize = SVG::Rasterize->new;
+    throws_ok(sub { $rasterize->engine('foo') },
+	      qr/Attribute SVG::Rasterize->engine is readonly/,
+	      'readonly attribute');
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 10, height => 10)->firstChild;
+    $state     = SVG::Rasterize::State->new
+	(rasterize       => $rasterize,
+	 node            => $svg,
+	 node_name       => $svg->getNodeName,
+	 node_attributes => {$svg->getAttributes},
+	 cdata           => undef,
+	 child_nodes     => undef);
+    throws_ok(sub { $state->parent('foo') },
+	      qr/Attribute SVG::Rasterize::State->parent is readonly/,
+	      'readonly attribute');
+}
+
 test_ex_pa;
 test_ie;
 test_pv;
 test_ie_pv;
+readonly;

@@ -12,7 +12,7 @@ use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(%RE_NUMBER);
 
-# $Id: Cairo.pm 6086 2010-06-11 07:18:35Z mullet $
+# $Id: Cairo.pm 6157 2010-06-13 06:13:32Z mullet $
 
 =head1 NAME
 
@@ -20,11 +20,11 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.003002
+Version 0.003003
 
 =cut
 
-our $VERSION = '0.003002';
+our $VERSION = '0.003003';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -38,6 +38,22 @@ __PACKAGE__->mk_ro_accessors(qw(context
 #                      Class Variables and Methods                        # 
 #                                                                         #
 ###########################################################################
+
+sub make_ro_accessor {
+    my($class, $field) = @_;
+
+    return sub {
+        my $self = shift;
+
+        if (@_) {
+            my $caller = caller;
+            $self->ex_at_ro("${class}->${field}");
+        }
+        else {
+            return $self->get($field);
+        }
+    };
+}
 
 ###########################################################################
 #                                                                         #
@@ -449,7 +465,7 @@ sub draw_text {
     $layout->set_text($cdata);
 
     my $extents  = $layout->get_pixel_extents;
-    my $baseline = Pango->PANGO_PIXELS($layout->get_baseline);
+    my $baseline = Pango::units_to_double($layout->get_baseline);
 
     $context->translate($x, $y - $baseline);
 
@@ -463,6 +479,7 @@ sub draw_text {
 	Pango::Cairo::show_layout($context, $layout);
     }
 
+    $context->restore;
     return($x + $extents->{width}, $y);
 }
 
@@ -613,6 +630,36 @@ provide a sane value (whatever that means to you).
 
 =head2 Warnings
 
+
+=head1 INTERNALS
+
+=head2 Internal Methods
+
+These methods are just documented for myself. You can read on to
+satisfy your voyeuristic desires, but be aware of that they might
+change or vanish without notice in a future version.
+
+=over 4
+
+=item * _prepare_fill
+
+=item * _prepare_stroke
+
+=item * _fill
+
+=item * _stroke
+
+=item * _fill_and_stroke
+
+=item * make_ro_accessor
+
+This piece of documentation is mainly here to make the C<POD>
+coverage test happy. C<SVG::Rasterize::State> overloads
+C<make_ro_accessor> to make the readonly accessors throw an
+exception object (of class C<SVG::Rasterize::Exception::Attribute>)
+instead of just croaking.
+
+=back
 
 =head1 AUTHOR
 

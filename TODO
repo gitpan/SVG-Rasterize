@@ -10,12 +10,15 @@ forget. I mainly contains small stuff and specificly no big feature
 plans.
 
 - stricter on percentage in colors
-- ID and NMTOKEN in %ATTR_VAL
+- fix or document color limitation.
 - make sure really all attributes used so far are validated with
   regexes in Specification; it is the goal that each used attribute
   has to pass a non-trivial regex check at this stage
   - stroke, fill
 - support other output types than png
+- spec: check per callback that fixed value has that value
+
+- ID and NMTOKEN in %ATTR_VAL
 - docu error messages
 - idea: provide a simple GD backend, just as proof of concept for
   different backends
@@ -27,26 +30,11 @@ plans.
 - merge engine_args
 - complete docu of SVG::Rasterize::Cairo, then remove sparseness
   remark in SVG::Rasterize docu
-- fix or document color limitation.
-- Specification.pm should represent which elements can hold PCDATA
-- State: What if the construction parameter matrix is an ARRAY
-  reference with invalid data? Is this checked? If not, where does
-  the code crash? Do I want to check this?
-- split specification into modules; loading could be left to the
-  user or done on the fly when a certain element is encountered
-  - ATTR_VAL could in principle stay like this, but not be populated
-    at the start
-  - the validation hash is handed out by a subroutine which checks
-    if the respective module has been loaded and loads it otherwise
-  Use class entities.
 - after release, check links in map_abs_length docu in the HTML
   POD.
 - support for relative units
-- Class::Accessor methods should throw an exception if argument is
-  readonly.
 - set_default methods for hooks (maybe call them rather restore_...)
 - Cairo docu: draw_text
-- State: remove work arounds for text node children and attr checks
 - rethink order of rasterization in deferred tree (multiple calls!)
 - Can an element have an attribute which a child does not have, but a
   grandchild is supposed to inherit? Check and fix accordingly.

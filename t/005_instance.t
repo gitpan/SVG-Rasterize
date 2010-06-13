@@ -2,10 +2,11 @@
 use strict;
 use warnings;
 
-use Test::More tests => 13;
+use Test::More tests => 16;
 
 use SVG::Rasterize;
 use SVG;
+use SVG::Rasterize::Cairo;
 
 sub svg_rasterize {
     my $rasterize;
@@ -19,19 +20,21 @@ sub svg_rasterize {
 }
 
 sub svg_rasterize_engine {
-    my $rasterize;
-    my $svg;
     my $engine;
+    my $context;
 
-    $rasterize = SVG::Rasterize->new;
-    $svg       = SVG->new()->firstChild;
-    is($svg->getNodeName, 'svg', 'node name control');
-    $rasterize->rasterize(width => 100, height => 100, svg => $svg);
-    $engine = $rasterize->engine;
+    $engine = SVG::Rasterize::Cairo->new(width => 10, height => 20);
     ok(defined($engine), 'engine defined');
     isa_ok($engine, 'SVG::Rasterize::Cairo');
     can_ok($engine,
-	   'width', 'height', 'context');
+	   'width', 'height', 'context',
+	   'draw_path', 'draw_text',
+	   'write');
+    is($engine->width, 10, 'width accessor control');
+    is($engine->height, 20, 'height accessor control');
+    $context = $engine->context;
+    ok(defined($context), 'context defined');
+    isa_ok($context, 'Cairo::Context');
 }
 
 sub svg_rasterize_state {
@@ -43,11 +46,11 @@ sub svg_rasterize_state {
     $svg       = SVG->new->firstChild;
     $state     = SVG::Rasterize::State->new
 	(rasterize          => $rasterize,
-	 node            => $svg,
-	 node_name       => $svg->getNodeName,
-	 node_attributes => {$svg->getAttributes},
-	 cdata           => undef,
-	 child_nodes     => undef);
+	 node               => $svg,
+	 node_name          => $svg->getNodeName,
+	 node_attributes    => {$svg->getAttributes},
+	 cdata              => undef,
+	 child_nodes        => undef);
     ok(defined($state), 'state defined');
     isa_ok($state, 'SVG::Rasterize::State');
     can_ok($state,
