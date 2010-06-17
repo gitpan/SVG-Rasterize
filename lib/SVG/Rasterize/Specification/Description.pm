@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Description> - specification for class Descript
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('desc'     => {},
                  'metadata' => {},
@@ -76,6 +76,7 @@ our %ATTR_VAL = ('desc'     => {'class'     => {'optional' => 1,
 our %ATTR_HINTS = ('desc'     => {},
                    'metadata' => {},
                    'title'    => {});
+
 1;
 
 

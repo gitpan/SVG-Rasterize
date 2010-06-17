@@ -17,7 +17,7 @@ use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 use SVG::Rasterize::Exception qw(:all);
 
-# $Id: State.pm 6165 2010-06-13 07:29:28Z mullet $
+# $Id: State.pm 6239 2010-06-16 07:02:48Z mullet $
 
 =head1 NAME
 
@@ -25,11 +25,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -288,6 +288,49 @@ sub _process_viewBox_attribute {
     return;
 }
 
+sub _process_css_color {
+    my ($self, $color_str) = @_;
+
+    if(exists($COLORS{$color_str})) { return $COLORS{$color_str} }
+    if($color_str =~ $RE_PAINT{RGB_SPLIT}) {
+	my $color   = [$1, $2, $3];
+	my $percent = undef;
+	foreach my $rgb_entry (@{$color}) {
+	    if((my $i = index($rgb_entry, '%')) >= 0) {
+		if(!defined($percent)) { $percent = 1 }
+		elsif(!$percent)       { $self->ie_pr_co_iv($color_str) }
+		$rgb_entry = int(substr($rgb_entry, 0, $i) * 2.55 + 0.5);
+	    }
+	    else {
+		if(!defined($percent)) { $percent = 0 }
+		elsif($percent)        { $self->ie_pr_co_iv($color_str) }
+	    }
+	}
+	return $color;
+    }
+    if(my @hex = $color_str =~ $RE_PAINT{HEX_SPLIT}) {
+	if(length($hex[0]) > 1) { return [map { hex($_) } @hex] }
+	else                    { return [map { hex($_.$_) } @hex] }
+    }
+    $self->ie_pr_co_iv($color_str);
+}
+
+sub _process_direct_color {
+    my ($self, $color_str, $current_color) = @_;
+
+    if($color_str eq 'currentColor') {
+        return $current_color;
+    }
+    if($color_str =~ $RE_PAINT{p_COLOR}) {
+	return $self->_process_css_color($color_str);
+    }
+    if($color_str =~ $RE_PAINT{ICC_SPLIT}) {
+	warn "Ignoring ICC color specification $2.\n";
+	return $self->_process_css_color($1);
+    }
+    $self->ie_pr_co_iv($color_str);
+}
+
 sub _process_styling_properties {
     my ($self)      = @_;
     my $name        = $self->{node_name};
@@ -313,6 +356,7 @@ sub _process_styling_properties {
 	}
     }
 
+    # merge css, attribute, parent, and default settings
     foreach(@prop_names) {
 	my $spec  = $PROPERTIES{$_};
 	if(defined($css->{$_}) or defined($attributes->{$_})) {
@@ -353,23 +397,33 @@ sub _process_styling_properties {
 		$properties->{$_} = $spec->{default};
 	    }
 	}
+    }
 
+    # Now we process the properties in a second pass. This is
+    # necessary, because otherwise it could not be guaranteed that,
+    # for example, 'color' has been set when 'fill' or 'stroke' are
+    # processed. Still, we want those special properties to be even
+    # processed before the others are touched so we pull them out
+    # before and reorder the names.
+    if(exists($properties->{color})) {
+	@prop_names = ('color', grep { $_ ne 'color' } @prop_names);
+    }
+    foreach(@prop_names) {
 	# parse color specs
 	if(spec_is_color($name, $_) and defined($properties->{$_})) {
-	    if(ref($properties->{$_}) eq 'ARRAY') {}
-	    elsif($properties->{$_} =~ $RE_COLOR{p_RGB}) {
-		$properties->{$_} = [$1, $2, $3];
-		foreach my $rgb_entry (@{$properties->{$_}}) {
-		    if((my $i = index($rgb_entry, '%')) >= 0) {
-			$rgb_entry = int(substr($rgb_entry, 0, $i)
-					 * 2.55 + 0.5);
-		    }
+	    unless(ref($properties->{$_}) eq 'ARRAY') {
+		if($properties->{$_} =~ $RE_PAINT{p_DIRECT}) {
+		    $properties->{$_} = $self->_process_direct_color
+			($properties->{$_}, $properties->{color});
+		}
+		elsif($properties->{$_} =~ $RE_PAINT{URI_SPLIT}) {
+		    $self->ex_us_pl('Paint URIs');
+		}
+		else {
+		    # Arriving here would mean a bug.
+		    $self->ex_pa('color string', $properties->{$_});
 		}
 	    }
-	    elsif(exists($COLORS{$properties->{$_}})) {
-		$properties->{$_} = $COLORS{$properties->{$_}};
-	    }
-	    else { $self->ie_pr_co_iv($properties->{$_}) }
 	}
 
 	# lengths
@@ -912,6 +966,14 @@ state or from the hash of default values in
 L<SVG::Rasterize::Properties|SVG::Rasterize::Properties>.
 
 Does not take any arguments. Returns the properties HASH reference.
+
+=item * _process_css_color
+
+Takes a string that describes a color either as color name
+(e.g. C<white>) or as RGB expression (e.g. C<rgb(255, 255, 255)>) or
+as hexadecimal value (e.g. C<FFFFFF> or C<FFF>) and returns an ARRAY
+reference representing the color (C<[255, 255, 255]> in each of the
+examples above. Throws an exception if none of the pattern matches.
 
 =item * make_ro_accessor
 

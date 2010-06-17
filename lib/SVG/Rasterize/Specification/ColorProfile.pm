@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::ColorProfile> - specification for class ColorPr
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('color-profile' => {'desc'     => 1,
                                      'metadata' => 1,
@@ -71,6 +71,7 @@ our %ATTR_VAL = ('color-profile' => {'id'               => {'optional' => 1,
                                                             'regex'    => qr//}});
 
 our %ATTR_HINTS = ('color-profile' => {});
+
 1;
 
 

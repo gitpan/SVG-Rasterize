@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Script> - specification for class Script
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('script' => {});
 
@@ -66,6 +66,7 @@ our %ATTR_VAL = ('script' => {'externalResourcesRequired' => {'optional' => 1,
                                                               'regex'    => qr//}});
 
 our %ATTR_HINTS = ('script' => {});
+
 1;
 
 

@@ -6,7 +6,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id$
+# $Id: Clip.pm 6211 2010-06-15 04:21:13Z mullet $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Clip> - specification for class Clip
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('clipPath' => {'altGlyphDef'      => 1,
                                 'animate'          => 1,
@@ -59,7 +59,7 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:userSpaceOnUse|objectBoundingBox)$/},
                                 'color'                        => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_COLOR}},
                                 'color-interpolation'          => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:auto|sRGB|linearRGB|inherit)$/},
@@ -83,7 +83,7 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:false|true)$/},
                                 'fill'                         => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'fill-opacity'                 => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
@@ -152,7 +152,7 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:auto|optimizeSpeed|crispEdges|geometricPrecision|inherit)$/},
                                 'stroke'                       => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'stroke-dasharray'             => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_DASHARRAY{p_DASHARRAY}|^inherit$|^none$/},
@@ -218,6 +218,7 @@ our %ATTR_HINTS = ('clipPath' => {'color'        => {'color'  => 1},
                                   'fill'         => {'color'  => 1},
                                   'stroke'       => {'color'  => 1},
                                   'stroke-width' => {'length' => 1}});
+
 1;
 
 

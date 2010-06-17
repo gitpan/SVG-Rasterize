@@ -6,7 +6,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id$
+# $Id: Filter.pm 6211 2010-06-15 04:21:13Z mullet $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Filter> - specification for class Filter
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('filter' => {'animate'             => 1,
                               'desc'                => 1,
@@ -62,7 +62,7 @@ our %ATTR_VAL = ('filter' => {'alignment-baseline'           => {'optional' => 1
                                                                  'regex'    => qr/^(?:nonzero|evenodd|inherit)$/},
                               'color'                        => {'optional' => 1,
                                                                  'type'     => SCALAR,
-                                                                 'regex'    => qr//},
+                                                                 'regex'    => $RE_PAINT{p_COLOR}},
                               'color-interpolation'          => {'optional' => 1,
                                                                  'type'     => SCALAR,
                                                                  'regex'    => qr/^(?:auto|sRGB|linearRGB|inherit)$/},
@@ -95,7 +95,7 @@ our %ATTR_VAL = ('filter' => {'alignment-baseline'           => {'optional' => 1
                                                                  'regex'    => qr/^(?:false|true)$/},
                               'fill'                         => {'optional' => 1,
                                                                  'type'     => SCALAR,
-                                                                 'regex'    => qr//},
+                                                                 'regex'    => $RE_PAINT{p_PAINT}},
                               'fill-opacity'                 => {'optional' => 1,
                                                                  'type'     => SCALAR,
                                                                  'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
@@ -197,7 +197,7 @@ our %ATTR_VAL = ('filter' => {'alignment-baseline'           => {'optional' => 1
                                                                  'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
                               'stroke'                       => {'optional' => 1,
                                                                  'type'     => SCALAR,
-                                                                 'regex'    => qr//},
+                                                                 'regex'    => $RE_PAINT{p_PAINT}},
                               'stroke-dasharray'             => {'optional' => 1,
                                                                  'type'     => SCALAR,
                                                                  'regex'    => qr/$RE_DASHARRAY{p_DASHARRAY}|^inherit$|^none$/},
@@ -294,6 +294,7 @@ our %ATTR_HINTS = ('filter' => {'color'        => {'color'  => 1},
                                 'width'        => {'length' => 1},
                                 'x'            => {'length' => 1},
                                 'y'            => {'length' => 1}});
+
 1;
 
 

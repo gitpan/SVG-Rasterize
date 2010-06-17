@@ -37,6 +37,14 @@ Exception::Class, version 1.29  or higher
 Test::More,       version 0.86  or higher
 Test::Exception   version 0.27  or higher
 
+Furthermore, the underlying cairo and pango C libraries are required
+at least in version 1.8.8 and version 1.22.4, respectively. These
+dependencies are not automatically fulfilled by installing a
+sufficiently high version of the respective Perl module. For pango,
+the functionality of version 1.22 is indeed required. In contrast,
+cairo version 1.2 might actually be enough. However, 1.8 was the
+smallest version I got pango compiled with.
+
 With respect to the module code, the dependency on Cairo and Pango
 is not strict. Both are loaded by SVG::Rasterize::Cairo and that
 module is only loaded dynamically if no other rasterization backend

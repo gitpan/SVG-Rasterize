@@ -1,5 +1,12 @@
 Revision history for SVG-Rasterize
 
+0.003004 Thu Jun 17 13:16:14 NZST 2010
+	 - Adds support for currentColor and hex color settings.
+	 - Introduces methods to restore default hooks.
+	 - Makefile.PL tests for sufficiently high versions of the
+	   cairo and pango C libraries thereby avoiding failing
+	   CPAN testers smoke tests.
+
 0.003003 Sun Jun 13 20:48:11 NZST 2010
 	 This is a maintenance release covering the following
 	 improvements:

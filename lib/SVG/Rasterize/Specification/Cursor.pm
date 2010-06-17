@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Cursor> - specification for class Cursor
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('cursor' => {'desc'     => 1,
                               'metadata' => 1,
@@ -81,6 +81,7 @@ our %ATTR_VAL = ('cursor' => {'externalResourcesRequired' => {'optional' => 1,
 
 our %ATTR_HINTS = ('cursor' => {'x' => {'length' => 1},
                                 'y' => {'length' => 1}});
+
 1;
 
 

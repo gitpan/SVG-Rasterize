@@ -9,14 +9,13 @@ The following list contains some things I don't want to
 forget. I mainly contains small stuff and specificly no big feature
 plans.
 
-- stricter on percentage in colors
-- fix or document color limitation.
 - make sure really all attributes used so far are validated with
   regexes in Specification; it is the goal that each used attribute
   has to pass a non-trivial regex check at this stage
   - stroke, fill
 - support other output types than png
 - spec: check per callback that fixed value has that value
+- fix or document character limitations in XML regexes
 
 - ID and NMTOKEN in %ATTR_VAL
 - docu error messages
@@ -30,10 +29,7 @@ plans.
 - merge engine_args
 - complete docu of SVG::Rasterize::Cairo, then remove sparseness
   remark in SVG::Rasterize docu
-- after release, check links in map_abs_length docu in the HTML
-  POD.
 - support for relative units
-- set_default methods for hooks (maybe call them rather restore_...)
 - Cairo docu: draw_text
 - rethink order of rasterization in deferred tree (multiple calls!)
 - Can an element have an attribute which a child does not have, but a
@@ -67,3 +63,6 @@ done (excerpt, containing what I might look at again)
   situation where one wants to give a different state object to the
   hook (see in_error_hook)
 - Params::Validate consequently
+- rename SVG::Rasterize::Cairo to SVG::Rasterize::Engine::Cairo?
+  Or ...Backend::Cairo? - not important enough to take the hassle 
+  of dealing with backwards compatibility

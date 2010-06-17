@@ -4,10 +4,13 @@ author:
   - 'Lutz Gehlen <perl@lutzgehlen.de>'
 build_requires:
   ExtUtils::MakeMaker: 6.42
+  SVG: 2.37
   Test::Exception: 0.27
   Test::More: 0.80
 configure_requires:
+  Cairo: 1.061
   ExtUtils::MakeMaker: 6.42
+  Pango: 1.220
 distribution_type: module
 generated_by: 'Module::Install version 0.92'
 license: perl
@@ -21,14 +24,11 @@ no_index:
     - inc
     - t
 requires:
-  Cairo: 1.061
   Class::Accessor: 0.30
   Exception::Class: 1.29
-  Pango: 1.220
   Params::Validate: 0.91
-  SVG: 2.37
   Scalar::Util: 1.19
   perl: 5.8.9
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.003003
+version: 0.003004

@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Style> - specification for class Style
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('style' => {});
 
@@ -45,6 +45,7 @@ our %ATTR_VAL = ('style' => {'id'        => {'optional' => 1,
                                              'regex'    => qr/^(?:preserve)$/}});
 
 our %ATTR_HINTS = ('style' => {});
+
 1;
 
 

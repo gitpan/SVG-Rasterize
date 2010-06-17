@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 182;
+use Test::More tests => 261;
 
 use SVG;
 use Test::Exception;
@@ -363,6 +363,140 @@ sub poly_points_validation {
     is($rest, '3 4', 'split rest');
 }
 
+sub xml_uri {
+    my $s;
+    my $r;
+
+    # XML
+    $r = 'NAME_START_CHAR';
+    foreach $s ('r', 'R', ':', '_') {
+	ok($s =~ $RE_XML{$r}, "'$s' =~ $r");
+    }
+    foreach $s ('1', '/', '?', '.', '-') {
+	ok($s !~ $RE_XML{$r}, "'$s' !~ $r");
+    }
+    $r = 'NAME_CHAR';
+    foreach $s ('r', 'R', ':', '_', '.', '-') {
+	ok($s =~ $RE_XML{$r}, "'$s' =~ $r");
+    }
+    foreach $s ('/', '?') {
+	ok($s !~ $RE_XML{$r}, "'$s' !~ $r");
+    }
+    $r = 'p_NAME';
+    foreach $s ('foo', ':HAY012', 'foo.bar') {
+	ok($s =~ $RE_XML{$r}, "'$s' =~ $r");
+    }
+    foreach $s ('#foo', 'f#o', 'f?0', '0zero') {
+	ok($s !~ $RE_XML{$r}, "'$s' !~ $r");
+    }
+
+    # URI
+    $r = 'p_URI';
+    foreach $s ('http://123.456.789.001/foo/bar?utz#otz',
+	        'http://www.xxx.yz',
+                'ftp://foo.bar.baz?qux',
+	        'foo://bar/baz#qux',
+	        '../corge/',
+	        '#quux',
+	        'foo://bar/baz#xpointer(id(qux))',
+	        'xpointer(id(:bro_qux-bar.baz))')
+    {
+	ok($s =~ $RE_URI{$r}, "'$s' =~ $r");
+    }
+    foreach $s ('#q?x',
+                'http://www.xxx.yz#xpointer(ID)',
+                '#xpointer(f123)',
+	        '#xpointer(id(HO)',
+	        '#xpointer(id(A&B))')
+    {
+	ok($s !~ $RE_URI{$r}, "'$s' !~ $r");
+    }
+}
+
+sub paint {
+    my $s;
+    my $r;
+    
+    $r = 'p_COLOR';
+    foreach $s ('mediumspringgreen',
+                '#AB013C',
+	        '#345',
+                'rgb(1, 4, 255)',
+	        'rgb(10%, -3%, 100%)')
+    {
+	ok($s =~ $RE_PAINT{$r}, "'$s' =~ $r");
+    }
+    foreach $s ('cornflowerbluE',
+		'#AB',
+                'red icc-color(foo, 0.1, 3, 5)',
+	        'none icc-color(bar)',
+	        'currentColor',
+		'url(foo://bar.baz#cux) none #FFFFFF',
+		'rgb(0, 0, 1) icc-color(qux 0 1 0.45)',
+	        'url(http://foo.bar.baz#qux)',
+		'url(ftp://foo.bar.baz/qux.svg?124#xpointer(id(ID)))',
+		'url(foo://bar.baz#cux) none')
+    {
+	ok($s !~ $RE_PAINT{$r}, "'$s' !~ $r");
+    }
+
+    $r = 'p_PAINT';
+    foreach $s ('cornflowerblue',
+                '#AB013C',
+	        '#345',
+                'red icc-color(foo, 0.1, 3, 5)',
+		'#010 icc-color(foo, 1, 0.1)',
+	        'none icc-color(bar)',
+	        'currentColor',
+                'rgb(1, 4, 255)',
+		'rgb(0, 0, 1) icc-color(qux 0 1 0.45)',
+	        'url(http://foo.bar.baz#qux)',
+		'url(ftp://foo.bar.baz/qux.svg?124#xpointer(id(ID)))',
+		'url(foo://bar.baz#cux) none')
+    {
+	ok($s =~ $RE_PAINT{$r}, "'$s' =~ $r");
+    }
+    foreach $s ('cornflowerbluE',
+		'#AB',
+		'url(foo://bar.baz#cux) none #FFFFFF')
+    {
+	ok($s !~ $RE_PAINT{$r}, "'$s' !~ $r");
+    }
+
+    # split
+    $r = 'RGB_SPLIT';
+    $s = 'rgb(1, 12, 123)';
+    is_deeply([$s =~ $RE_PAINT{$r}], [1, 12, 123], "$s =~ $r");
+    $s = 'rgb(-1, +12, +000)';
+    is_deeply([$s =~ $RE_PAINT{$r}], [-1, '+12', '+000'], "$s =~ $r");
+    $r = 'ICC_SPLIT';
+    $s = 'rgb(0, 0, 1) icc-color(qux 0 1 0.45)';
+    is_deeply([$s =~ $RE_PAINT{$r}],
+	      ['rgb(0, 0, 1)', 'icc-color(qux 0 1 0.45)'], "$s =~ $r");
+    $s = 'foo icc-color(bar)';
+    is_deeply([$s =~ $RE_PAINT{$r}],
+	      ['foo', 'icc-color(bar)'], "$s =~ $r");
+    $r = 'HEX_SPLIT';
+    $s = '#AA0';
+    is_deeply([$s =~ $RE_PAINT{$r}], ['A', 'A', '0'], "$s =~ $r");
+    $s = '#AAD07a';
+    is_deeply([$s =~ $RE_PAINT{$r}], ['AA', 'D0', '7a'], "$s =~ $r");
+    $r = 'URI_SPLIT';
+    $s = 'url(#foo)';
+    is_deeply([$s =~ $RE_PAINT{$r}], ['url(#foo)', undef], "$s =~ $r");
+    $s = 'url(#foo)none';
+    is_deeply([$s =~ $RE_PAINT{$r}], ['url(#foo)', 'none'], "$s =~ $r");
+    $s = 'url(#foo) none';
+    is_deeply([$s =~ $RE_PAINT{$r}], ['url(#foo)', 'none'], "$s =~ $r");
+    $s = 'url(#foo) bar';
+    is_deeply([$s =~ $RE_PAINT{$r}], ['url(#foo)', 'bar'], "$s =~ $r");
+    $s = 'url(#foo)#0AB';
+    is_deeply([$s =~ $RE_PAINT{$r}], ['url(#foo)', '#0AB'], "$s =~ $r");
+    $s = 'url(#foo) #0ABCD1 icc-color(qux)';
+    is_deeply([$s =~ $RE_PAINT{$r}],
+	      ['url(#foo)', '#0ABCD1 icc-color(qux)'], "$s =~ $r");
+}
+
 transform_validation;
 units;
 typeglobs;
@@ -373,3 +507,5 @@ angle;
 adjust_arc_radii;
 dasharray_validation;
 poly_points_validation;
+xml_uri;
+paint;

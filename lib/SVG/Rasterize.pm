@@ -12,13 +12,14 @@ use SVG::Rasterize::Regexes qw(:whitespace
                                %RE_PACKAGE
                                %RE_NUMBER
                                %RE_LENGTH
+                               %RE_PAINT
                                %RE_PATH
                                %RE_POLY);
 use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::State;
 use SVG::Rasterize::TextNode;
 
-# $Id: Rasterize.pm 6155 2010-06-13 06:08:21Z mullet $
+# $Id: Rasterize.pm 6252 2010-06-17 00:08:13Z mullet $
 
 =head1 NAME
 
@@ -26,17 +27,18 @@ C<SVG::Rasterize> - rasterize C<SVG> content to pixel graphics
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
                              svg
                              width
                              height
+                             current_color
                              engine_class
                              engine_args));
 
@@ -199,40 +201,7 @@ sub init {
 	else { warn "Unrecognized init parameter $meth.\n" }
     }
 
-    $self->{before_node_hook} ||= sub {
-	shift(@_);
-	return @_;
-    };
-
-    $self->{in_error_hook}    ||= sub {
-	my ($self, $state) = @_;
-	my $engine         = $self->engine or return;
-	my $width          = $engine->width;
-	my $height         = $engine->height;
-	my $min            = $width < $height ? $width : $height;
-	my $edge           = $min / 8;
-	my $properties     = $state->properties;
-
-	$properties->{'fill'}         = [45, 45, 45];
-	$properties->{'fill-opacity'} = 0.6;
-	
-	my $x = 0;
-	while($x < $width) {
-	    my $y = 0;
-	    while($y < $height) {
-		$engine->draw_path($state,
-				   ['M', $x, $y],
-				   ['h', $edge],
-				   ['v', $edge],
-				   ['h', -$edge],
-				   ['z']);
-		$y += 2 * $edge;
-	    }
-	    $x += 2 * $edge;
-	}
-
-	return;
-    };
+    $self->restore_all_hooks(preserve => 1);
 
     return $self;
 }
@@ -441,6 +410,12 @@ sub map_abs_length {
     elsif($unit eq '%')  { $self->ex_pm_rl($number.$unit) }
 }
 
+###########################################################################
+#                                                                         #
+#                                 Hooks                                   # 
+#                                                                         #
+###########################################################################
+
 sub before_node_hook {
     my ($self, @args) = @_;
 
@@ -452,6 +427,17 @@ sub before_node_hook {
     }
 
     return $self->{before_node_hook} || sub {};
+}
+
+sub restore_before_node_hook {
+    my ($self) = @_;
+
+    $self->{before_node_hook} ||= sub {
+	shift(@_);
+	return @_;
+    };
+
+    return;
 }
 
 sub start_node_hook {
@@ -467,6 +453,10 @@ sub start_node_hook {
     return $self->{start_node_hook} || sub {};
 }
 
+sub restore_start_node_hook {
+    shift(@_)->{start_node_hook} = undef;
+}
+
 sub end_node_hook {
     my ($self, @args) = @_;
 
@@ -480,6 +470,10 @@ sub end_node_hook {
     return $self->{end_node_hook} || sub {};
 }
 
+sub restore_end_node_hook {
+    shift(@_)->{end_node_hook} = undef;
+}
+
 sub in_error_hook {
     my ($self, @args) = @_;
 
@@ -491,6 +485,62 @@ sub in_error_hook {
     }
 
     return $self->{in_error_hook} || sub {};
+}
+
+sub restore_in_error_hook {
+    my ($self) = @_;
+
+    $self->{in_error_hook} ||= sub {
+	my ($self, $state) = @_;
+	my $engine         = $self->engine or return;
+	my $width          = $engine->width;
+	my $height         = $engine->height;
+	my $min            = $width < $height ? $width : $height;
+	my $edge           = $min / 8;
+	my $properties     = $state->properties;
+
+	$properties->{'fill'}         = [45, 45, 45];
+	$properties->{'fill-opacity'} = 0.6;
+	
+	my $x = 0;
+	while($x < $width) {
+	    my $y = 0;
+	    while($y < $height) {
+		$engine->draw_path($state,
+				   ['M', $x, $y],
+				   ['h', $edge],
+				   ['v', $edge],
+				   ['h', -$edge],
+				   ['z']);
+		$y += 2 * $edge;
+	    }
+	    $x += 2 * $edge;
+	}
+
+	return;
+    };
+
+    return;
+}
+
+sub restore_all_hooks {
+    my ($self, @args) = @_;
+    my %args          = validate_with
+	(params  => \@args,
+	 spec    => {preserve => {type     => UNDEF|SCALAR,
+				  optional => 1}},
+	 on_fail => sub { $self->ex_pv($_[0]) });
+
+    my @hooks = qw(before_node_hook
+                   start_node_hook
+                   end_node_hook
+                   in_error_hook);
+
+    foreach(@hooks) {
+	next if($args{preserve} and $self->{$_});
+	my $meth = "restore_$_";
+	$self->$meth;
+    }
 }
 
 ###########################################################################
@@ -1094,6 +1144,11 @@ sub _traverse_object_tree {
 	? $args{svg}->firstChild : $args{svg};
     my %state_args = $self->_process_node_object($node, %args);
 
+    # if an external current color has been set we integrate it here
+    if(exists($args{current_color})) {
+	$state_args{node_attributes}->{color} = $args{current_color};
+    }
+
     $self->_initial_viewport($state_args{node_attributes}, \%args);
     if(!$args{width}) {
 	warn "Surface width is 0, nothing to do.\n";
@@ -1177,6 +1232,9 @@ sub rasterize {
         if(!exists($args{width}) and exists($self->{width}));
     $args{height}               = $self->{height}
         if(!exists($args{height}) and exists($self->{height}));
+    $args{current_color}        = $self->{current_color}
+        if(!exists($args{current_color})
+	   and exists($self->{current_color}));
     $args{engine_class}         = $self->{engine_class}
         if(!exists($args{engine_class}) and exists($self->{engine_class}));
     $args{engine_args}          = $self->{engine_args}
@@ -1196,6 +1254,9 @@ sub rasterize {
 	      height               => {optional => 1,
 				       type     => SCALAR,
 				       regex    => $RE_LENGTH{p_A_LENGTH}},
+	      current_color        => {optional => 1,
+				       type     => SCALAR,
+	                               regex    => $RE_PAINT{p_COLOR}},
 	      engine_class         => {default  => 'SVG::Rasterize::Cairo',
 				       type     => SCALAR,
 				       regex    =>
@@ -1378,9 +1439,7 @@ output image.
 
 Holds the C<DOM> object to render. It does not have to be a
 L<SVG|SVG> object, but it has to offer certain C<DOM> methods (see
-L<SVG Input|/SVG Input> for details). If a different object is given
-to L<rasterize|/rasterize> then the latter one overrules this value
-temporarily (i.e. without overwriting it).
+L<SVG Input|/SVG Input> for details).
 
 =head3 width
 
@@ -1389,6 +1448,16 @@ The width of the generated output in pixels.
 =head3 height
 
 The height of the generated output in pixels.
+
+=head3 current_color
+
+The color which is used if an C<SVG> element's C<fill> or C<stroke>
+property is set to C<currentColor> and the C<color> property has not
+been set directly. Setting C<current_color> has the same effect as
+if the root C<SVG> element's C<color> property was set to the same
+value. See
+L<http://www.w3.org/TR/SVG11/painting.html#SpecifyingPaint> for the
+background of this.
 
 =head3 state
 
@@ -1433,6 +1502,10 @@ temporarily overrides the L<width|/width> attribute.
 
 =item * height (optional): height of the target image in pixels,
 temporarily overrides the L<height|/height> attribute.
+
+=item * current_color (optional): default color for C<stroke> and
+C<fill> properties specified as C<currentColor>, temporarily
+overrides the L<current_color|/current_color> attribute.
 
 =item * engine_class (optional): alternative engine class to
 L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>, temporarily
@@ -1922,7 +1995,7 @@ moment and likely to change. Right now, to set your own hooks you
 can set one of the following attributes to a code reference of your
 choice.
 
-Currently, there are for hooks:
+Currently, there are four hooks:
 
 =over 4
 
@@ -2002,6 +2075,31 @@ as parameters.
 B<Examples:>
 
   $rasterize->start_node_hook(sub { ... })
+
+Some hooks have non-trivial defaults. There C<SVG::Rasterize>
+provides the following methods to restore the default behaviour:
+
+=over 4
+
+=item * restore_before_node_hook
+
+=item * restore_start_node_hook
+
+=item * restore_end_node_hook
+
+=item * restore_in_error_hook
+
+=item * restore_all_hooks
+
+Calls all the other C<restore...> methods. Takes an optional named
+parameter C<preserve>. If this is set to a C<true> value then only
+hooks are restored which are undefined. This is only documented for
+completeness, I do not see why you should need it. This option only
+exists such that the method can be used to initialize the hooks at
+construction time and preserve hooks that have been set by the user
+via an init parameter.
+
+=back
 
 =head2 Rasterization Backend
 
@@ -2086,7 +2184,9 @@ C<SVG> document.
 
 There are a few example scripts in the C<examples> directory of the
 tar ball. However, they rather illustrate the currently supported
-C<SVG> subset than options of C<SVG::Rasterize>.
+C<SVG> subset than options of C<SVG::Rasterize>. In order to run the
+example scripts, you need to have the L<SVG|SVG> module installed
+which is formally only required for testing.
 
 
 =head1 DIAGNOSTICS
@@ -2311,6 +2411,13 @@ Like above.
 
 =item * L<Cairo|Cairo>, version 1.061 or higher
 
+The version of the underlying C<C> library has to be at least
+1.8.8. This is not automatically fulfilled by installing a
+sufficiently high version of the Perl module because the release
+cycles are completely decoupled. Regarding the functionality that is
+used directly, version 1.2 might actually be sufficient, but version
+1.8 was the smallest I got pango (see below) compiled with.
+
 With respect to the module code, the dependency on L<Cairo|Cairo> is
 not strict.  The code only requires L<Cairo|Cairo> in case no other
 rasterization engine is specified (see documentation for
@@ -2323,9 +2430,15 @@ pass the test suite without L<Cairo|Cairo>.
 
 =item * L<Pango|Pango>, version 1.220 or higher
 
-What has been said about C<Cairo> above is also true for C<Pango>.
-Both are loaded by L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>
-and that is only loaded if no other backend has been specified.
+The version of the underlying C<C> library has to be at least
+1.22.4. This is not automatically fulfilled by installing a
+sufficiently high version of the Perl module because the release
+cycles are completely decoupled.
+
+The rest of what has been said about C<Cairo> above is also true for
+C<Pango>. Both are loaded by
+L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> and that is only
+loaded if no other backend has been specified.
 
 =item * L<Params::Validate|Params::Validate>, version 0.91 or higher
 
@@ -2349,6 +2462,20 @@ through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SVG-Rasterize>. I
 will be notified, and then you will automatically be notified of
 progress on your bug as I make changes.
+
+=head2 Limitations
+
+=head3 Relative units
+
+The relative units C<em>, C<ex>, and C<%> are currently not
+supported.
+
+=head3 C<ICC> colors
+
+C<ICC> color settings for the C<fill> and C<stroke> properties are
+understood, but ignored. I do not know enough about color profiles
+to foresee how support would look like. Unless requested, C<ICC>
+color profiles will probably not be supported for a long time.
 
 =head2 Caveats
 
@@ -2441,7 +2568,7 @@ is expected to be validated. Does not return anything.
 
 Called by L<rasterize|/rasterize>. Expects a hash with the
 rasterization parameters after all substitutions and hierarchies of
-defaults have been applied. Handles the traversal of an C<SVG|SVG>
+defaults have been applied. Handles the traversal of an L<SVG|SVG>
 or generic C<DOM> object tree for rasterization.
 
 =item * _process_node_object

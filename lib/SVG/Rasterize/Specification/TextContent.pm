@@ -6,7 +6,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id$
+# $Id: TextContent.pm 6211 2010-06-15 04:21:13Z mullet $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::TextContent> - specification for class TextCont
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('altGlyph' => {},
                  'textPath' => {'a'            => 1,
@@ -65,7 +65,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:nonzero|evenodd|inherit)$/},
                                 'color'                        => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_COLOR}},
                                 'color-interpolation'          => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:auto|sRGB|linearRGB|inherit)$/},
@@ -95,7 +95,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:false|true)$/},
                                 'fill'                         => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'fill-opacity'                 => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
@@ -203,7 +203,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:auto|optimizeSpeed|crispEdges|geometricPrecision|inherit)$/},
                                 'stroke'                       => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'stroke-dasharray'             => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_DASHARRAY{p_DASHARRAY}|^inherit$|^none$/},
@@ -305,7 +305,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:nonzero|evenodd|inherit)$/},
                                 'color'                        => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_COLOR}},
                                 'color-interpolation'          => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:auto|sRGB|linearRGB|inherit)$/},
@@ -329,7 +329,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:false|true)$/},
                                 'fill'                         => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'fill-opacity'                 => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
@@ -440,7 +440,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => $RE_LENGTH{p_A_LENGTH}},
                                 'stroke'                       => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'stroke-dasharray'             => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_DASHARRAY{p_DASHARRAY}|^inherit$|^none$/},
@@ -539,7 +539,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:nonzero|evenodd|inherit)$/},
                                 'color'                        => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_COLOR}},
                                 'color-interpolation'          => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:auto|sRGB|linearRGB|inherit)$/},
@@ -569,7 +569,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:false|true)$/},
                                 'fill'                         => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'fill-opacity'                 => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
@@ -674,7 +674,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:auto|optimizeSpeed|crispEdges|geometricPrecision|inherit)$/},
                                 'stroke'                       => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'stroke-dasharray'             => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_DASHARRAY{p_DASHARRAY}|^inherit$|^none$/},
@@ -779,7 +779,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:nonzero|evenodd|inherit)$/},
                                 'color'                        => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_COLOR}},
                                 'color-interpolation'          => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:auto|sRGB|linearRGB|inherit)$/},
@@ -809,7 +809,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:false|true)$/},
                                 'fill'                         => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'fill-opacity'                 => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
@@ -914,7 +914,7 @@ our %ATTR_VAL = ('altGlyph' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:auto|optimizeSpeed|crispEdges|geometricPrecision|inherit)$/},
                                 'stroke'                       => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_PAINT{p_PAINT}},
                                 'stroke-dasharray'             => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_DASHARRAY{p_DASHARRAY}|^inherit$|^none$/},
@@ -999,6 +999,7 @@ our %ATTR_HINTS = ('altGlyph' => {'color'        => {'color'  => 1},
                                   'stroke'       => {'color'  => 1},
                                   'stroke-width' => {'length' => 1},
                                   'textLength'   => {'length' => 1}});
+
 1;
 
 

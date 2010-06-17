@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::View> - specification for class View
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our %CHILDREN = ('view' => {'desc'     => 1,
                             'metadata' => 1,
@@ -53,6 +53,7 @@ our %ATTR_VAL = ('view' => {'externalResourcesRequired' => {'optional' => 1,
                                                             'regex'    => qr/^(?:disable|magnify)$/}});
 
 our %ATTR_HINTS = ('view' => {});
+
 1;
 
 

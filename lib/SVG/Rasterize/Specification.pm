@@ -6,7 +6,7 @@ use Exporter 'import';
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Specification.pm 6164 2010-06-13 07:20:41Z mullet $
+# $Id$
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification> - data structures derived from DTD
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 
 our @EXPORT      = ();
 our @EXPORT_OK   = qw(spec_is_element
@@ -279,8 +279,8 @@ decided to allow it as well.
 As mentioned above, the data structures are distributed over several
 modules in order to improve loading time of C<SVG::Rasterize>. The
 price of this is that the data structures must not be accessed
-directly. Instead, set of subroutines handle the access and load the
-required modules when necessary.
+directly. Instead, s set of subroutines handle the access and load
+the required modules when necessary.
 
 =head2 Subroutines offered for Import
 
@@ -291,13 +291,13 @@ clashes and to clearly label them for any reader of the code, the
 subroutine names are prefixed with 'spec'.
 
 The subroutines throw as few exceptions as possible. The only one is
-if a necessary specification module cannot be loaded. The other ones
-return C<undef> on bad input. I see this behaviour vindicated by the
-fact that these subroutines are deeply internal and in the normal
-flow of the rasterization process the validity of the parameters has
-already been checked upstream.
+if a necessary specification module cannot be loaded. Besides, the
+subroutines return C<undef> on bad input. I see this behaviour
+vindicated by the fact that these subroutines are deeply internal
+and in the normal flow of the rasterization process the validity of
+the parameters has already been checked upstream.
 
-All subroutines return C<undef> if one of the parameters in C<undef>
+All subroutines return C<undef> if one of the parameters is C<undef>
 or a reference. For the additional behaviour, see below.
 
 =head3 spec_is_element
