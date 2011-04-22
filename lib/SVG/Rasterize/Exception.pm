@@ -5,7 +5,7 @@ use warnings;
 use Exporter 'import';
 use Scalar::Util qw(blessed);
 
-# $Id: Exception.pm 6166 2010-06-13 07:31:32Z mullet $
+# $Id: Exception.pm 6457 2011-04-15 21:17:18Z powergnom $
 
 =head1 NAME
 
@@ -13,11 +13,11 @@ C<SVG::Rasterize::Exception> - exception classes
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003005';
 
 our @EXPORT    = ();
 our @EXPORT_OK = qw(ex_se_lo
@@ -30,6 +30,7 @@ our @EXPORT_OK = qw(ex_se_lo
                     ex_at_ro
                     ex_pm_rl
                     ex_pm_ma_nu
+                    ex_pm_mf_ne
                     ex_co_ct
                     ex_ho_bn_on
                     ie_pv
@@ -92,18 +93,37 @@ sub _get_env {
 	return($caller->rasterize, $caller);
     }
     else {
-	die "Unexpected caller in exception handling.\n";
+	my $message = "Unexpected caller '$caller' in exception ".
+	    "handling. Please report this as a bug.\n";
+	SVG::Rasterize::Exception::Base->throw
+	    (state   => undef,
+	     message => $message);
     }
+}
+
+sub _compose_message {
+    my ($template, @values) = @_;
+    my $name                = (caller 1)[3];
+
+    foreach($template, @values) {
+	if(!defined($_)) {
+	    return("Stumbled over undefined value while composing ".
+		   "error method for exception $name. Please report ".
+		   "this as a bug.\n");
+	}
+    }
+
+    return sprintf($template, @values);
 }
 
 sub ex_se_lo {
     my ($caller, $value, $syserror) = @_;
     my ($rasterize, $state)         = _get_env($caller);
     my $template                    = "Unable to load %s: %s.\n";
-
+    
     SVG::Rasterize::Exception::Setting->throw
 	(state   => $state,
-	 message => sprintf($template, $value, $syserror));
+	 message => _compose_message($template, $value, $syserror));
 }
 
 sub ex_pa {
@@ -116,7 +136,7 @@ sub ex_pa {
 
     SVG::Rasterize::Exception::Parse->throw
 	(state   => $state,
-	 message => sprintf($template, $desc, $value));
+	 message => _compose_message($template, $desc, $value));
 }
 
 sub ex_us_si {
@@ -126,7 +146,7 @@ sub ex_us_si {
 
     SVG::Rasterize::Exception::Unsupported->throw
 	(state   => $state,
-	 message => sprintf($template, $desc));
+	 message => _compose_message($template, $desc));
 }
 
 sub ex_us_pl {
@@ -136,7 +156,7 @@ sub ex_us_pl {
 
     SVG::Rasterize::Exception::Unsupported->throw
 	(state   => $state,
-	 message => sprintf($template, $desc));
+	 message => _compose_message($template, $desc));
 }
 
 sub ex_pv {
@@ -145,7 +165,7 @@ sub ex_pv {
 
     SVG::Rasterize::Exception::ParamsValidate->throw
 	(state   => $state,
-	 message => $message);
+	 message => _compose_message($message));
 }
 
 sub ex_su_iw {
@@ -155,7 +175,7 @@ sub ex_su_iw {
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 }
 
 sub ex_su_ih {
@@ -165,7 +185,7 @@ sub ex_su_ih {
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 }
 
 sub ex_at_ro {
@@ -175,7 +195,7 @@ sub ex_at_ro {
 
     SVG::Rasterize::Exception::Attribute->throw
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 }
 
 sub ex_pm_rl {
@@ -185,7 +205,7 @@ sub ex_pm_rl {
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 }
 
 sub ex_pm_ma_nu {
@@ -197,7 +217,17 @@ sub ex_pm_ma_nu {
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
+}
+
+sub ex_pm_mf_ne {
+    my ($caller, $value)    = @_;
+    my ($rasterize, $state) = _get_env($caller);
+    my $template            = "Non-positive medium font-size (%s).";
+
+    SVG::Rasterize::Exception::Param->throw
+	(state   => $state,
+	 message => _compose_message($template, $value));
 }
 
 sub ex_co_ct {
@@ -213,12 +243,12 @@ sub ex_co_ct {
 	if(my $id = $state->node_attributes->{id}) {
 	    $element_string .= " with id $id";
 	}
-	$element_string = ') ';
+	$element_string .= ') ';
     }
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
-	 message => sprintf($template, $element_string));
+	 message => _compose_message($template, $element_string));
 }
 
 sub ex_ho_bn_on {
@@ -230,7 +260,7 @@ sub ex_ho_bn_on {
     
     SVG::Rasterize::Exception::Return->throw
 	(state   => $state,
-	 message => $message);
+	 message => _compose_message($message));
 }
 
 sub ie_pv {
@@ -239,7 +269,7 @@ sub ie_pv {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => $message);
+	 message => _compose_message($message));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -254,7 +284,7 @@ sub ie_el {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $child, $parent));
+	 message => _compose_message($template, $child, $parent));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -268,7 +298,7 @@ sub ie_at_pv {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $message));
+	 message => _compose_message($template, $message));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -281,7 +311,7 @@ sub ie_at_vb_nw {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -294,7 +324,7 @@ sub ie_at_vb_nh {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -307,7 +337,7 @@ sub ie_at_pd {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -320,7 +350,7 @@ sub ie_at_po {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -333,7 +363,7 @@ sub ie_at_re_nw {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -346,7 +376,7 @@ sub ie_at_re_nh {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -359,7 +389,7 @@ sub ie_at_re_nr {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -372,7 +402,7 @@ sub ie_at_ci_nr {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -385,7 +415,7 @@ sub ie_at_el_nr {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -399,7 +429,7 @@ sub ie_pr_pv {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $name, $message));
+	 message => _compose_message($template, $name, $message));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -412,7 +442,7 @@ sub ie_pr_co_iv {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -427,7 +457,7 @@ sub ie_pr_st_nm {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -441,7 +471,7 @@ sub ie_pr_st_nd {
 
     my $ex = SVG::Rasterize::Exception::InError->new
 	(state   => $state,
-	 message => sprintf($template, $value));
+	 message => _compose_message($template, $value));
 
     if($rasterize) { $rasterize->in_error($ex) }
     else           { die $ex }
@@ -458,7 +488,7 @@ __END__
 =head1 DESCRIPTION
 
 This module uses L<Exception::Class|Exception::Class> to define a
-set of exception classes and provides a a list of short hand
+set of exception classes and provides a list of short hand
 subroutines to throw these exceptions.
 
 =head2 Error Messages
@@ -532,6 +562,10 @@ Stands for "exception parameter relative length".
 =item * ex_pm_ma_nu
 
 Stands for "exception parameter matrix number".
+
+=item * ex_pm_mf_ne
+
+Stands for "exception parameter medium font-size negative".
 
 =item * ex_co_ct
 

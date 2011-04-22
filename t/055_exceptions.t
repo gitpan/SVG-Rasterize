@@ -2,11 +2,98 @@
 use strict;
 use warnings;
 
-use Test::More tests => 34;
+use Test::More tests => 315;
+use Test::Warn;
 
 use SVG;
 use Test::Exception;
 use SVG::Rasterize;
+
+sub test_caller {
+    my $rasterize;
+    my $state;
+
+    foreach(@SVG::Rasterize::Exception::EXPORT,
+	    @SVG::Rasterize::Exception::EXPORT_OK)
+    {
+	$rasterize = SVG::Rasterize->new;
+	warning_is { eval { $rasterize->$_ } } undef,
+	    "no warning in rasterize->$_ without arguments";
+	ok(defined($@), 'exception has been thrown');
+	isa_ok($@, 'SVG::Rasterize::Exception::Base');
+
+	$state = SVG::Rasterize::State->new
+	    (rasterize       => $rasterize,
+	     node_name       => 'svg',
+	     node_attributes => {},
+	     cdata           => undef,
+	     child_nodes     => undef);
+	warning_is { eval { $state->$_ } } undef,
+	    "no warning in state->$_ without arguments";
+	ok(defined($@), 'exception has been thrown');
+	isa_ok($@, 'SVG::Rasterize::Exception::Base');
+    }
+
+    warning_is { eval { SVG::Rasterize::Exception::ex_se_lo
+                           (bless({}, 'UNIVERSAL')) } }
+        undef,
+        "no warning in dummy call on UNIVERSAL";
+    ok(defined($@), 'exception has been thrown');
+    isa_ok($@, 'SVG::Rasterize::Exception::Base');
+    ok($@->message =~
+       qr/^Unexpected caller 'UNIVERSAL=HASH.*' in exception handling/,
+       'message');
+}
+
+sub in_error {
+    my $rasterize;
+
+    foreach(@SVG::Rasterize::Exception::EXPORT,
+	    @SVG::Rasterize::Exception::EXPORT_OK)
+    {
+	if($_ =~ /^ie/) {
+	    $rasterize = SVG::Rasterize->new;
+	    warning_is { eval { $rasterize->$_ } } undef,
+	        "no warning in rasterize->$_ without arguments";
+	    ok(defined($@), 'exception has been thrown');
+	    isa_ok($@, 'SVG::Rasterize::Exception::InError');
+	    warning_is { eval { SVG::Rasterize->$_ } } undef,
+	        "no warning in SVG::Rasterize->$_ without arguments";
+	    ok(defined($@), 'exception has been thrown');
+	    isa_ok($@, 'SVG::Rasterize::Exception::InError');
+	}
+    }
+}
+
+sub test_ex_co_ct {
+    my $rasterize;
+    my $state;
+
+    $rasterize = SVG::Rasterize->new;
+    $state = SVG::Rasterize::State->new
+	(rasterize       => $rasterize,
+	 node_name       => 'svg',
+	 node_attributes => {},
+	 cdata           => undef,
+	 child_nodes     => undef);
+    warning_is { eval { $state->ex_co_ct } } undef,
+        "no warning in state->ex_co_ct without arguments";
+    ok(defined($@), 'exception has been thrown');
+    isa_ok($@, 'SVG::Rasterize::Exception::Param');
+
+    $state = SVG::Rasterize::State->new
+	(rasterize       => $rasterize,
+	 node_name       => 'svg',
+	 node_attributes => {id => 'foo'},
+	 cdata           => undef,
+	 child_nodes     => undef);
+    warning_is { eval { $state->ex_co_ct } } undef,
+        "no warning in state->ex_co_ct without arguments";
+    ok(defined($@), 'exception has been thrown');
+    isa_ok($@, 'SVG::Rasterize::Exception::Param');
+    ok($@->message =~ /element \(svg with id foo\)/,
+       'message contains id');
+}
 
 sub test_ex_pa {
     my $ex;
@@ -136,6 +223,9 @@ sub readonly {
 	      'readonly attribute');
 }
 
+test_caller;
+in_error;
+test_ex_co_ct;
 test_ex_pa;
 test_ie;
 test_pv;

@@ -17,6 +17,7 @@ requires           'Exception::Class' => '1.29';
 test_requires      'SVG'              => '2.37';
 test_requires      'Test::More'       => '0.80';
 test_requires      'Test::Exception'  => '0.27';
+test_requires      'Test::Warn'       => '0.08';
 
 # for systems not supporting configure_requires we require Pango
 # within an eval statement

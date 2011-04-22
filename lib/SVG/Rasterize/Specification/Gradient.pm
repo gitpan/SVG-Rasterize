@@ -6,7 +6,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Gradient.pm 6211 2010-06-15 04:21:13Z mullet $
+# $Id: Gradient.pm 6484 2011-04-21 09:25:12Z powergnom $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Gradient> - specification for class Gradient
 
 =head1 VERSION
 
-Version 0.003004
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003004';
+our $VERSION = '0.003005';
 
 our %CHILDREN = ('linearGradient' => {'animate'          => 1,
                                       'animateTransform' => 1,
@@ -37,7 +37,7 @@ our %CHILDREN = ('linearGradient' => {'animate'          => 1,
 
 our %ATTR_VAL = ('linearGradient' => {'class'                     => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'color'                     => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => $RE_PAINT{p_COLOR}},
@@ -58,19 +58,19 @@ our %ATTR_VAL = ('linearGradient' => {'class'                     => {'optional'
                                                                       'regex'    => qr/^(?:userSpaceOnUse|objectBoundingBox)$/},
                                       'id'                        => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => $RE_XML{p_NAME}},
                                       'spreadMethod'              => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/^(?:pad|reflect|repeat)$/},
                                       'stop-color'                => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'stop-opacity'              => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
                                       'style'                     => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'x1'                        => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => $RE_LENGTH{p_A_LENGTH}},
@@ -82,34 +82,34 @@ our %ATTR_VAL = ('linearGradient' => {'class'                     => {'optional'
                                                                       'regex'    => qr/^(?:onLoad)$/},
                                       'xlink:arcrole'             => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:href'                => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:role'                => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:show'                => {'default'  => 'other',
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/^(?:other)$/},
                                       'xlink:title'               => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:type'                => {'default'  => 'simple',
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/^(?:simple)$/},
                                       'xml:base'                  => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xml:lang'                  => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => $RE_XML{p_NMTOKEN}},
                                       'xml:space'                 => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/^(?:default|preserve)$/},
                                       'xmlns:xlink'               => {'default'  => 'http://www.w3.org/1999/xlink',
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'y1'                        => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => $RE_LENGTH{p_A_LENGTH}},
@@ -118,7 +118,7 @@ our %ATTR_VAL = ('linearGradient' => {'class'                     => {'optional'
                                                                       'regex'    => $RE_LENGTH{p_A_LENGTH}}},
                  'radialGradient' => {'class'                     => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'color'                     => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => $RE_PAINT{p_COLOR}},
@@ -151,7 +151,7 @@ our %ATTR_VAL = ('linearGradient' => {'class'                     => {'optional'
                                                                       'regex'    => qr/^(?:userSpaceOnUse|objectBoundingBox)$/},
                                       'id'                        => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => $RE_XML{p_NAME}},
                                       'r'                         => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => $RE_LENGTH{p_A_LENGTH}},
@@ -160,46 +160,46 @@ our %ATTR_VAL = ('linearGradient' => {'class'                     => {'optional'
                                                                       'regex'    => qr/^(?:pad|reflect|repeat)$/},
                                       'stop-color'                => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'stop-opacity'              => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
                                       'style'                     => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:actuate'             => {'default'  => 'onLoad',
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/^(?:onLoad)$/},
                                       'xlink:arcrole'             => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:href'                => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:role'                => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:show'                => {'default'  => 'other',
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/^(?:other)$/},
                                       'xlink:title'               => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xlink:type'                => {'default'  => 'simple',
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/^(?:simple)$/},
                                       'xml:base'                  => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => qr/.?/},
                                       'xml:lang'                  => {'optional' => 1,
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//},
+                                                                      'regex'    => $RE_XML{p_NMTOKEN}},
                                       'xml:space'                 => {'optional' => 1,
                                                                       'type'     => SCALAR,
                                                                       'regex'    => qr/^(?:default|preserve)$/},
                                       'xmlns:xlink'               => {'default'  => 'http://www.w3.org/1999/xlink',
                                                                       'type'     => SCALAR,
-                                                                      'regex'    => qr//}});
+                                                                      'regex'    => qr/.?/}});
 
 our %ATTR_HINTS = ('linearGradient' => {'color' => {'color'  => 1},
                                         'x1'    => {'length' => 1},
@@ -237,7 +237,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of either: the GNU General Public License as

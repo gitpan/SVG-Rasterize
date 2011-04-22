@@ -2,9 +2,9 @@
 use strict;
 use warnings;
 
-# $Id: 012_specification.t 6163 2010-06-13 07:20:23Z mullet $
+# $Id: 015_specification.t 6485 2011-04-21 09:31:19Z powergnom $
 
-use Test::More tests => 39;
+use Test::More tests => 40;
 
 use SVG;
 use Test::Exception;
@@ -91,6 +91,7 @@ sub has_pcdata {
     is(spec_has_pcdata('text'), 1, 'text has pcdata');
     is(spec_has_pcdata('textPath'), 1, 'textPath has pcdata');
     is(spec_has_pcdata('tspan'), 1, 'tspan has pcdata');
+    is(spec_has_pcdata('title'), 1, 'title has pcdata');
     is(spec_has_pcdata('a'), 1, 'a has pcdata');
     is(spec_has_pcdata('g'), 0, 'g has no pcdata');
 }

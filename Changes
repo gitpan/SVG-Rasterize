@@ -1,5 +1,17 @@
 Revision history for SVG-Rasterize
 
+0.003005 Fri Apr 22 11:53:35 NZST 2011
+	 - Support for more text attributes:
+	   - font-size (except relative font sizes)
+	 - Regex check of ID attributes.
+	 - Reorganized docu to increase user friendliness.
+	 - Reorganization and substantial expansion of test suite,
+	   guided by Devel::Cover.
+	 - Comments are ignored now as they should. This fixes bug
+	   RT#62943. Additionally, title, desc, and metadata
+	   elements are ignored.
+	 - Minor bug fixes.
+
 0.003004 Thu Jun 17 13:16:14 NZST 2010
 	 - Adds support for currentColor and hex color settings.
 	 - Introduces methods to restore default hooks.

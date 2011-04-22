@@ -12,7 +12,7 @@ use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(%RE_NUMBER);
 
-# $Id: Cairo.pm 6157 2010-06-13 06:13:32Z mullet $
+# $Id: Cairo.pm 6298 2010-06-21 03:26:36Z mullet $
 
 =head1 NAME
 
@@ -20,11 +20,11 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003003';
+our $VERSION = '0.003005';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -47,7 +47,7 @@ sub make_ro_accessor {
 
         if (@_) {
             my $caller = caller;
-            $self->ex_at_ro("${class}->${field}");
+            SVG::Rasterize->ex_at_ro("${class}->${field}");
         }
         else {
             return $self->get($field);
@@ -456,12 +456,20 @@ sub draw_text {
 
     return if(!$cdata);
 
-    my $context = $self->{context};
+    my $properties = $state->properties;
+    my $context    = $self->{context};
     $context->save;
 
     $context->set_matrix(Cairo::Matrix->init(@{$state->matrix}));
 
     my $layout = Pango::Cairo::create_layout($self->{context});
+    my $desc   = Pango::FontDescription->new;
+
+    $desc->set_absolute_size
+	(Pango::units_from_double($properties->{'font-size'}));
+#    $desc->set_family($properties->{'font-family'});
+
+    $layout->set_font_description($desc);
     $layout->set_text($cdata);
 
     my $extents  = $layout->get_pixel_extents;
@@ -469,7 +477,6 @@ sub draw_text {
 
     $context->translate($x, $y - $baseline);
 
-    my $properties = $state->properties;
     if($properties->{stroke}) {
 	Pango::Cairo::layout_path($context, $layout);
 	$self->_fill_and_stroke($properties);

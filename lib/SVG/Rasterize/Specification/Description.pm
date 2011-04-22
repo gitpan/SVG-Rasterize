@@ -6,7 +6,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id$
+# $Id: Description.pm 6484 2011-04-21 09:25:12Z powergnom $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Description> - specification for class Descript
 
 =head1 VERSION
 
-Version 0.003004
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003004';
+our $VERSION = '0.003005';
 
 our %CHILDREN = ('desc'     => {},
                  'metadata' => {},
@@ -26,49 +26,49 @@ our %CHILDREN = ('desc'     => {},
 
 our %ATTR_VAL = ('desc'     => {'class'     => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => qr/.?/},
                                 'id'        => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => $RE_XML{p_NAME}},
                                 'style'     => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => qr/.?/},
                                 'xml:base'  => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => qr/.?/},
                                 'xml:lang'  => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => $RE_XML{p_NMTOKEN}},
                                 'xml:space' => {'optional' => 1,
                                                 'type'     => SCALAR,
                                                 'regex'    => qr/^(?:default|preserve)$/}},
                  'metadata' => {'id'        => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => $RE_XML{p_NAME}},
                                 'xml:base'  => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => qr/.?/},
                                 'xml:lang'  => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => $RE_XML{p_NMTOKEN}},
                                 'xml:space' => {'optional' => 1,
                                                 'type'     => SCALAR,
                                                 'regex'    => qr/^(?:default|preserve)$/}},
                  'title'    => {'class'     => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => qr/.?/},
                                 'id'        => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => $RE_XML{p_NAME}},
                                 'style'     => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => qr/.?/},
                                 'xml:base'  => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => qr/.?/},
                                 'xml:lang'  => {'optional' => 1,
                                                 'type'     => SCALAR,
-                                                'regex'    => qr//},
+                                                'regex'    => $RE_XML{p_NMTOKEN}},
                                 'xml:space' => {'optional' => 1,
                                                 'type'     => SCALAR,
                                                 'regex'    => qr/^(?:default|preserve)$/}});
@@ -101,7 +101,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of either: the GNU General Public License as

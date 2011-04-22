@@ -19,7 +19,7 @@ use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::State;
 use SVG::Rasterize::TextNode;
 
-# $Id: Rasterize.pm 6252 2010-06-17 00:08:13Z mullet $
+# $Id: Rasterize.pm 6493 2011-04-21 23:40:44Z powergnom $
 
 =head1 NAME
 
@@ -27,11 +27,11 @@ C<SVG::Rasterize> - rasterize C<SVG> content to pixel graphics
 
 =head1 VERSION
 
-Version 0.003004
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003004';
+our $VERSION = '0.003005';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -52,6 +52,11 @@ __PACKAGE__->mk_ro_accessors(qw(engine
 #                      Class Variables and Methods                        # 
 #                                                                         #
 ###########################################################################
+
+our %IGNORED_NODES = (comment  => 1,
+		      title    => 1,
+		      desc     => 1,
+		      metadata => 1);
 
 sub make_ro_accessor {
     my($class, $field) = @_;
@@ -201,7 +206,15 @@ sub init {
 	else { warn "Unrecognized init parameter $meth.\n" }
     }
 
+    # setting default values
     $self->restore_all_hooks(preserve => 1);
+    # false medium font-size other than undef has already caused an
+    # exception, therefore ||= is ok:
+    $self->{medium_font_size} ||= '12pt';
+    # font_size_scale must be set via the accessor such that the
+    # font size scale table is created; false other than undef has
+    # already caused an exception, therefore ! is ok:
+    $self->font_size_scale(1.2) if(!$self->{font_size_scale});
 
     return $self;
 }
@@ -303,7 +316,7 @@ sub _create_engine {
 	$load_success = eval "require $args_ptr->{engine_class}";
     }
     if(!$load_success) {
-	$self->ex_selo($args_ptr->{engine_class}, $!);
+	$self->ex_se_lo($args_ptr->{engine_class}, $!);
     }
 
     $self->{engine} = $args_ptr->{engine_class}->new(%engine_args);
@@ -322,7 +335,7 @@ sub px_per_in {
 
     if(@args) {
 	validate_with(params  => \@args,
-		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      spec    => [{regex => $RE_NUMBER{p_A_NNNUMBER}}],
 		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{px_per_in} = $args[0];
     }
@@ -337,7 +350,7 @@ sub in_per_cm {
 
     if(@args) {
 	validate_with(params  => \@args,
-		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      spec    => [{regex => $RE_NUMBER{p_A_NNNUMBER}}],
 		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{in_per_cm} = $args[0];
     }
@@ -350,7 +363,7 @@ sub in_per_mm {
 
     if(@args) {
 	validate_with(params  => \@args,
-		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      spec    => [{regex => $RE_NUMBER{p_A_NNNUMBER}}],
 		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{in_per_mm} = $args[0];
     }
@@ -363,7 +376,7 @@ sub in_per_pt {
 
     if(@args) {
 	validate_with(params  => \@args,
-		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      spec    => [{regex => $RE_NUMBER{p_A_NNNUMBER}}],
 		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{in_per_pt} = $args[0];
     }
@@ -376,7 +389,7 @@ sub in_per_pc {
 
     if(@args) {
 	validate_with(params  => \@args,
-		      spec    => [{regex => $RE_NUMBER{p_A_NUMBER}}],
+		      spec    => [{regex => $RE_NUMBER{p_A_NNNUMBER}}],
 		      on_fail => sub { $self->ex_pv($_[0]) });
 	$self->{in_per_pc} = $args[0];
     }
@@ -408,6 +421,73 @@ sub map_abs_length {
     elsif($unit eq 'mm') { return $number * $self->in_per_mm * $dpi }
     elsif($unit eq 'in') { return $number * $dpi }
     elsif($unit eq '%')  { $self->ex_pm_rl($number.$unit) }
+}
+
+sub medium_font_size {
+    my ($self, @args) = @_;
+
+    if(@args) {
+	validate_with(params  => \@args,
+		      spec    => [{type  => SCALAR,
+				   regex => $RE_LENGTH{p_ABS_A_LENGTH}}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
+	$self->ex_pm_mf_ne($args[0])
+	    if($self->map_abs_length($args[0]) <= 0);
+	$self->{medium_font_size}->{default} = $args[0];
+    }
+
+    return $self->{medium_font_size}->{default};
+}
+
+sub _generate_font_size_scale_table {
+    my ($self) = @_;
+    my $scale  = $self->{font_size_scale}->{default};
+
+    $self->{_font_size_scale_table} ||= {};
+    $self->{_font_size_scale_table}->{default} =
+        {'xx-small' => 1 / $scale**3,
+	 'x-small'  => 1 / $scale**2,
+	 'small'    => 1 / $scale,
+	 'medium'   => 1,
+	 'large'    => $scale,
+	 'x-large'  => $scale**2,
+	 'xx-large' => $scale**3};
+}
+
+sub font_size_scale {
+    my ($self, @args) = @_;
+
+    if(@args) {
+	validate_with(params  => \@args,
+		      spec    => [{type  => SCALAR,
+				   regex => $RE_NUMBER{p_A_NNNUMBER}}],
+		      on_fail => sub { $self->ex_pv($_[0]) });
+	$self->{font_size_scale}->{default} = $args[0];
+	$self->_generate_font_size_scale_table;
+    }
+
+    return $self->{font_size_scale}->{default};
+}
+
+sub absolute_font_size {
+    my ($self, $name) = @_;
+    my $table         = $self->{_font_size_scale_table}->{default};
+
+    return undef if(!defined($name));
+    return($self->map_abs_length($self->{medium_font_size})
+	   * $table->{$name});
+}
+
+sub relative_font_size {
+    my ($self, $name, $reference_size) = @_;
+
+    if($name eq 'smaller') {
+	$self->ex_us_pl("Relative font sizes (e.g. 'smaller')");
+    }
+    elsif($name eq 'larger') {
+	$self->ex_us_pl("Relative font sizes (e.g. 'smaller')");
+    }
+    else { return undef }
 }
 
 ###########################################################################
@@ -1080,12 +1160,14 @@ sub _process_node_object {
 	# anyway.
 	# A copy is made to enable manipulation in hooks without
 	# changing the node object.
-	$state_args{child_nodes} =
-	    defined($child_nodes) ? [@$child_nodes] : undef;
+	$state_args{child_nodes} = defined($child_nodes)
+	    ? [grep { !$IGNORED_NODES{$_->getNodeName} } @$child_nodes]
+	    : undef;
     }
     else {
 	# For a generic DOM node we only take the children which
-	# are either element or text nodes.
+	# are either element or text nodes. Note that this excludes
+	# comment nodes.
 	$state_args{child_nodes} = [];
 	foreach(@{$child_nodes || []}) {
 	    my $type = $_->getType;
@@ -1459,15 +1541,48 @@ value. See
 L<http://www.w3.org/TR/SVG11/painting.html#SpecifyingPaint> for the
 background of this.
 
-=head3 state
+=head3 medium_font_size
 
-Readonly attribute. Holds the current
-L<SVG::Rasterize::State|SVG::Rasterize::State> object during tree
-traversal.
+C<SVG> supports keywords from C<xx-small> to C<xx-large> for the
+C<font-size> attribute. A numerical value for C<medium> as well as a
+scaling factor between neighboring values is supposed to be set by
+the user agent. C<SVG::Rasterize> uses a default value of
+C<12pt>. This default value can be adjusted by setting this
+attribute. A new value has to be an absolute length larger than
+C<0>.
+
+=head3 font_size_scale
+
+Read about C<medium_font_size> above first. C<font_size_scale>
+holds the factor between neighboring C<font-size> values, e.g.
+between C<large> and C<x-large>. The default value is C<1.2>.
 
 There are other attributes that influence unit conversions,
 white space handling, and the choice of the underlying rasterization
 engine. See L<ADVANCED TOPICS|/ADVANCED TOPICS>.
+
+
+=head2 Class Attributes
+
+=head3 %IGNORED_NODES
+
+Defaults to
+
+  %IGNORED_NODES = (comment  => 1,
+                    title    => 1,
+                    desc     => 1,
+                    metadata => 1);
+
+A C<SVG> node with a name that is a key in this hash with a true
+value is ignored including all its children. If you, for example
+set
+
+  $SVG::IGNORED_NODES{text} = 1;
+
+then all text nodes will be ignored.
+
+Do not unset the defaults above or you are likely to get into
+trouble.
 
 =head2 Methods for Users
 
@@ -1511,7 +1626,7 @@ overrides the L<current_color|/current_color> attribute.
 L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>, temporarily
 overrides the C<engine_class> attribute. See
 L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> for details on the
-interface. The value has to match the regular
+interface. The value has to match the regular expression
 L<p_PACKAGE_NAME|SVG::Rasterize::Regexes/%RE_PACKAGE>.
 
 =item * engine_args (optional): arguments for the constructor of the
@@ -1575,224 +1690,6 @@ C<write> method hands all parameters over to the backend. See
 L<write|SVG::Rasterize::Cairo/write> in C<SVG::Rasterize::Cairo> for
 an example.
 
-=head2 Methods for Developers
-
-=head3 init
-
-  $rasterize->init(%args)
-
-If you overload C<init>, your method should also call this one.
-
-For each given argument, C<init> calls the accessor with the same
-name to initialize the attribute. If such an accessor (or in fact,
-any method of that name) does not exist a warning is printed and the
-argument is ignored. Readonly attributes that are allowed to be set
-at initialization time are set separately at the beginning.
-
-=head3 in_error
-
-Expects an exception object or error message. Creates a fresh
-L<SVG::Rasterize::State|SVG::Rasterize::State> object (without any
-transfrom etc.) and calls L<in_error_hook|/in_error_hook> (which by
-default draws a translucent checkerboard across the image). After
-that, it dies with the given message.
-
-Before you call C<in_error> directly, check out
-L<SVG::Rasterize::Exception|SVG::Rasterize::Exception>.
-
-=head2 Class Methods
-
-=head3 multiply_matrices
-
-2D affine transformation can be represented by 3 x 3 matrices
-of the form:
-
-  ( a  c  e )
-  ( b  d  f )
-  ( 0  0  1 )
-
-In this case, the concatenation of such transformations is
-represented by canonical matrix multiplication. This method takes
-two ARRAY references of the form C<[a, b, c, d, e, f]> whose entries
-correspond to the matrix entries above and returns an ARRAY
-reference with 6 entries representing the product matrix.
-
-The method can be called either as subroutine or as class
-method or as object method:
-
-  $product = multiply_matrices($m, $n)
-  $product = SVG::Rasterize->multiply_matrices($m, $n)
-  $product = $rasterize->multiply_matrices($m, $n)
-
-Note that C<multiply_matrices> does not perform any input check. It
-expects that you provide (at least) two ARRAY references with (at
-least) 6 numbers each. If you pass more parameters then the last two
-are used. If they contain more than 6 entries then the first 6 are
-used.
-
-=head3 endpoint_to_center
-
-  @result = endpoint_to_center(@input)
-  @result = SVG::Rasterize->endpoint_to_center(@input)
-  @result = $rasterize->endpoint_to_center(@input)
-
-Rasterization engines like
-L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> might use center
-parameterization instead of endpoint parametrization of an
-elliptical arc (see
-L<http://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes>).
-This method calculates the center parameters from the endpoint
-parameters given in a C<SVG> path data string. As indicated above,
-it can be called as a subroutine or a class method or an object
-method. The required parameters are:
-
-=over 4
-
-=item * x coordinate of the starting point
-
-=item * y coordinate of the starting point
-
-=item * radius in x direction
-
-=item * radius in y direction
-
-=item * angle by which the ellipse is rotated with respect to the
-positive x axis (in radiant, not degrees)
-
-=item * large arc flag
-
-=item * sweep flag
-
-=item * x coordinate of the end point
-
-=item * y coordinate of the end point.
-
-=back
-
-If the reparameterization cannot be computed an empty list is
-returned. This can have to possible reasons. Either one of the radii
-is equal (with respect to machine precision) to 0 or the start and
-end point of the arc are equal (with respect to machine
-precision). The first case should have been checked before (note
-that no rounding problems can occur here because no arithmetics is
-done with the passed values) because in this case the arc should be
-turned into a line. In the second case, the arc should just not be
-drawn. Be aware that this latter case includes a full ellipse. This
-means that a full ellipse cannot be drawn as one arc. The C<SVG>
-specification is very clear on that point. However, an ellipse can
-be drawn as two arcs.
-
-Note that the input values are not validated (e.g. if the values are
-numbers, if the flags are either 0 or 1 and so on). It is assumed
-that this has been checked before.  Furthermore, it is not checked
-if the radii are very close to 0 or start and end point are nearly
-equal.
-
-A list of the following parameters is returned (unless an empty
-list is returned due to the reasons mentioned above):
-
-=over 4
-
-=item * x coordinate of the center
-
-=item * y coordinate of the center
-
-=item * radius in x direction
-
-This value might have been increased to make the ellipse big enough
-to connect start and end point. If it was negative the absolute
-value has been used (so the return value is always positive).
-
-=item * radius in y direction
-
-This value might have been increased to make the ellipse big enough
-to connect start and end point. If it was negative the absolute
-value has been used (so the return value is always positive).
-
-=item * start angle in radiant
-
-=item * sweep angle (positive or negative) in radiant.
-
-=back
-
-
-=head3 adjust_arc_radii
-
-  @result = adjust_arc_radii(@input)
-  @result = SVG::Rasterize->adjust_arc_radii(@input)
-  @result = $rasterize->adjust_arc_radii(@input)
-
-The C<SVG> specification requires that the radii of an elliptic arc
-are increased automatically if the given values are too small to
-connect the given endpoints (see
-L<http://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes>).
-This situation can arise from rounding errors, but also for example
-during an animation. Moreover, if a given radius is negative then
-the absolute value is to be used. This method takes care of these
-adjustments and returns the new values plus some intermediate values
-that might be useful for callers, namely
-L<endpoint_to_center|/endpoint_to_center>.
-
-In detail, it requires the following parameters:
-
-=over 4
-
-=item * x coordinate of the starting point
-
-=item * y coordinate of the starting point
-
-=item * radius in x direction
-
-=item * radius in y direction
-
-=item * angle phi by which the ellipse is rotated with respect to the
-positive x axis (in radiant)
-
-=item * x coordinate of the end point
-
-=item * y coordinate of the end point.
-
-=back
-
-Note that the input values are not validated (e.g. if the values are
-numbers etc.). It is assumed that this has been checked before.
-Furthermore, it is not checked if the radii are very close to C<0>
-or start and end point are nearly equal.
-
-The following values are guaranteed to be returned:
-
-=over 4
-
-=item * adjusted absolute value of the radius in x direction
-
-=item * adjusted absolute value of the radius in y direction
-
-=back
-
-This is all if one of the radii is equal to 0. Otherwise, the
-following additional values are returned:
-
-=over 4
-
-=item * sin(phi)
-
-=item * cos(phi)
-
-=item * x_1' (see C<SVG> specification link above)
-
-=item * y_1' (see C<SVG> specification link above)
-
-=item * 1 / Lambda - 1
-
-This value is only returned if Lambda is greater than 0 which is
-equivalent (assuming exact arithmetics) to the end point of the arc
-being different to the starting point. Lambda is the value
-calculated in equation (F.6.6.2) of the specification (see link
-above). 1 / Lambda - 1 is equal to the radicand in equation
-(F.6.5.2).
-
-=back
-
 =head1 ADVANCED TOPICS
 
 =head2 C<SVG> Input
@@ -1816,7 +1713,7 @@ C<XML> parser and offer a C<DOM> interface.
 
 =item 5. The input data are stringified C<XML> data read from a file
 handle. This case is different from the previous one because a file
-can be read multiple times in order to get collect referenced C<SVG>
+can be read multiple times in order to collect referenced C<SVG>
 fragments.
 
 =back
@@ -1863,8 +1760,8 @@ Lengths can also be given as numbers without unit which is then
 interpreted as C<px>. See
 L<http://www.w3.org/TR/SVG11/coords.html#Units>.
 
-C<SVG::Rasterize> stores default values for unit conversion rates as
-class variables. You can either change these values or the
+C<SVG::Rasterize> stores default values for unit conversion ratios
+as class variables. You can either change these values or the
 corresponding object variables. If you have only one
 C<SVG::Rasterize> object both approaches have the same effect.
 
@@ -1921,7 +1818,7 @@ specification, 12pc equal 1pt.
   $number = $rasterize->map_abs_length($number, $unit)
 
 This method takes a length and returns the corresponding value
-in C<px> according to the conversion rates above. Surrounding
+in C<px> according to the conversion ratios above. Surrounding
 white space is not allowed.
 
 B<Examples:>
@@ -2076,7 +1973,7 @@ B<Examples:>
 
   $rasterize->start_node_hook(sub { ... })
 
-Some hooks have non-trivial defaults. There C<SVG::Rasterize>
+Some hooks have non-trivial defaults. Therefore C<SVG::Rasterize>
 provides the following methods to restore the default behaviour:
 
 =over 4
@@ -2168,16 +2065,266 @@ where
 
 To prevent this normalization, you can set the
 C<normalize_attributes> attribute (as object attribute or as
-parameter to L<rasterize|/rasterize> to a false value.
+parameter to L<rasterize|/rasterize>) to a false value.
 
 =head2 C<SVG> Validation
 
 C<SVG::Rasterize> is not an C<SVG> validator. It does check a lot of
 things including the validity of the element hierarchy, the required
 presence and absence of attributes and the values of all attributes
-in interpretes plus some that it does not interprete. However, it
+it interpretes plus some that it does not interprete. However, it
 does not (and probably will never) claim to detect all errors in an
 C<SVG> document.
+
+=head2 Attributes and Methods for Developers
+
+=head3 state
+
+Readonly attribute. Holds the current
+L<SVG::Rasterize::State|SVG::Rasterize::State> object during tree
+traversal. Not internal because it is used by exception methods
+to retrieve the current state object (in order to store it in the
+exception object for debugging purposes).
+
+=head3 init
+
+  $rasterize->init(%args)
+
+If you overload C<init>, your method should also call this one.
+
+For each given argument, C<init> calls the accessor with the same
+name to initialize the attribute. If such an accessor (or in fact,
+any method of that name) does not exist a warning is printed and the
+argument is ignored. Readonly attributes that are allowed to be set
+at initialization time are set separately at the beginning.
+
+=head3 in_error
+
+Expects an exception object or error message. Creates a fresh
+L<SVG::Rasterize::State|SVG::Rasterize::State> object (without any
+transform etc.) and calls L<in_error_hook|/in_error_hook> (which by
+default draws a translucent checkerboard across the image). After
+that, it dies with the given message.
+
+Before you call C<in_error> directly, check out
+L<SVG::Rasterize::Exception|SVG::Rasterize::Exception>.
+
+=head3 absolute_font_size
+
+  $size = $rasterize->absolute_font_size('x-large')
+
+Returns the current numerical value (in user units) corresponding to
+a given absolute font size keyword. The method is designed also to
+be used to check if a given string is an absolute font size keyword
+at all. Therefore it returns C<undef> if the input value is C<undef>
+or not an absolute font size keyword.
+
+=head3 relative_font_size
+
+  $size = $rasterize->relative_font_size('larger')
+
+NB: Currently, this method throws an exception if a relative font
+size keyword is given saying that these keywords are not supported,
+yet. The following describes the future behaviour.
+
+Returns the current numerical value (in user units) corresponding to
+a given relative font size keyword. The method is designed also to
+be used to check if a given string is an relative font size keyword
+at all. Therefore it returns C<undef> if the input value is C<undef>
+or not an relative font size keyword.
+
+=head2 Class Methods
+
+=head3 multiply_matrices
+
+2D affine transformation can be represented by 3 x 3 matrices
+of the form:
+
+  ( a  c  e )
+  ( b  d  f )
+  ( 0  0  1 )
+
+In this case, the concatenation of such transformations is
+represented by canonical matrix multiplication. This method takes
+two ARRAY references of the form C<[a, b, c, d, e, f]> whose entries
+correspond to the matrix entries above and returns an ARRAY
+reference with 6 entries representing the product matrix.
+
+The method can be called either as subroutine or as class
+method or as object method:
+
+  $product = multiply_matrices($m, $n)
+  $product = SVG::Rasterize->multiply_matrices($m, $n)
+  $product = $rasterize->multiply_matrices($m, $n)
+
+Note that C<multiply_matrices> does not perform any input check. It
+expects that you provide (at least) two ARRAY references with (at
+least) 6 numbers each. If you pass more parameters then the last two
+are used. If they contain more than 6 entries then the first 6 are
+used.
+
+=head3 endpoint_to_center
+
+  @result = endpoint_to_center(@input)
+  @result = SVG::Rasterize->endpoint_to_center(@input)
+  @result = $rasterize->endpoint_to_center(@input)
+
+Rasterization engines like
+L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> might use center
+parameterization instead of endpoint parameterization of an
+elliptical arc (see
+L<http://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes>).
+This method calculates the center parameters from the endpoint
+parameters given in a C<SVG> path data string. As indicated above,
+it can be called as a subroutine or a class method or an object
+method. The required parameters are:
+
+=over 4
+
+=item * x coordinate of the starting point
+
+=item * y coordinate of the starting point
+
+=item * radius in x direction
+
+=item * radius in y direction
+
+=item * angle by which the ellipse is rotated with respect to the
+positive x axis (in radiant, not degrees)
+
+=item * large arc flag
+
+=item * sweep flag
+
+=item * x coordinate of the end point
+
+=item * y coordinate of the end point.
+
+=back
+
+If the reparameterization cannot be computed an empty list is
+returned. This can have two possible reasons. Either one of the
+radii is equal (with respect to machine precision) to 0 or the start
+and end point of the arc are equal (with respect to machine
+precision). The first case should have been checked before (note
+that no rounding problems can occur here because no arithmetics is
+done with the passed values) because in this case the arc should be
+turned into a line. In the second case, the arc should just not be
+drawn. Be aware that this latter case includes a full ellipse. This
+means that a full ellipse cannot be drawn as one arc. The C<SVG>
+specification is very clear on that point. However, an ellipse can
+be drawn as two arcs.
+
+Note that the input values are not validated (e.g. if the values are
+numbers, if the flags are either 0 or 1 and so on). It is assumed
+that this has been checked before.  Furthermore, it is not checked
+if the radii are very close to 0 or start and end point are nearly
+equal.
+
+A list of the following parameters is returned (unless an empty
+list is returned due to the reasons mentioned above):
+
+=over 4
+
+=item * x coordinate of the center
+
+=item * y coordinate of the center
+
+=item * radius in x direction
+
+This value might have been increased to make the ellipse big enough
+to connect start and end point. If it was negative the absolute
+value has been used (so the return value is always positive).
+
+=item * radius in y direction
+
+This value might have been increased to make the ellipse big enough
+to connect start and end point. If it was negative the absolute
+value has been used (so the return value is always positive).
+
+=item * start angle in radiant
+
+=item * sweep angle (positive or negative) in radiant.
+
+=back
+
+
+=head3 adjust_arc_radii
+
+  @result = adjust_arc_radii(@input)
+  @result = SVG::Rasterize->adjust_arc_radii(@input)
+  @result = $rasterize->adjust_arc_radii(@input)
+
+The C<SVG> specification requires that the radii of an elliptic arc
+are increased automatically if the given values are too small to
+connect the given endpoints (see
+L<http://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes>).
+This situation can arise from rounding errors, but also for example
+during an animation. Moreover, if a given radius is negative then
+the absolute value is to be used. This method takes care of these
+adjustments and returns the new values plus some intermediate values
+that might be useful for callers, namely
+L<endpoint_to_center|/endpoint_to_center>.
+
+In detail, it requires the following parameters:
+
+=over 4
+
+=item * x coordinate of the starting point
+
+=item * y coordinate of the starting point
+
+=item * radius in x direction
+
+=item * radius in y direction
+
+=item * angle phi by which the ellipse is rotated with respect to the
+positive x axis (in radiant)
+
+=item * x coordinate of the end point
+
+=item * y coordinate of the end point.
+
+=back
+
+Note that the input values are not validated (e.g. if the values are
+numbers etc.). It is assumed that this has been checked before.
+Furthermore, it is not checked if the radii are very close to C<0>
+or start and end point are nearly equal.
+
+The following values are guaranteed to be returned:
+
+=over 4
+
+=item * adjusted absolute value of the radius in x direction
+
+=item * adjusted absolute value of the radius in y direction
+
+=back
+
+This is all if one of the radii is equal to 0. Otherwise, the
+following additional values are returned:
+
+=over 4
+
+=item * sin(phi)
+
+=item * cos(phi)
+
+=item * x_1' (see C<SVG> specification link above)
+
+=item * y_1' (see C<SVG> specification link above)
+
+=item * 1 / Lambda - 1
+
+This value is only returned if Lambda is greater than 0 which is
+equivalent (assuming exact arithmetics) to the end point of the arc
+being different from the starting point. Lambda is the value
+calculated in equation (F.6.6.2) of the specification (see link
+above). 1 / Lambda - 1 is equal to the radicand in equation
+(F.6.5.2).
+
+=back
 
 
 =head1 EXAMPLES
@@ -2271,7 +2418,7 @@ stop. One could work around this in an onerous and fragile way, but
 I will not do this.
 
 =item * Often there is no good fallback without knowing what the
-user inteded to do. In these cases, it is better to just bail out
+user intended to do. In these cases, it is better to just bail out
 and let the user fix the problem himself.
 
 =item * A too forgiving user agent deludes the user into bad
@@ -2407,8 +2554,6 @@ Like above.
 
 =item * L<Class::Accessor|Class::Accessor>, version 0.30 or higher
 
-=item * L<SVG|SVG>, version 2.37 or higher
-
 =item * L<Cairo|Cairo>, version 1.061 or higher
 
 The version of the underlying C<C> library has to be at least
@@ -2446,9 +2591,19 @@ loaded if no other backend has been specified.
 
 =item * L<Exception::Class>, version 1.29 or higher
 
+=back
+
+Additionally, testing requires the following modules:
+
+=over 4
+
+=item * L<SVG|SVG>, version 2.37 or higher
+
 =item * L<Test::More|Test::More>, version 0.86 or higher
 
 =item * L<Test::Exception|Test::Exception>, version 0.27 or higher
+
+=item * L<Test::Warn|Test::Warn>, version 0.08 or higher.
 
 =back
 
@@ -2468,7 +2623,8 @@ progress on your bug as I make changes.
 =head3 Relative units
 
 The relative units C<em>, C<ex>, and C<%> are currently not
-supported.
+supported. Neither are the C<font-size> values C<smaller> and
+C<larger>.
 
 =head3 C<ICC> colors
 
@@ -2476,6 +2632,19 @@ C<ICC> color settings for the C<fill> and C<stroke> properties are
 understood, but ignored. I do not know enough about color profiles
 to foresee how support would look like. Unless requested, C<ICC>
 color profiles will probably not be supported for a long time.
+
+=head3 C<XML> names
+
+The C<XML> standard is very inclusive with respect to characters
+allowed in C<XML> Names and Nmtokens (see
+L<http://www.w3.org/TR/2006/REC-xml11-20060816/#xml-names>).
+C<SVG::Rasterize> currently only allows the C<ASCII> subset of
+allowed characters because I do not know how to build efficient
+regular expressions supporting the huge allowed character class.
+
+Most importantly, this restriction affects the C<id> attribute of
+any element. Apart from that, it affects C<xml:lang> attributes and
+the C<target> attribute of C<a> elements.
 
 =head2 Caveats
 
@@ -2776,7 +2945,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

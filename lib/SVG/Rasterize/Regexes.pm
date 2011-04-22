@@ -4,7 +4,7 @@ use warnings;
 
 use Exporter 'import';
 
-# $Id: Regexes.pm 6233 2010-06-16 06:04:40Z mullet $
+# $Id: Regexes.pm 6340 2010-07-02 04:14:15Z mullet $
 
 =head1 NAME
 
@@ -12,11 +12,11 @@ C<SVG::Rasterize::Regexes> - Commonly used regular expressions
 
 =head1 VERSION
 
-Version 0.003004
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003004';
+our $VERSION = '0.003005';
 
 our @EXPORT    = qw();
 our @EXPORT_OK = qw($WSP
@@ -35,7 +35,9 @@ our @EXPORT_OK = qw($WSP
 
 our %EXPORT_TAGS = (all           => [@EXPORT, @EXPORT_OK],
 		    whitespace    => [qw($WSP $CWSP)],
-                    attributes    => [qw(%RE_NUMBER
+                    attributes    => [qw(%RE_XML
+                                         %RE_URI
+                                         %RE_NUMBER
                                          %RE_LENGTH
                                          %RE_PAINT
                                          %RE_TRANSFORM
@@ -62,6 +64,8 @@ $RE_XML{NAME_START_CHAR} = qr/[\:a-zA-Z\_]/;
 $RE_XML{NAME_CHAR}       = qr/[\:a-zA-Z\_\-\.0-9]/;
 $RE_XML{NAME}            = qr/$RE_XML{NAME_START_CHAR}$RE_XML{NAME_CHAR}*/;
 $RE_XML{p_NAME}          = qr/^$RE_XML{NAME}$/;
+$RE_XML{NMTOKEN}         = qr/$RE_XML{NAME_CHAR}+/;
+$RE_XML{p_NMTOKEN}       = qr/^$RE_XML{NMTOKEN}$/;
 
 # URI stuff
 # $RE_URI{FULL_URI} and its components except $RE_URI{FRAGMENT}
@@ -88,13 +92,13 @@ $RE_URI{p_URI}     = qr/^$RE_URI{URI}$/;
 # numbers and lengths
 our %RE_NUMBER = ();
 our %RE_LENGTH = ();
-$RE_NUMBER{NNINTEGER}    = qr/\d+/;
+$RE_NUMBER{NNINTEGER}    = qr/\+?\d+/;
 $RE_NUMBER{p_NNINTEGER}  = qr/^$RE_NUMBER{NNINTEGER}$/;
 $RE_NUMBER{INTEGER}      = qr/[\+\-]?$RE_NUMBER{NNINTEGER}/;
 $RE_NUMBER{p_INTEGER}    = qr/^$RE_NUMBER{INTEGER}$/;
 $RE_NUMBER{w_INTEGER}    = qr/^$WSP*$RE_NUMBER{INTEGER}$WSP*$/;
 
-$RE_NUMBER{NNFRACTION}   = qr/(?:\d*\.\d+|\d+\.)/;
+$RE_NUMBER{NNFRACTION}   = qr/\+?(?:\d*\.\d+|\d+\.)/;
 $RE_NUMBER{FRACTION}     = qr/[\+\-]?$RE_NUMBER{NNFRACTION}/;
 $RE_NUMBER{p_FRACTION}   = qr/^$RE_NUMBER{FRACTION}$/;
 $RE_NUMBER{w_FRACTION}   = qr/^$WSP*$RE_NUMBER{FRACTION}$WSP*$/;
@@ -138,14 +142,14 @@ $RE_LENGTH{ABS_A_LENGTH}   = qr/$RE_NUMBER{A_NUMBER}
 $RE_LENGTH{p_ABS_A_LENGTH} = qr/^$RE_LENGTH{ABS_A_LENGTH}$/;
 $RE_LENGTH{w_ABS_A_LENGTH} = qr/^$WSP*$RE_LENGTH{ABS_A_LENGTH}$WSP*$/;
 
-$RE_LENGTH{p_A_LENGTHS}    = qr/^$RE_LENGTH{p_A_LENGTH}
-                                 (?:$CWSP$RE_LENGTH{p_A_LENGTH})*$/x;
+$RE_LENGTH{p_A_LENGTHS}    = qr/^$RE_LENGTH{A_LENGTH}
+                                 (?:$CWSP$RE_LENGTH{A_LENGTH})*$/x;
 $RE_LENGTH{LENGTHS_SPLIT}  = qr/$CWSP/;
 
 # paint (fill and stroke)
 our %RE_PAINT = ();
 {
-    my $rgbe = qr/[\+\-]?\d{1,3}\%?/;
+    my $rgbe = qr/[\+\-]?\d+\%?/;
 
     $RE_PAINT{RGB}      = qr/rgb\($WSP*$rgbe$WSP*\,
                                   $WSP*$rgbe$WSP*\,
@@ -229,8 +233,8 @@ our %RE_TRANSFORM = ();
     my  $tfn          = qr/(?:matrix|translate|scale|rotate|skewX|skewY)/;
 
     %RE_TRANSFORM =
-	(TRANSFORM_SPLIT   => qr/($tf)(?:$CWSP($tfm))?/,
-	 p_TRANSFORM_LIST  => qr/^$WSP*($tfm)?$WSP*$/,
+	(p_TRANSFORM_LIST  => qr/^$tfm$/,
+	 TRANSFORM_SPLIT   => qr/($tf)(?:$CWSP($tfm))?/,
 	 TRANSFORM_CAPTURE => qr/($tfn)$WSP*
                                  \($WSP*($nu(?:$CWSP$nu)*)$WSP*\)/x);
 }
@@ -244,7 +248,7 @@ our %RE_VIEW_BOX = ();
     $RE_VIEW_BOX{ALIGN}      = qr/(none
                                    |x(?:Min|Mid|Max)Y(?:Min|Mid|Max))/x;
     $RE_VIEW_BOX{MOS}        = qr/(meet|slice)/;
-    $RE_VIEW_BOX{PAR}        = qr/^(?:defer\ +)?
+    $RE_VIEW_BOX{p_PAR}      = qr/^(?:defer\ +)?
                                   (?:$RE_VIEW_BOX{ALIGN}
                                    \ +$RE_VIEW_BOX{MOS}
                                    |$RE_VIEW_BOX{ALIGN})$/x;
@@ -317,10 +321,9 @@ our %RE_PATH = ();
     my  $dt      = qr/(?:$cl|$lt|$hlt|$vlt|$ct|$sct|$qb|$sqb|$ea)/;
     my  $dtm     = qr/$dt(?:$WSP*$dt)*/;        # draw to multiple
     my  $pcg     = qr/$mt(?:$WSP*$dtm)?/;       # path command group
-    my  $pcgm    = qr/$pcg(?:$WSP*$pcg)*/;      # pcg multiple
 
-    $RE_PATH{p_PATH_LIST} = qr/^$WSP*$pcgm$WSP*$/;
-    $RE_PATH{s_PATH_LIST} = qr/^$WSP*$pcgm$WSP*/;
+    $RE_PATH{p_PATH_LIST} = qr/^$pcg(?:$WSP*$pcg)*$/;
+    $RE_PATH{s_PATH_LIST} = qr/^$pcg(?:$WSP*$pcg)*/;
     $RE_PATH{MAS_SPLIT}   = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
                                 ($RE_NUMBER{A_NUMBER})$CWSP?
                                 ($mas?)$/x;
@@ -340,14 +343,8 @@ our %RE_PATH = ();
                                 ($RE_NUMBER{A_NUMBER})$CWSP?
                                 ($RE_NUMBER{A_NUMBER})$CWSP?
                                 ($scas?)$/x;
-    $RE_PATH{QBAS_SPLIT}  = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
-                                ($RE_NUMBER{A_NUMBER})$CWSP?
-                                ($RE_NUMBER{A_NUMBER})$CWSP?
-                                ($RE_NUMBER{A_NUMBER})$CWSP?
-                                ($scas?)$/x;
-    $RE_PATH{SQBAS_SPLIT} = qr/^($RE_NUMBER{A_NUMBER})$CWSP?
-                                ($RE_NUMBER{A_NUMBER})$CWSP?
-                                ($mas?)$/x;
+    $RE_PATH{QBAS_SPLIT}  = $RE_PATH{SCAS_SPLIT};
+    $RE_PATH{SQBAS_SPLIT} = $RE_PATH{MAS_SPLIT};
     $RE_PATH{EAAS_SPLIT}  = qr/^($RE_NUMBER{A_NNNUMBER})$CWSP?
                                 ($RE_NUMBER{A_NNNUMBER})$CWSP?
                                 ($RE_NUMBER{A_NUMBER})$CWSP
@@ -452,6 +449,14 @@ exactly are allowed. If you know where in the Perl manpages or the
 Camel book this is described, please point me to it. If this pattern
 is too strict for your favourite package name, you can change this
 variable.
+
+=item * %RE_XML
+
+Expressions for C<XML> Names and Nmtokens, see
+L<http://www.w3.org/TR/2006/REC-xml11-20060816/#xml-names>.
+Currently, only the C<ASCII> subset of allowed characters is allowed
+here because I do not know how to build efficient regular
+expressions supporting the huge allowed character class.
 
 =item * %RE_URI
 

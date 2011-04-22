@@ -2,7 +2,8 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 18;
+use Test::Exception;
 
 use SVG::Rasterize;
 use SVG;
@@ -62,6 +63,10 @@ sub svg_rasterize_state {
 
 sub svg_rasterize_textnode {
     my $node;
+
+    eval { SVG::Rasterize::TextNode->new };
+    ok(defined($@), 'node without data fails');
+    isa_ok($@, 'SVG::Rasterize::Exception::ParamsValidate');
 
     $node = SVG::Rasterize::TextNode->new(data => '');
     ok(defined($node), 'node defined');

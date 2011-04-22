@@ -6,7 +6,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Clip.pm 6211 2010-06-15 04:21:13Z mullet $
+# $Id: Clip.pm 6484 2011-04-21 09:25:12Z powergnom $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Clip> - specification for class Clip
 
 =head1 VERSION
 
-Version 0.003004
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003004';
+our $VERSION = '0.003005';
 
 our %CHILDREN = ('clipPath' => {'altGlyphDef'      => 1,
                                 'animate'          => 1,
@@ -44,13 +44,13 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:auto|baseline|before\-edge|text\-before\-edge|middle|central|after\-edge|text\-after\-edge|ideographic|alphabetic|hanging|mathematical|inherit)$/},
                                 'baseline-shift'               => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'class'                        => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'clip-path'                    => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'clip-rule'                    => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:nonzero|evenodd|inherit)$/},
@@ -68,7 +68,7 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:auto|optimizeSpeed|optimizeQuality|inherit)$/},
                                 'cursor'                       => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'direction'                    => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:ltr|rtl|inherit)$/},
@@ -92,16 +92,16 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:nonzero|evenodd|inherit)$/},
                                 'filter'                       => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'font-family'                  => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'font-size'                    => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'font-size-adjust'             => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'font-stretch'                 => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:normal|wider|narrower|ultra\-condensed|extra\-condensed|condensed|semi\-condensed|semi\-expanded|expanded|extra\-expanded|ultra\-expanded|inherit)$/},
@@ -116,25 +116,25 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:normal|bold|bolder|lighter|100|200|300|400|500|600|700|800|900|inherit)$/},
                                 'glyph-orientation-horizontal' => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'glyph-orientation-vertical'   => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'id'                           => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_XML{p_NAME}},
                                 'image-rendering'              => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:auto|optimizeSpeed|optimizeQuality|inherit)$/},
                                 'kerning'                      => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'letter-spacing'               => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'mask'                         => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'opacity'                      => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/$RE_NUMBER{p_A_NUMBER}|^inherit$/},
@@ -143,10 +143,10 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:visiblePainted|visibleFill|visibleStroke|visible|painted|fill|stroke|all|none|inherit)$/},
                                 'requiredExtensions'           => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'requiredFeatures'             => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'shape-rendering'              => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:auto|optimizeSpeed|crispEdges|geometricPrecision|inherit)$/},
@@ -176,16 +176,16 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/$RE_LENGTH{p_A_LENGTH}|^inherit$/},
                                 'style'                        => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'systemLanguage'               => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'text-anchor'                  => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:start|middle|end|inherit)$/},
                                 'text-decoration'              => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'text-rendering'               => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:auto|optimizeSpeed|optimizeLegibility|geometricPrecision|inherit)$/},
@@ -200,16 +200,16 @@ our %ATTR_VAL = ('clipPath' => {'alignment-baseline'           => {'optional' =>
                                                                    'regex'    => qr/^(?:visible|hidden|inherit)$/},
                                 'word-spacing'                 => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'writing-mode'                 => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:lr\-tb|rl\-tb|tb\-rl|lr|rl|tb|inherit)$/},
                                 'xml:base'                     => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => qr/.?/},
                                 'xml:lang'                     => {'optional' => 1,
                                                                    'type'     => SCALAR,
-                                                                   'regex'    => qr//},
+                                                                   'regex'    => $RE_XML{p_NMTOKEN}},
                                 'xml:space'                    => {'optional' => 1,
                                                                    'type'     => SCALAR,
                                                                    'regex'    => qr/^(?:default|preserve)$/}});
@@ -243,7 +243,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of either: the GNU General Public License as

@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-# $Id: 025_render_interface.t 6058 2010-06-10 06:19:11Z mullet $
+# $Id: 045_rasterize_interface.t 6323 2010-06-25 09:26:13Z mullet $
 
 use Test::More tests => 27;
 use Test::Exception;

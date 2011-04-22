@@ -17,7 +17,7 @@ use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 use SVG::Rasterize::Exception qw(:all);
 
-# $Id: State.pm 6239 2010-06-16 07:02:48Z mullet $
+# $Id: State.pm 6274 2010-06-20 05:04:44Z mullet $
 
 =head1 NAME
 
@@ -25,11 +25,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.003004
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003004';
+our $VERSION = '0.003005';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -457,6 +457,31 @@ sub _process_styling_properties {
 		    if(@{$properties->{$_}} % 2) {
 			$properties->{$_} = [@{$properties->{$_}},
 					     @{$properties->{$_}}];
+		    }
+		}
+	    }
+	}
+
+	# font stuff
+	if($_ eq 'font-size') {
+	    if($properties->{$_} =~ $RE_LENGTH{p_A_LENGTH}) {
+		$properties->{$_} = $self->map_length($properties->{$_});
+	    }
+	    else {
+		my $size;
+		$size = $self->{rasterize}->absolute_font_size
+		    ($properties->{$_});
+		if(defined($size)) {
+		    $properties->{$_} = $self->map_length($size);
+		}
+		else {
+		    $size = $self->{rasterize}->relative_font_size
+			($properties->{$_});
+		    if(defined($size)) {
+			$properties->{$_} = $self->map_length($size);
+		    }
+		    else {
+			$self->ex_pa('font-size', $properties->{$_});
 		    }
 		}
 	    }

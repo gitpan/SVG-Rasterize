@@ -36,6 +36,7 @@ Scalar::Util,     version 1.19  or higher
 Exception::Class, version 1.29  or higher
 Test::More,       version 0.86  or higher
 Test::Exception   version 0.27  or higher
+Test::Warn        version 0.08  or higher
 
 Furthermore, the underlying cairo and pango C libraries are required
 at least in version 1.8.8 and version 1.22.4, respectively. These

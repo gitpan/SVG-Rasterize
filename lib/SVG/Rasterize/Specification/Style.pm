@@ -6,7 +6,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id$
+# $Id: Style.pm 6484 2011-04-21 09:25:12Z powergnom $
 
 =head1 NAME
 
@@ -14,32 +14,32 @@ C<SVG::Rasterize::Specification::Style> - specification for class Style
 
 =head1 VERSION
 
-Version 0.003004
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003004';
+our $VERSION = '0.003005';
 
 our %CHILDREN = ('style' => {});
 
 our %ATTR_VAL = ('style' => {'id'        => {'optional' => 1,
                                              'type'     => SCALAR,
-                                             'regex'    => qr//},
+                                             'regex'    => $RE_XML{p_NAME}},
                              'media'     => {'optional' => 1,
                                              'type'     => SCALAR,
-                                             'regex'    => qr//},
+                                             'regex'    => qr/.?/},
                              'title'     => {'optional' => 1,
                                              'type'     => SCALAR,
-                                             'regex'    => qr//},
+                                             'regex'    => qr/.?/},
                              'type'      => {'optional' => 0,
                                              'type'     => SCALAR,
-                                             'regex'    => qr//},
+                                             'regex'    => qr/.?/},
                              'xml:base'  => {'optional' => 1,
                                              'type'     => SCALAR,
-                                             'regex'    => qr//},
+                                             'regex'    => qr/.?/},
                              'xml:lang'  => {'optional' => 1,
                                              'type'     => SCALAR,
-                                             'regex'    => qr//},
+                                             'regex'    => $RE_XML{p_NMTOKEN}},
                              'xml:space' => {'default'  => 'preserve',
                                              'type'     => SCALAR,
                                              'regex'    => qr/^(?:preserve)$/}});
@@ -70,7 +70,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of either: the GNU General Public License as

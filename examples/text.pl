@@ -21,7 +21,7 @@ $text = $svg->text('x' => 30, 'y' => 60);
 $text->tspan->cdata('foo');
 $text->a('xlink:href' => 'foo')->circle
     (cx => 50, cy => 60, r => 7, 'fill' => 'yellow');
-$text->tspan->cdata('bar');
+$text->tspan('font-size' => 'large')->cdata('bar');
 
 $rasterize = SVG::Rasterize->new;
 $rasterize->rasterize(width => 150, height => 150, svg => $svg);

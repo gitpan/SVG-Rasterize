@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-# $Id: 045_defer_rasterization.t 6018 2010-06-08 07:51:31Z mullet $
+# $Id: 075_defer_rasterization.t 6473 2011-04-21 07:38:30Z powergnom $
 
 use Test::More tests => 28;
 

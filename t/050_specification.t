@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 9;
+use Test::More tests => 11;
 
 use SVG;
 use Test::Exception;
@@ -72,6 +72,28 @@ sub attributes {
     throws_ok(sub { $rasterize->rasterize(svg => $svg) },
 	      qr/viewBox/,
 	      'invalid viewBox');
+
+    # ID
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id => 'foo:bar');
+    $rasterize->start_node_hook(sub {
+	my ($rasterize, $state) = @_;
+	if($state->node_name eq 'g') {
+	    is($state->node_attributes->{id}, 'foo:bar',
+	       "'foo:bar' is valid ID");
+	}
+    });
+    $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $svg->group(id => 'foo bar');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/id/,
+	      "'foo bar' is invalid ID");
 }
 
 children;

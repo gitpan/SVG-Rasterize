@@ -6,7 +6,7 @@ use Exporter 'import';
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id$
+# $Id: Specification.pm 6490 2011-04-21 22:28:32Z powergnom $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification> - data structures derived from DTD
 
 =head1 VERSION
 
-Version 0.003004
+Version 0.003005
 
 =cut
 
-our $VERSION = '0.003004';
+our $VERSION = '0.003005';
 
 our @EXPORT      = ();
 our @EXPORT_OK   = qw(spec_is_element
@@ -113,10 +113,17 @@ our %CHILDREN = ('a'                   => 'Hyperlink',
                  'view'                => 'View',
                  'vkern'               => 'Misc');
 
-our %PCDATA = ('a'        => 1,
-               'text'     => 1,
-               'textPath' => 1,
-               'tspan'    => 1);
+our %PCDATA = ('a'             => 1,
+               'altGlyph'      => 1,
+               'desc'          => 1,
+               'foreignObject' => 1,
+               'metadata'      => 1,
+               'script'        => 1,
+               'style'         => 1,
+               'text'          => 1,
+               'textPath'      => 1,
+               'title'         => 1,
+               'tspan'         => 1);
 
 our %ATTR_VAL = ();
 
@@ -404,7 +411,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of either: the GNU General Public License as

@@ -6,18 +6,17 @@ redundant version here.
 TODO
 ----
 The following list contains some things I don't want to
-forget. I mainly contains small stuff and specificly no big feature
+forget. It mainly contains small stuff and specificly no big feature
 plans.
+
+- validate font-size
 
 - make sure really all attributes used so far are validated with
   regexes in Specification; it is the goal that each used attribute
   has to pass a non-trivial regex check at this stage
   - stroke, fill
-- support other output types than png
 - spec: check per callback that fixed value has that value
-- fix or document character limitations in XML regexes
-
-- ID and NMTOKEN in %ATTR_VAL
+- support other output types than png
 - docu error messages
 - idea: provide a simple GD backend, just as proof of concept for
   different backends
@@ -29,12 +28,22 @@ plans.
 - merge engine_args
 - complete docu of SVG::Rasterize::Cairo, then remove sparseness
   remark in SVG::Rasterize docu
-- support for relative units
+- support for relative units -> make special versions of map_length,
+  e.g. map_length_font_size, or...hm...maybe, we can keep
+  map_length, but a reference length has to be provided explicitly,
+  otherwise we keep on complaining about relative units
 - Cairo docu: draw_text
 - rethink order of rasterization in deferred tree (multiple calls!)
-- Can an element have an attribute which a child does not have, but a
-  grandchild is supposed to inherit? Check and fix accordingly.
+- Can an element have an attribute which a child does not have, but
+  a grandchild is supposed to inherit? Check and fix accordingly.
 - more text attributes
+- medium_font_size, font_size_scale dependent on font-family, set
+  and get should be transparent
+- test all regexes
+- move the non-regex stuff out of t/010_regexes
+- reach 100% in Devel::Cover
+- let in_error somehow leave a mark on the exception object
+- check if the numbers in viewBox should be non-negative
 
 done (excerpt, containing what I might look at again)
 -----------------------------------------------------
@@ -66,3 +75,5 @@ done (excerpt, containing what I might look at again)
 - rename SVG::Rasterize::Cairo to SVG::Rasterize::Engine::Cairo?
   Or ...Backend::Cairo? - not important enough to take the hassle 
   of dealing with backwards compatibility
+- fix or document character limitations in XML regexes
+- ID and NMTOKEN in %ATTR_VAL
