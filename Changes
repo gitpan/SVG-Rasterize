@@ -1,5 +1,19 @@
 Revision history for SVG-Rasterize
 
+0.003006 Thu Apr 28 20:21:15 NZST 2011
+	 - Incompatible changes:
+	   - The current_text_position method of
+	     SVG::Rasterize::State has gone.
+	 - Fixes bug #67699.
+	 - Major revision of the traversal of the node tree enabling
+	   a much cleaner approach to deferred rasterization of text
+	   elements. This should be transparent even for hooks.
+	 - Major revision of the way text is processed. This
+	   framework will hopefully be fully capable of handling
+	   text correctly including bidi text etc..
+	 - Alignment of text via text-anchor
+	 - Positioning of individual characters
+
 0.003005 Fri Apr 22 11:53:35 NZST 2011
 	 - Support for more text attributes:
 	   - font-size (except relative font sizes)

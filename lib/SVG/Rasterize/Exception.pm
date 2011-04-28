@@ -5,7 +5,7 @@ use warnings;
 use Exporter 'import';
 use Scalar::Util qw(blessed);
 
-# $Id: Exception.pm 6457 2011-04-15 21:17:18Z powergnom $
+# $Id: Exception.pm 6610 2011-04-28 08:00:38Z powergnom $
 
 =head1 NAME
 
@@ -13,11 +13,11 @@ C<SVG::Rasterize::Exception> - exception classes
 
 =head1 VERSION
 
-Version 0.003005
+Version 0.003006
 
 =cut
 
-our $VERSION = '0.003005';
+our $VERSION = '0.003006';
 
 our @EXPORT    = ();
 our @EXPORT_OK = qw(ex_se_lo
@@ -31,7 +31,7 @@ our @EXPORT_OK = qw(ex_se_lo
                     ex_pm_rl
                     ex_pm_ma_nu
                     ex_pm_mf_ne
-                    ex_co_ct
+                    ex_co_pt
                     ex_ho_bn_on
                     ie_pv
                     ie_el
@@ -223,32 +223,30 @@ sub ex_pm_ma_nu {
 sub ex_pm_mf_ne {
     my ($caller, $value)    = @_;
     my ($rasterize, $state) = _get_env($caller);
-    my $template            = "Non-positive medium font-size (%s).";
+    my $template            = "Non-positive medium font-size (%s).\n";
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
 	 message => _compose_message($template, $value));
 }
 
-sub ex_co_ct {
+sub ex_co_pt {
     my ($caller)            = @_;
     my ($rasterize, $state) = _get_env($caller);
     my $template            =
-	"Method 'current_text_position' called on an element %s".
-	"without any 'text' or 'textPath' ancestor.\n";
+	"No Method 'text' or 'textPath' ancestor for%s element%s.\n";
     
-    my $element_string = '';
+    my @strings = ('', '');
     if($state) {
-	$element_string = '('.$state->node_name;
+	$strings[0] = ' '.$state->node_name;
 	if(my $id = $state->node_attributes->{id}) {
-	    $element_string .= " with id $id";
+	    $strings[1] .= " with id $id";
 	}
-	$element_string .= ') ';
     }
 
     SVG::Rasterize::Exception::Param->throw
 	(state   => $state,
-	 message => _compose_message($template, $element_string));
+	 message => _compose_message($template, @strings));
 }
 
 sub ex_ho_bn_on {
@@ -567,9 +565,9 @@ Stands for "exception parameter matrix number".
 
 Stands for "exception parameter medium font-size negative".
 
-=item * ex_co_ct
+=item * ex_co_pt
 
-Stands for "exception context current text position".
+Stands for "exception context parent text".
 
 =item * ex_ho_bn_on
 

@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 33;
+use Test::More tests => 34;
 
 BEGIN {
     my @modules = qw(SVG::Rasterize::Regexes
@@ -34,6 +34,7 @@ BEGIN {
                      SVG::Rasterize::Properties
                      SVG::Rasterize::Colors
                      SVG::Rasterize::State
+                     SVG::Rasterize::State::Text
                      SVG::Rasterize::Exception
                      SVG::Rasterize::TextNode);
 

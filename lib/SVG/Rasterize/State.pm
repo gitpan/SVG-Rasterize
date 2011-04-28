@@ -7,7 +7,7 @@ use strict;
 use 5.008009;
 
 use Params::Validate qw(:all);
-use Scalar::Util qw(blessed looks_like_number weaken);
+use Scalar::Util qw(blessed looks_like_number);
 use List::Util qw(min max);
 
 use SVG::Rasterize::Regexes qw(:whitespace
@@ -17,7 +17,7 @@ use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 use SVG::Rasterize::Exception qw(:all);
 
-# $Id: State.pm 6274 2010-06-20 05:04:44Z mullet $
+# $Id: State.pm 6603 2011-04-28 07:16:04Z powergnom $
 
 =head1 NAME
 
@@ -25,11 +25,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.003005
+Version 0.003006
 
 =cut
 
-our $VERSION = '0.003005';
+our $VERSION = '0.003006';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -42,7 +42,7 @@ __PACKAGE__->mk_ro_accessors(qw(parent
                                 matrix
                                 properties
                                 defer_rasterization
-                                child_states));
+                                text_atoms));
 
 ###########################################################################
 #                                                                         #
@@ -102,12 +102,8 @@ sub init {
 	on_fail => sub { SVG::Rasterize->ex_pv($_[0]) });
 
     # read only and private arguments
-    if(exists($args{parent})) {
-	$self->{parent} = $args{parent};
-	weaken($self->{parent});
-    }
+    if(exists($args{parent})) { $self->{parent} = $args{parent} }
     $self->{rasterize} = $args{rasterize};
-    weaken($self->{rasterize});
 
     $self->{node_name}       = $args{node_name};
     $self->{node_attributes} = $args{node_attributes};
@@ -121,6 +117,23 @@ sub init {
     foreach(@{$self->{matrix}}) {
 	$self->ex_pm_ma_nu('undef') if(!defined($_));
 	$self->ex_pm_ma_nu($_)      if(!looks_like_number($_));
+    }
+
+    # rebless if necessary
+    my $treat_as_text = 0;
+    while(my ($key, $value) = each %SVG::Rasterize::TEXT_ROOT_ELEMENTS) {
+	next if(!$value);
+	$treat_as_text = 1 if($self->{node_name} eq $key);
+	$treat_as_text = 1 if(spec_has_child($key, $self->{node_name}));
+
+	if($args{node_name} eq '#text' and $self->{parent}) {
+	    my $p_node_name = $self->{parent}->node_name;
+	    $treat_as_text = 1 if($p_node_name eq $key);
+	    $treat_as_text = 1 if(spec_has_child($key, $p_node_name));
+	}
+    }
+    if($treat_as_text) {
+	bless $self, 'SVG::Rasterize::State::Text';
     }
 
     $self->_process_node;
@@ -493,6 +506,8 @@ sub _process_styling_properties {
                          # you change it check #text return above
 }
 
+sub process_node_extra {}
+
 sub _process_node {
     my ($self)     = @_;
     my $name       = $self->{node_name};
@@ -518,7 +533,7 @@ sub _process_node {
 	$self->ie_el($name) if(!spec_is_element($name));
     }
 
-    # Attribute validation except for text nodes. They have no
+    # Attribute validation except for cdata nodes. They have no
     # attributes and the Specification modules do not hold
     # validation information for them.
     unless($name eq '#text') {
@@ -528,21 +543,22 @@ sub _process_node {
 		      on_fail => sub { $self->ie_at_pv($_[0]) });
     }
 
+    # defer rasterization
+    if($SVG::Rasterize::DEFER_RASTERIZATION{$name} or
+       $self->{parent} and $self->{parent}->defer_rasterization)
+    {
+	$self->{defer_rasterization} = 1;
+    }
+
     # apply transformations
     if($self->{parent} and $self->{parent}->{matrix}) {
 	$self->{matrix} = multiply_matrices($self->{parent}->{matrix},
 					    $self->{matrix});
     }
-    $self->_process_transform_attribute if($attributes->{transform});
-    $self->_process_viewBox_attribute   if($attributes->{viewBox});
+    $self->_process_transform_attribute  if($attributes->{transform});
+    $self->_process_viewBox_attribute    if($attributes->{viewBox});
     $self->_process_styling_properties;
-
-    # defer rasterization
-    $self->{defer_rasterization} = 1 if($name eq 'text');
-    if($self->{parent} and $self->{parent}->defer_rasterization) {
-	$self->{defer_rasterization} = 1;
-	$self->{parent}->push_child_state($self);
-    }
+    $self->process_node_extra;
 
     return;
 }
@@ -559,40 +575,6 @@ sub node_attributes {
     $self->{node_attributes} ||= {};
     return $self->{node_attributes};
 }
-
-sub current_text_position {
-    my ($self, @args) = @_;
-
-    if($self->{node_name} eq 'text' or $self->{node_name} eq 'textPath') {
-	if(@args) {
-	    my $callback = sub {
-		my ($value) = @_;
-		return 0 if(!defined($value) or ref($value) ne 'ARRAY');
-		return 0 if(@$value != 2);
-		foreach(@$value) {
-		    return 0 if(!defined($_) or !looks_like_number($_));
-		}
-		return 1;
-	    };
-	    
-	    validate_with
-		(params  => \@args,
-		 spec    => [{type      => ARRAYREF,
-			      callbacks => {'two numbers' => $callback}}],
-		 on_fail => sub { $self->ex_pv($_[0]) });
-	    
-	    $self->{current_text_position} = $args[0];
-	}
-	
-	return $self->{current_text_position};
-    }
-    else {
-	if($self->{parent}) {
-	    return $self->{parent}->current_text_position(@args);
-	}
-	else { $self->ex_co_ct }
-    }
-}    
 
 ###########################################################################
 #                                                                         #
@@ -640,22 +622,6 @@ sub shift_child_node {
     my ($self) = @_;
 
     return shift(@{$self->{child_nodes} || []});
-}
-
-sub push_child_state {
-    my ($self, @args) = @_;
-
-    validate_with(params  => \@args,
-		  spec    => [{isa => 'SVG::Rasterize::State'}],
-		  on_fail => sub { $self->ex_pv($_[0]) });
-    $self->{child_states} ||= [];
-    return push(@{$self->{child_states}}, $args[0]);
-}
-
-sub shift_child_state {
-    my ($self) = @_;
-
-    return shift(@{$self->{child_states} || []});
 }
 
 1;
@@ -733,12 +699,12 @@ available for hooks
 
 =head3 parent
 
-Can only be set at construction time. Stores a weakened reference to
+Can only be set at construction time. Stores a reference to
 the parent state object.
 
 =head3 rasterize
 
-Can only be set at construction time. Stores a weakened reference to
+Can only be set at construction time. Stores a reference to
 the L<SVG::Rasterize|SVG::Rasterize> object.
 
 =head3 node
@@ -811,36 +777,6 @@ is then only rasterized once the root element of this subtree
 (i.e. the element whose parent is not deferring) is about to run out
 of scope.
 
-=head3 child_states
-
-Readonly attribute (the accessor does not make a copy, though). If
-rasterization is deferred (see above) then child states store
-themselves in this list (see
-L<push_child_state|/push_child_state>). Thereby, it is possible to
-rasterize the subtree when its time comes.
-
-Do not rely on getting an ARRAY reference from the accessor. If no
-child state has been added, the value will be undef. Consider using
-L<shift_child_state|/shift_child_state>.
-
-=head3 current_text_position
-
-For a C<SVG::Rasterize::State> object representing a C<text> or
-C<textPath> element, this attribute saves the current text position,
-i.e. the coordinates where the next text chunk will be drawn.
-
-A C<text> or C<textPath> element can contain multiple C<tspan>
-elements and character data sections. All these nodes do not
-maintain their own current text position, but their rendering
-updates the current text position of their ancestor C<text> or
-C<textPath> element. Therefore, the accessor of this attribute has
-some special behaviour: It only accesses the attribute, if the node
-represented by this object is a C<text> or C<textPath> element. If
-this is not the case it calls the accessor of the parent state
-object. By that, it walks up the state object tree until it reaches
-the first ancestor C<text> or C<textPath> element. If this does not
-exist an exception is raised.
-
 =head2 Methods for Users
 
 The distinction between users and developers is a bit arbitrary
@@ -908,32 +844,17 @@ Note that the elements of the C<child_nodes> list have not been
 validated at all as they are not used within this object. They can
 be anything that has been provided at construction time.
 
-=head3 push_child_state
+=head3 process_node_extra
 
-  $state->push_child_state($child_state)
+This method is named without an underscore and mentioned here
+because it is available for overloading. Logically, it rather
+belongs to the C<_process_...> methods described under L<Internal
+Methods|/Internal Methods>.
 
-If rasterization is deferred (see
-L<defer_rasterization|/defer_rasterization>) then a
-C<SVG::Rasterize::State> object representing a child node of this
-one will use this method to add itself to the
-L<child_states|/child_states> list. Thereby the subtree of the
-document can be accessed when the rasterization time comes.
-
-Expects one C<SVG::Rasterize::State> object. Returns the return
-value of C<push> which is the new number of elements in the
-L<child_states|/child_states> list.
-
-=head3 shift_child_state
-
-  $state = $state->shift_child_state
-
-Shifts an element from the C<child_states> list and returns it. This
-list is populated while rasterization is deferred (see
-L<defer_rasterization|/defer_rasterization>). This method is called
-by the L<rasterize|SVG::Rasterize/rasterize> method of
-C<SVG::Rasterize> when the time has come to finally render the
-deferred subtree. If the list is exhausted (or has never been
-filled) then C<undef> is returned.
+Called by L<_process_node|/_process_node> at the very end, does
+nothing. Only available for overloading to enable subclasses to
+perform special processing (see
+e.g. L<SVG::Rasterize::State::Text|SVG::Rasterize::State::Text>).
 
 =head1 DIAGNOSTICS
 
@@ -1017,7 +938,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of either: the GNU General Public License as

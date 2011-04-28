@@ -51,6 +51,7 @@ lib/SVG/Rasterize/Specification/TextContent.pm
 lib/SVG/Rasterize/Specification/Use.pm
 lib/SVG/Rasterize/Specification/View.pm
 lib/SVG/Rasterize/State.pm
+lib/SVG/Rasterize/State/Text.pm
 lib/SVG/Rasterize/TextNode.pm
 Makefile.PL
 MANIFEST			This list of files

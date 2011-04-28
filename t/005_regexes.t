@@ -37,21 +37,21 @@ sub white_space {
 sub package_name {
     my $s;
 
-    foreach $s qw(A::B
-                  a::b
-                  A
-                  Foo_Bar::Qux
-                  f00
-                  X2000::A_03)
+    foreach $s (qw(A::B
+                   a::b
+                   A
+                   Foo_Bar::Qux
+                   f00
+                   X2000::A_03))
     {
 	ok($s =~ $RE_PACKAGE{p_PACKAGE_NAME}, "$s =~ p_PACKAGE_NAME");
     }
-    foreach $s qw(!A::B
-                  a::b$
-                  0A::B
-                  _A
-                  ?
-                  A/B::C)
+    foreach $s (qw(!A::B
+                   a::b$
+                   0A::B
+                   _A
+                   ?
+                   A/B::C))
     {
 	ok($s !~ $RE_PACKAGE{p_PACKAGE_NAME}, "$s =~ p_PACKAGE_NAME");
     }
@@ -112,52 +112,52 @@ sub re_number {
     my $r;
 
     $r = 'p_NNINTEGER';
-    foreach $s qw(0
-                  000
-                  001
-                  +0
-                  +000
-                  +001
-                  +1
-                  1
-                  10
-                  12345
-                  0123
-                  +912)
+    foreach $s (qw(0
+                   000
+                   001
+                   +0
+                   +000
+                   +001
+                   +1
+                   1
+                   10
+                   12345
+                   0123
+                   +912))
     {
 	ok($s =~ $RE_NUMBER{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(-0
-                  -1
-                  .1
-                  0.1223
-                  1E7
-                  -8.1)
+    foreach $s (qw(-0
+                   -1
+                   .1
+                   0.1223
+                   1E7
+                   -8.1))
     {
 	ok($s !~ $RE_NUMBER{$r}, "'$s' !~ $r");
     }
     $r = 'p_INTEGER';
-    foreach $s qw(0
-                  000
-                  001
-                  +0
-                  +000
-                  +001
-                  +1
-                  1
-                  10
-                  12345
-                  0123
-                  +912
-                  -0
-                  -1)
+    foreach $s (qw(0
+                   000
+                   001
+                   +0
+                   +000
+                   +001
+                   +1
+                   1
+                   10
+                   12345
+                   0123
+                   +912
+                   -0
+                   -1))
     {
 	ok($s =~ $RE_NUMBER{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(.1
-                  0.1223
-                  1E7
-                  -8.1)
+    foreach $s (qw(.1
+                   0.1223
+                   1E7
+                   -8.1))
     {
 	ok($s !~ $RE_NUMBER{$r}, "'$s' !~ $r");
     }
@@ -170,55 +170,55 @@ sub re_number {
     }
 
     $r = 'NNFRACTION';
-    foreach $s qw(0.1
-                  .1
-                  0.
-                  123.
-                  000.
-                  0.000
-                  +0.
-                  +.0
-                  +.1
-                  +12.456
-                  +.0012300)
+    foreach $s (qw(0.1
+                   .1
+                   0.
+                   123.
+                   000.
+                   0.000
+                   +0.
+                   +.0
+                   +.1
+                   +12.456
+                   +.0012300))
     {
 	ok($s =~ qr/^$RE_NUMBER{$r}$/, "'$s' =~ emulated $r");
     }
-    foreach $s qw(-1
-                  -1.
-                  -0.1
-                  -.1
-                  1E7
-                  a+.1
-                  0.001foo
-                  0e123)
+    foreach $s (qw(-1
+                   -1.
+                   -0.1
+                   -.1
+                   1E7
+                   a+.1
+                   0.001foo
+                   0e123))
     {
 	ok($s !~ qr/^$RE_NUMBER{$r}$/, "'$s' !~ emulated $r");
     }
 
     $r = 'p_FRACTION';
-    foreach $s qw(0.1
-                  .1
-                  0.
-                  123.
-                  000.
-                  0.000
-                  +0.
-                  +.0
-                  +.1
-                  -1.
-                  -0.1
-                  -.1
-                  +12.456
-                  +.0012300)
+    foreach $s (qw(0.1
+                   .1
+                   0.
+                   123.
+                   000.
+                   0.000
+                   +0.
+                   +.0
+                   +.1
+                   -1.
+                   -0.1
+                   -.1
+                   +12.456
+                   +.0012300))
     {
 	ok($s =~ $RE_NUMBER{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(-1
-                  1E7
-                  a+.1
-                  0.001foo
-                  0e123)
+    foreach $s (qw(-1
+                   1E7
+                   a+.1
+                   0.001foo
+                   0e123))
     {
 	ok($s !~ $RE_NUMBER{$r}, "'$s' !~ $r");
     }
@@ -231,75 +231,75 @@ sub re_number {
     }
 
     $r = 'EXPONENT';
-    foreach $s qw(e0
-                  E00
-                  e+00
-                  E-000
-                  E123
-                  E+78
-                  E-1)
+    foreach $s (qw(e0
+                   E00
+                   e+00
+                   E-000
+                   E123
+                   E+78
+                   E-1))
     {
 	ok($s =~ qr/^$RE_NUMBER{$r}$/, "'$s' =~ emulated $r");
     }
-    foreach $s qw(-1
-                  +3
-                  +0
-                  E.3
-                  e12+
-                  -E32
-                  aE34
-                  e-12U)
+    foreach $s (qw(-1
+                   +3
+                   +0
+                   E.3
+                   e12+
+                   -E32
+                   aE34
+                   e-12U))
     {
 	ok($s !~ qr/^$RE_NUMBER{$r}$/, "'$s' !~ emulated $r");
     }
 
     $r = 'NNFLOAT';
-    foreach $s qw(+.1
-                  1.
-                  +23.
-                  +0.123
-                  0000.000
-                  00.E12
-                  1.345E-02)
+    foreach $s (qw(+.1
+                   1.
+                   +23.
+                   +0.123
+                   0000.000
+                   00.E12
+                   1.345E-02))
     {
 	ok($s =~ qr/^$RE_NUMBER{$r}$/, "'$s' =~ emulated $r");
     }
-    foreach $s qw(1
-                  +1
-                  123
-                  -1
-                  -.1
-                  -1.
-                  123a09
-                  a12
-                  34.56z)
+    foreach $s (qw(1
+                   +1
+                   123
+                   -1
+                   -.1
+                   -1.
+                   123a09
+                   a12
+                   34.56z))
     {
 	ok($s !~ qr/^$RE_NUMBER{$r}$/, "'$s' !~ emulated $r");
     }
 
     $r = 'p_FLOAT';
-    foreach $s qw(0.1
-                  .1
-                  0.e123
-                  123.
-                  000.
-                  0.000E43
-                  +0.
-                  +.0
-                  +.1
-                  1E7
-                  -1.
-                  -0.1E34
-                  -.1
-                  +12.456
-                  +.0012300
-                  0e123)
+    foreach $s (qw(0.1
+                   .1
+                   0.e123
+                   123.
+                   000.
+                   0.000E43
+                   +0.
+                   +.0
+                   +.1
+                   1E7
+                   -1.
+                   -0.1E34
+                   -.1
+                   +12.456
+                   +.0012300
+                   0e123))
     {
 	ok($s =~ $RE_NUMBER{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(-1
-                  a+.1
-                  0.001foo)
+    foreach $s (qw(-1
+                   a+.1
+                   0.001foo))
     {
 	ok($s !~ $RE_NUMBER{$r}, "'$s' !~ $r");
     }
@@ -312,28 +312,28 @@ sub re_number {
     }
 
     $r = 'p_P_NNNUMBER';
-    foreach $s qw(0.1
-                  .1
-                  123.
-                  000.
-                  +0.
-                  +.0
-                  +.1
-                  +12.456
-                  +.0012300)
+    foreach $s (qw(0.1
+                   .1
+                   123.
+                   000.
+                   +0.
+                   +.0
+                   +.1
+                   +12.456
+                   +.0012300))
     {
 	ok($s =~ $RE_NUMBER{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(-1
-                  0.e123
-                  1E7
-                  0.000E43
-                  -1.
-                  0e123
-                  -0.1E34
-                  -.1
-                  a+.1
-                  0.001foo)
+    foreach $s (qw(-1
+                   0.e123
+                   1E7
+                   0.000E43
+                   -1.
+                   0e123
+                   -0.1E34
+                   -.1
+                   a+.1
+                   0.001foo))
     {
 	ok($s !~ $RE_NUMBER{$r}, "'$s' !~ $r");
     }
@@ -346,28 +346,28 @@ sub re_number {
     }
 
     $r = 'p_P_NUMBER';
-    foreach $s qw(0.1
-                  .1
-                  123.
-                  000.
-                  +0.
-                  +.0
-                  +.1
-                  +12.456
-                  -1
-                  -1.
-                  -.1
-                  +.0012300)
+    foreach $s (qw(0.1
+                   .1
+                   123.
+                   000.
+                   +0.
+                   +.0
+                   +.1
+                   +12.456
+                   -1
+                   -1.
+                   -.1
+                   +.0012300))
     {
 	ok($s =~ $RE_NUMBER{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(0.e123
-                  1E7
-                  0.000E43
-                  0e123
-                  -0.1E34
-                  a+.1
-                  0.001foo)
+    foreach $s (qw(0.e123
+                   1E7
+                   0.000E43
+                   0e123
+                   -0.1E34
+                   a+.1
+                   0.001foo))
     {
 	ok($s !~ $RE_NUMBER{$r}, "'$s' !~ $r");
     }
@@ -380,28 +380,28 @@ sub re_number {
     }
 
     $r = 'p_A_NNNUMBER';
-    foreach $s qw(0.1
-                  .1
-                  123.
-                  000.
-                  +0.
-                  +.0
-                  +.1
-                  +12.456
-                  0.e123
-                  1E7
-                  0e123
-                  0.000E43
-                  +.0012300)
+    foreach $s (qw(0.1
+                   .1
+                   123.
+                   000.
+                   +0.
+                   +.0
+                   +.1
+                   +12.456
+                   0.e123
+                   1E7
+                   0e123
+                   0.000E43
+                   +.0012300))
     {
 	ok($s =~ $RE_NUMBER{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(-1
-                  -1.
-                  -0.1E34
-                  -.1
-                  a+.1
-                  0.001foo)
+    foreach $s (qw(-1
+                   -1.
+                   -0.1E34
+                   -.1
+                   a+.1
+                   0.001foo))
     {
 	ok($s !~ $RE_NUMBER{$r}, "'$s' !~ $r");
     }
@@ -414,28 +414,28 @@ sub re_number {
     }
 
     $r = 'p_A_NUMBER';
-    foreach $s qw(0.1
-                  .1
-                  123.
-                  000.
-                  +0.
-                  +.0
-                  +.1
-                  +12.456
-                  -1
-                  -1.
-                  -.1
-                  0.e123
-                  1E7
-                  0.000E43
-                  0e123
-                  -0.1E34
-                  +.0012300)
+    foreach $s (qw(0.1
+                   .1
+                   123.
+                   000.
+                   +0.
+                   +.0
+                   +.1
+                   +12.456
+                   -1
+                   -1.
+                   -.1
+                   0.e123
+                   1E7
+                   0.000E43
+                   0e123
+                   -0.1E34
+                   +.0012300))
     {
 	ok($s =~ $RE_NUMBER{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(a+.1
-                  0.001foo)
+    foreach $s (qw(a+.1
+                   0.001foo))
     {
 	ok($s !~ $RE_NUMBER{$r}, "'$s' !~ $r");
     }
@@ -453,38 +453,38 @@ sub re_length {
     my $r;
 
     $r = 'UNIT';
-    foreach $s qw(em ex px pt pc cm mm in %)
+    foreach $s (qw(em ex px pt pc cm mm in %))
     {
 	ok($s =~ qr/^$RE_LENGTH{$r}$/, "'$s' =~ emulated $r");
     }
-    foreach $s qw(ab q em1 nm qpc)
+    foreach $s (qw(ab q em1 nm qpc))
     {
 	ok($s !~ qr/^$RE_LENGTH{$r}$/, "'$s' !~ emulated $r");
     }
 
     $r = 'ABS_UNIT';
-    foreach $s qw(px pt pc cm mm in)
+    foreach $s (qw(px pt pc cm mm in))
     {
 	ok($s =~ qr/^$RE_LENGTH{$r}$/, "'$s' =~ emulated $r");
     }
-    foreach $s qw(ab q em1 nm qpc em ex %)
+    foreach $s (qw(ab q em1 nm qpc em ex %))
     {
 	ok($s !~ qr/^$RE_LENGTH{$r}$/, "'$s' !~ emulated $r");
     }
 
     $r = 'p_P_LENGTH';
-    foreach $s qw(0.1em
-                  .1%
-                  123.
-                  000.
-                  +0.cm
-                  +.0
-                  +.1mm
-                  +12.456
-                  -1
-                  -1.
-                  -.1in
-                  +.0012300)
+    foreach $s (qw(0.1em
+                   .1%
+                   123.
+                   000.
+                   +0.cm
+                   +.0
+                   +.1mm
+                   +12.456
+                   -1
+                   -1.
+                   -.1in
+                   +.0012300))
     {
 	ok($s =~ $RE_LENGTH{$r}, "'$s' =~ $r");
     }
@@ -507,11 +507,11 @@ sub re_length {
     }
 
     $r = 'p_ABS_P_LENGTH';
-    foreach $s qw(0.1in 3cm 5.3mm)
+    foreach $s (qw(0.1in 3cm 5.3mm))
     {
 	ok($s =~ $RE_LENGTH{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(5% 12.3em 3ex)
+    foreach $s (qw(5% 12.3em 3ex))
     {
 	ok($s !~ $RE_LENGTH{$r}, "'$s' !~ $r");
     }
@@ -524,18 +524,18 @@ sub re_length {
     }
 
     $r = 'p_A_LENGTH';
-    foreach $s qw(0.1E3em
-                  .1%
-                  123.
-                  000.
-                  +0.e-7cm
-                  +.0
-                  +.1mm
-                  +12.456
-                  -1
-                  -1.e5
-                  -.1in
-                  +.0012300)
+    foreach $s (qw(0.1E3em
+                   .1%
+                   123.
+                   000.
+                   +0.e-7cm
+                   +.0
+                   +.1mm
+                   +12.456
+                   -1
+                   -1.e5
+                   -.1in
+                   +.0012300))
     {
 	ok($s =~ $RE_LENGTH{$r}, "'$s' =~ $r");
     }
@@ -552,11 +552,11 @@ sub re_length {
     }
 
     $r = 'p_ABS_A_LENGTH';
-    foreach $s qw(0.1in 3e7cm 5.3E3mm)
+    foreach $s (qw(0.1in 3e7cm 5.3E3mm))
     {
 	ok($s =~ $RE_LENGTH{$r}, "'$s' =~ $r");
     }
-    foreach $s qw(5% 12.3e-1em 3e0ex)
+    foreach $s (qw(5% 12.3e-1em 3e0ex))
     {
 	ok($s !~ $RE_LENGTH{$r}, "'$s' !~ $r");
     }

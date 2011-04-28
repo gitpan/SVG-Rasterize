@@ -10,6 +10,17 @@ forget. It mainly contains small stuff and specificly no big feature
 plans.
 
 - validate font-size
+- initial param validation in rasterize
+- before_flush_hook
+- docu for
+  - possibly internal methods in Rasterize, State, and State::Text
+- sort out new block in
+  SVG::Rasterize::State::Text::_process_node_extra based on glyph
+  orientation
+- rotate of letters
+- document ligature bug
+- in_error checker box is no checker box
+- more elaborate DESCRIPTION for SVG::Rasterize::State::Text
 
 - make sure really all attributes used so far are validated with
   regexes in Specification; it is the goal that each used attribute
@@ -33,7 +44,6 @@ plans.
   map_length, but a reference length has to be provided explicitly,
   otherwise we keep on complaining about relative units
 - Cairo docu: draw_text
-- rethink order of rasterization in deferred tree (multiple calls!)
 - Can an element have an attribute which a child does not have, but
   a grandchild is supposed to inherit? Check and fix accordingly.
 - more text attributes

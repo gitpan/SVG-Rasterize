@@ -16,10 +16,10 @@ use SVG::Rasterize::Regexes qw(:whitespace
                                %RE_PATH
                                %RE_POLY);
 use SVG::Rasterize::Exception qw(:all);
-use SVG::Rasterize::State;
+use SVG::Rasterize::State::Text;
 use SVG::Rasterize::TextNode;
 
-# $Id: Rasterize.pm 6493 2011-04-21 23:40:44Z powergnom $
+# $Id: Rasterize.pm 6612 2011-04-28 08:15:16Z powergnom $
 
 =head1 NAME
 
@@ -27,11 +27,11 @@ C<SVG::Rasterize> - rasterize C<SVG> content to pixel graphics
 
 =head1 VERSION
 
-Version 0.003005
+Version 0.003006
 
 =cut
 
-our $VERSION = '0.003005';
+our $VERSION = '0.003006';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -53,10 +53,16 @@ __PACKAGE__->mk_ro_accessors(qw(engine
 #                                                                         #
 ###########################################################################
 
-our %IGNORED_NODES = (comment  => 1,
-		      title    => 1,
-		      desc     => 1,
-		      metadata => 1);
+our %IGNORED_NODES        = (comment  => 1,
+			     title    => 1,
+			     desc     => 1,
+			     metadata => 1);
+
+our %DEFER_RASTERIZATION = (text     => 1,
+			    textPath => 1);
+
+our %TEXT_ROOT_ELEMENTS  = (text     => 1,
+			    textPath => 1);
 
 sub make_ro_accessor {
     my($class, $field) = @_;
@@ -839,9 +845,10 @@ sub _split_path_data {
 }
 
 sub _process_path {
-    my ($self, $state) = @_;
-    my $path_data      = $state->node_attributes->{d};
+    my ($self, $state, %args) = @_;
+    my $path_data             = $state->node_attributes->{d};
 
+    return if($args{queued});
     return if(!$path_data);
 
     my ($in_error, @instructions) = $self->_split_path_data($path_data);
@@ -854,14 +861,17 @@ sub _process_path {
 ############################### Basic Shapes ##############################
 
 sub _process_rect {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $x              = $state->map_length($attributes->{x} || 0);
-    my $y              = $state->map_length($attributes->{y} || 0);
-    my $w              = $attributes->{width};
-    my $h              = $attributes->{height};
-    my $rx             = $attributes->{rx};
-    my $ry             = $attributes->{ry};
+    my ($self, $state, %args) = @_;
+
+    return if($args{queued});
+
+    my $attributes = $state->node_attributes;
+    my $x          = $state->map_length($attributes->{x} || 0);
+    my $y          = $state->map_length($attributes->{y} || 0);
+    my $w          = $attributes->{width};
+    my $h          = $attributes->{height};
+    my $rx         = $attributes->{rx};
+    my $ry         = $attributes->{ry};
 
     $w = $state->map_length($w);
     $h = $state->map_length($h);
@@ -915,11 +925,14 @@ sub _process_rect {
 }
 
 sub _process_circle {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $cx             = $state->map_length($attributes->{cx} || 0);
-    my $cy             = $state->map_length($attributes->{cy} || 0);
-    my $r              = $attributes->{r};
+    my ($self, $state, %args) = @_;
+
+    return if($args{queued});
+
+    my $attributes = $state->node_attributes;
+    my $cx         = $state->map_length($attributes->{cx} || 0);
+    my $cy         = $state->map_length($attributes->{cy} || 0);
+    my $r          = $attributes->{r};
 
     $r = $state->map_length($r);
     $self->ie_at_ci_nr($r) if($r < 0);
@@ -940,12 +953,15 @@ sub _process_circle {
 }
 
 sub _process_ellipse {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $cx             = $state->map_length($attributes->{cx} || 0);
-    my $cy             = $state->map_length($attributes->{cy} || 0);
-    my $rx             = $attributes->{rx};
-    my $ry             = $attributes->{ry};
+    my ($self, $state, %args) = @_;
+
+    return if($args{queued});
+
+    my $attributes = $state->node_attributes;
+    my $cx         = $state->map_length($attributes->{cx} || 0);
+    my $cy         = $state->map_length($attributes->{cy} || 0);
+    my $rx         = $attributes->{rx};
+    my $ry         = $attributes->{ry};
 
     $rx = $state->map_length($rx);
     $ry = $state->map_length($ry);
@@ -968,12 +984,15 @@ sub _process_ellipse {
 }
 
 sub _process_line {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
-    my $x1             = $state->map_length($attributes->{x1} || 0);
-    my $y1             = $state->map_length($attributes->{y1} || 0);
-    my $x2             = $state->map_length($attributes->{x2} || 0);
-    my $y2             = $state->map_length($attributes->{y2} || 0);
+    my ($self, $state, %args) = @_;
+
+    return if($args{queued});
+
+    my $attributes = $state->node_attributes;
+    my $x1         = $state->map_length($attributes->{x1} || 0);
+    my $y1         = $state->map_length($attributes->{y1} || 0);
+    my $x2         = $state->map_length($attributes->{x2} || 0);
+    my $y2         = $state->map_length($attributes->{y2} || 0);
 
     my $engine = $self->{engine};
     if($engine->can('draw_line')) {
@@ -986,8 +1005,11 @@ sub _process_line {
 }
 
 sub _process_polyline {
-    my ($self, $state) = @_;
-    my $points_str     = $state->node_attributes->{points};
+    my ($self, $state, %args) = @_;
+
+    return if($args{queued});
+
+    my $points_str = $state->node_attributes->{points};
 
     return if(!$points_str);
 
@@ -1017,8 +1039,11 @@ sub _process_polyline {
 }
 
 sub _process_polygon {
-    my ($self, $state) = @_;
-    my $points_str     = $state->node_attributes->{points};
+    my ($self, $state, %args) = @_;
+
+    return if($args{queued});
+
+    my $points_str = $state->node_attributes->{points};
 
     return if(!$points_str);
 
@@ -1050,46 +1075,128 @@ sub _process_polygon {
 
 ################################### Text ##################################
 
-# actually not limited to text, but fits best here
 sub _process_cdata {
-    my ($self, $state) = @_;
+    my ($self, $state, %args) = @_;
 
-    # TODO: find out if we really want to render the text
-    my ($x, $y) = @{$state->current_text_position};
-    my $cdata   = $state->cdata;
+    return if($args{queued});
 
-    ($x, $y) = $self->{engine}->draw_text($state, $x, $y, $cdata);
-    $state->current_text_position([$x, $y]);
-
-    return;
-}
-
-sub _process_tspan {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
+    foreach(sort { $a->{atomID} <=> $b->{atomID} } @{$state->text_atoms}) {
+	$self->{engine}->draw_text($state, $_->{x}, $_->{y}, $_->{cdata});
+    }
 
     return;
 }
+
+sub _process_tspan {}
 
 sub _process_text {
-    my ($self, $state) = @_;
-    my $attributes     = $state->node_attributes;
+    my ($self, $state, %args) = @_;
 
-    # establish current text position unless set already
-    return if($state->current_text_position);
+    return if($args{queued});
 
-    my @x = (0);
-    if($attributes->{x}) {
-	@x = map { $state->map_length($_) }
-	    split($RE_LENGTH{LENGTHS_SPLIT}, $attributes->{x});
+    my $text_atoms = $state->text_atoms;
+
+    return if(!$text_atoms or !@$text_atoms);
+
+    my $attributes = $state->node_attributes;
+
+=for bidi reordering
+
+    my $blockID     = 0;
+    my @block_atoms = grep { $_->{blockID} == $blockID } @$text_atoms;
+    while(@block_atoms) {
+	
+
+	$blockID++;
+	@block_atoms = grep { $_->{blockID} == $blockID } @$text_atoms;
     }
-    my @y = (0);
-    if($attributes->{y}) {
-	@y = map { $state->map_length($_) }
-	    split($RE_LENGTH{LENGTHS_SPLIT}, $attributes->{y});
+
+=cut
+
+    my $chunkID     = 0;
+    my @chunk_atoms = grep { $_->{chunkID} == $chunkID } @$text_atoms;
+    my $x           = $chunk_atoms[0]->{x} || 0;
+    my $y           = $chunk_atoms[0]->{y} || 0;
+    while(@chunk_atoms) {
+	# only the first atom of each chunk can have an absolute
+	# position
+	$x = $chunk_atoms[0]->{x} if(defined($chunk_atoms[0]->{x}));
+	$y = $chunk_atoms[0]->{y} if(defined($chunk_atoms[0]->{y}));
+
+	my $x_start = $x;
+	my $y_start = $y;
+
+	# TODO: This will not work for vertical text.
+	#       There will be a case differentiation here.
+	my $chunk_width = 0;
+	foreach(@chunk_atoms) {
+	    # this "width" is rather an x displacement
+	    $_->{width} = ($_->{dx} || 0) + $self->{engine}->text_width
+		($_->{state}, $_->{cdata});
+	    $chunk_width += $_->{width};
+	}
+
+	# TODO: What to do if right-to-left?
+	if(!$attributes->{'text-anchor'} or
+	   $attributes->{'text-anchor'} eq 'start')
+	{
+	    # unnecessary for left-to-right
+	    $x = $x_start;
+	}
+	elsif($attributes->{'text-anchor'} eq 'middle') {
+	    $x = $x_start - $chunk_width / 2;
+	}
+	else {
+	    # attribute validation should have made sure that
+	    # it must be 'end' now
+	    $x = $x_start - $chunk_width;
+	}
+
+	foreach(@chunk_atoms) {
+	    $_->{x} = $x + ($_->{dx} || 0);
+	    $_->{y} = $y + ($_->{dy} || 0);
+
+	    $x += $_->{width};
+	    $y  = $_->{y};
+	}
+
+	$chunkID++;
+	@chunk_atoms = grep { $_->{chunkID} == $chunkID } @$text_atoms;
     }
 
-    $state->current_text_position([$x[0], $y[0]]);
+    return;
+}
+
+sub _process_node {
+    my ($self, $state, %args) = @_;
+
+    if($state->defer_rasterization && !$args{flush}) {
+	$self->{_rasterization_queue} ||= [];
+	push(@{$self->{_rasterization_queue}}, $state);
+	$args{queued} = 1;
+    }
+
+    my $this_node_name = $state->node_name;
+    return $self->_process_path($state, %args)
+	if($this_node_name eq 'path');
+    return $self->_process_rect($state, %args)
+	if($this_node_name eq 'rect');
+    return $self->_process_circle($state, %args)
+	if($this_node_name eq 'circle');
+    return $self->_process_ellipse($state, %args)
+	if($this_node_name eq 'ellipse');
+    return $self->_process_line($state, %args)
+	if($this_node_name eq 'line');
+    return $self->_process_polyline($state, %args)
+	if($this_node_name eq 'polyline');
+    return $self->_process_polygon($state, %args)
+	if($this_node_name eq 'polygon');
+    return $self->_process_cdata($state, %args)
+	if($this_node_name eq '#text');
+    return $self->_process_tspan($state, %args)
+	if($this_node_name eq 'tspan');
+    return $self->_process_text($state, %args)
+	if($this_node_name eq 'text');
 
     return;
 }
@@ -1141,6 +1248,17 @@ sub _process_normalize_attributes {
     return \%attributes;
 }
 
+sub _flush_rasterization_queue {
+    my ($self) = @_;
+
+    foreach(@{$self->{_rasterization_queue} || []}) {
+	$self->_process_node($_, flush => 1);
+    }
+    $self->{_rasterization_queue} = undef;
+
+    return;
+}
+
 sub _process_node_object {
     my ($self, $node, %args) = @_;
 
@@ -1157,12 +1275,19 @@ sub _process_node_object {
     if($node->isa('SVG::Element')) {
 	# For a SVG::Element we can just take the child nodes
 	# directly, because this gives us only the child elements
-	# anyway.
+	# anyway. We have to take care of comments, though.
 	# A copy is made to enable manipulation in hooks without
 	# changing the node object.
 	$state_args{child_nodes} = defined($child_nodes)
 	    ? [grep { !$IGNORED_NODES{$_->getNodeName} } @$child_nodes]
 	    : undef;
+
+	# extrawurst for text elements in SVG.pm
+	if(my $cdata = $node->getData) {
+	    $state_args{child_nodes} ||= [];
+	    push(@{$state_args{child_nodes}},
+		 SVG::Rasterize::TextNode->new(data => $cdata));
+	}
     }
     else {
 	# For a generic DOM node we only take the children which
@@ -1172,50 +1297,12 @@ sub _process_node_object {
 	foreach(@{$child_nodes || []}) {
 	    my $type = $_->getType;
 	    next if($type != 1 and $type != 3);
+	    next if(!$IGNORED_NODES{$_->getNodeName});
 	    push(@{$state_args{child_nodes}}, $_);
 	}
     }
 
-    # extrawurst for text elements in SVG.pm
-    if(eval { $node->isa('SVG::Element') }) {
-	if(my $cdata = $node->getData) {
-	    $state_args{child_nodes} ||= [];
-	    push(@{$state_args{child_nodes}},
-		 SVG::Rasterize::TextNode->new(data => $cdata));
-	}
-    }
-
     return(%state_args);
-}
-
-sub _rasterize_deferred_subtree {
-    my ($self, $state) = @_;
-
-    my @stack = ();
-    while($state) {
-	my $this_node_name = $state->node_name;
-	$self->_process_path($state)     if($this_node_name eq 'path');
-	$self->_process_rect($state)     if($this_node_name eq 'rect');
-	$self->_process_circle($state)   if($this_node_name eq 'circle');
-	$self->_process_ellipse($state)  if($this_node_name eq 'ellipse');
-	$self->_process_line($state)     if($this_node_name eq 'line');
-	$self->_process_polyline($state) if($this_node_name eq 'polyline');
-	$self->_process_polygon($state)  if($this_node_name eq 'polygon');
-	$self->_process_cdata($state)    if($this_node_name eq '#text');
-	$self->_process_tspan($state)    if($this_node_name eq 'tspan');
-	$self->_process_text($state)     if($this_node_name eq 'text');
-
-	if(my $buffer = $state->shift_child_state) {
-	    push(@stack, $state);
-	    $state = $buffer;
-	}
-	else {
-	    $self->end_node_hook->($self, $state);
-	    $state = pop @stack;
-	}
-    }
-
-    return;
 }
 
 sub _traverse_object_tree {
@@ -1250,6 +1337,7 @@ sub _traverse_object_tree {
     $self->ex_ho_bn_on if(!@buffer or @buffer % 2);
     $self->{state} = SVG::Rasterize::State->new(@buffer);
     $self->start_node_hook->($self, $self->{state});
+    $self->_process_node($self->{state});
 
     # traverse the node tree
     my @stack = ();
@@ -1265,34 +1353,15 @@ sub _traverse_object_tree {
 	    $self->ex_ho_bn_on if(!@buffer or @buffer % 2);
 	    $self->{state} = SVG::Rasterize::State->new(@buffer);
 	    $self->start_node_hook->($self, $self->{state});
+	    $self->_process_node($self->{state});
 	}
 	else {
 	    if($self->{state}->defer_rasterization) {
 		my $parent = $self->{state}->parent;
 		if(!$parent or !$parent->defer_rasterization) {
-		    $self->_rasterize_deferred_subtree($self->{state});
+		    $self->_flush_rasterization_queue;
 		}
 	    }
-	    else {
-		my $this_node_name = $self->{state}->node_name;
-		$self->_process_path($self->{state})
-		    if($this_node_name eq 'path');
-		$self->_process_rect($self->{state})
-		    if($this_node_name eq 'rect');
-		$self->_process_circle($self->{state})
-		    if($this_node_name eq 'circle');
-		$self->_process_ellipse($self->{state})
-		    if($this_node_name eq 'ellipse');
-		$self->_process_line($self->{state})
-		    if($this_node_name eq 'line');
-		$self->_process_polyline($self->{state})
-		    if($this_node_name eq 'polyline');
-		$self->_process_polygon($self->{state})
-		    if($this_node_name eq 'polygon');
-		$self->_process_cdata($self->{state})
-		    if($this_node_name eq '#text');
-	    }
-
 	    $self->end_node_hook->($self, $self->{state});
 	    $self->{state} = pop @stack;
 	}
@@ -1420,8 +1489,23 @@ The following elements are drawn at the moment:
 =item * all basic shapes: C<rect>, C<circle>, C<ellipse>, C<line>,
 C<polyline>, C<polygon>.
 
-=item * text/tspan in a very limited way: position and stroke/fill
-colors can be set, but no alignment, no font properties and so on.
+=item * text/tspan in a limited (and not well tested) way:
+
+=over 4
+
+=item * stroke/fill colors can be set
+
+=item * position can be set, also for individual characters (but no
+rotation of individual characters, yet)
+
+=item * alignment via text-anchor
+
+=item * bidirectional text only as far as pango does that
+automatically, explicit settings for writing direction are ignored
+
+=item * font-size can be set, but no font-family, font-style etc.
+
+=back
 
 =back
 
@@ -1459,17 +1543,31 @@ Here is my current view of the next part of the roadmap:
 
 =item * text basics
 
-=item * clipping paths
-
 =back
 
 =item Version 0.005
 
 =over 4
 
+=item * clipping paths
+
+=item * css styling?
+
+=back
+
+=item Version 0.006
+
+=over 4
+
 =item * symbol/use
 
 =item * C<tref> and such
+
+=back
+
+=item Version 0.007
+
+=over 4
 
 =item * gradients and patterns
 
@@ -2713,11 +2811,41 @@ favourite package name, you can change this variable.
 
 =back
 
-=head2 Internal Methods
+=head2 Internal Attributes
 
-These methods are just documented for myself. You can read on to
-satisfy your voyeuristic desires, but be aware of that they might
-change or vanish without notice in a future version.
+These attributes and the methods below are just documented for
+myself. You can read on to satisfy your voyeuristic desires, but be
+aware of that they might change or vanish without notice in a future
+version.
+
+=over 4
+
+=item * %DEFER_RASTERIZATION
+
+Current value:
+
+  %DEFER_RASTERIZATION = (text     => 1,
+                          textPath => 1);
+
+Used by L<SVG::Rasterize::State|/SVG::Rasterize::State> to decide if
+rasterization needs to be deferred. See L<Deferred
+Rasterization|/Deferred Rasterization> above.
+
+=item * %TEXT_ROOT_ELEMENTS
+
+Current value:
+
+  %TEXT_ROOT_ELEMENTS = (text     => 1,
+                         textPath => 1);
+
+Text content elements (like C<tspan>) can inherit position
+information from ancestor elements. However, when they find an
+element of one of these types they do not have to look further up in
+the tree.
+
+=back
+
+=head2 Internal Methods
 
 =over 4
 
@@ -2806,18 +2934,35 @@ has to be done, and this seemed to be a good place although this
 method was not started for womething like that (maybe it should be
 renamed).
 
-=item * _rasterize_deferred_subtree
+=item * _flush_rasterization_queue
 
-Called (possibly indirectly) by L<rasterize|/rasterize> in order to
-rasterize a deferred subtree (see L<Deferred Rasterization|/Deferred
-Rasterization>).
+During L<Deferred Rasterization|/Deferred Rasterization>, nodes
+(more precisely: their corresponding
+L<SVG::Rasterize::State|SVG::Rasterize::State> objects) are pushed
+to a queue. When the element that caused the deferred rasterization
+runs out of scope this method flushes the queue and calls the
+respective rasterization methods.
 
-Expects an L<SVG::Rasterize::State|SVG::Rasterize::State> object
-which represents the root of the deferred subtree. Returns nothing.
+Expects nothing, returns nothing.
+
+=item * _process_node
+
+Is called for each node, examines what kind of node it is, and calls
+the more specific methods. Pushes the
+L<SVG::Rasterize::State|SVG::Rasterize::State> object to the
+rasterization queue during deferred rasterization.
+
+Expects a C<SVG::Rasterize::State> object and optionally a hash of
+options. The important option is C<flush>. Possibly sets the
+C<queued> option. All options are passed on to the downstream
+method.
 
 =item * _process_path
 
-Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object.
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
+optionally a hash of options. If the option C<queued> is set to a
+true value, nothing is done.
+
 Expects that C<< $state->node_attributes >> have been validated. The
 C<d> attribute is handed over to
 L<_split_path_data|/_split_path_data> which returns a list of
@@ -2846,9 +2991,11 @@ draw the path.
 
 =item * _process_rect
 
-Expects a L<SVG::Rasterize::State|SVG::Rasterize::State>
-object. Expects that C<< $state->node_attributes >> have been
-validated.
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
+optionally a hash of options. If the option C<queued> is set to a
+true value, nothing is done.
+
+Expects that C<< $state->node_attributes >> have been validated.
 
 The rest is handed over to the rasterization backend (which has its
 own expectations).
@@ -2875,21 +3022,29 @@ Same es L<_process_path|/_process_path>.
 
 =item * _process_text
 
-Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object.
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
+optionally a hash of options.
+
 Expects that C<< $state->node_attributes >> have been
 validated. Establishes the initial current text position.
 
+Sets the initial current text position.
+
 =item * _process_tspan
 
-Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object.
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
+optionally a hash of options.
+
 Expects that C<< $state->node_attributes >> have been
 validated. Currently does not do anything. In the future, it will
 establish a new current text position if necessary.
 
 =item * _process_cdata
 
-Expects a L<SVG::Rasterize::State|SVG::Rasterize::State>
-object. Gets the character data and the current text position from
+Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
+optionally a hash of options.
+
+Gets the character data and the current text position from
 the C<State> object and hands them over to the rasterization
 backend. Receives the new current text position and updates it in
 the C<State> object.

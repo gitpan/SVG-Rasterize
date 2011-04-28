@@ -12,7 +12,7 @@ use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(%RE_NUMBER);
 
-# $Id: Cairo.pm 6298 2010-06-21 03:26:36Z mullet $
+# $Id: Cairo.pm 6591 2011-04-27 08:58:55Z powergnom $
 
 =head1 NAME
 
@@ -20,11 +20,11 @@ C<SVG::Rasterize::Cairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.003005
+Version 0.003006
 
 =cut
 
-our $VERSION = '0.003005';
+our $VERSION = '0.003006';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -451,6 +451,34 @@ sub draw_path {
     return;
 }
 
+sub text_width {
+    my ($self, $state, $cdata) = @_;
+
+    return 0 if(!$cdata);
+
+    my $properties = $state->properties;
+    my $context    = $self->{context};
+    $context->save;
+
+    $context->set_matrix(Cairo::Matrix->init(@{$state->matrix}));
+
+    my $layout = Pango::Cairo::create_layout($self->{context});
+    my $desc   = Pango::FontDescription->new;
+
+    $desc->set_absolute_size
+	(Pango::units_from_double($properties->{'font-size'}));
+#    $desc->set_family($properties->{'font-family'});
+#    $desc->set_style($properties->{'font-style'});
+
+    $layout->set_font_description($desc);
+    $layout->set_text($cdata);
+
+    my $extents = $layout->get_pixel_extents;
+
+    $context->restore;
+    return $extents->{width};
+}
+
 sub draw_text {
     my ($self, $state, $x, $y, $cdata) = @_;
 
@@ -468,15 +496,15 @@ sub draw_text {
     $desc->set_absolute_size
 	(Pango::units_from_double($properties->{'font-size'}));
 #    $desc->set_family($properties->{'font-family'});
+#    $desc->set_style($properties->{'font-style'});
 
     $layout->set_font_description($desc);
     $layout->set_text($cdata);
 
     my $extents  = $layout->get_pixel_extents;
     my $baseline = Pango::units_to_double($layout->get_baseline);
-
     $context->translate($x, $y - $baseline);
-
+    
     if($properties->{stroke}) {
 	Pango::Cairo::layout_path($context, $layout);
 	$self->_fill_and_stroke($properties);
@@ -627,6 +655,8 @@ moment and the only supported type is "png". If C<file_name> has a
 false value, no output is written and a warning is issued. Besides
 that, C<file_name> is not validated at all. Make sure that you
 provide a sane value (whatever that means to you).
+
+=head3 text_width
 
 =head3 draw_text
 

@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 18;
+use Test::More tests => 22;
 use Test::Exception;
 
 use SVG::Rasterize;
@@ -54,11 +54,45 @@ sub svg_rasterize_state {
 	 child_nodes        => undef);
     ok(defined($state), 'state defined');
     isa_ok($state, 'SVG::Rasterize::State');
-    can_ok($state,
-	   'node',
-	   'node_name',
-	   'node_attributes',
-	   'shift_child_node');
+
+    my @attributes = qw(parent
+                        rasterize
+                        node_name
+                        cdata
+                        node
+                        matrix
+                        properties
+                        defer_rasterization);
+    my @methods    = qw(new
+                        init
+                        node_attributes
+                        map_length
+                        transform
+                        shift_child_node);
+    can_ok($state, @attributes, @methods);
+}
+
+sub svg_rasterize_state_text {
+    my $rasterize;
+    my $svg;
+    my $state;
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new->firstChild;
+    $state     = SVG::Rasterize::State::Text->new
+	(rasterize          => $rasterize,
+	 node               => $svg,
+	 node_name          => $svg->getNodeName,
+	 node_attributes    => {$svg->getAttributes},
+	 cdata              => undef,
+	 child_nodes        => undef);
+    ok(defined($state), 'state::text defined');
+    isa_ok($state, 'SVG::Rasterize::State::Text');
+    isa_ok($state, 'SVG::Rasterize::State');
+
+    my @attributes = qw(cdata);
+    my @methods    = ();
+    can_ok($state, @attributes, @methods);
 }
 
 sub svg_rasterize_textnode {
@@ -81,4 +115,5 @@ sub svg_rasterize_textnode {
 svg_rasterize;
 svg_rasterize_engine;
 svg_rasterize_state;
+svg_rasterize_state_text;
 svg_rasterize_textnode;
