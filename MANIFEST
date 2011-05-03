@@ -20,8 +20,9 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/SVG/Rasterize.pm
-lib/SVG/Rasterize/Cairo.pm
 lib/SVG/Rasterize/Colors.pm
+lib/SVG/Rasterize/Engine.pm
+lib/SVG/Rasterize/Engine/PangoCairo.pm
 lib/SVG/Rasterize/Exception.pm
 lib/SVG/Rasterize/Properties.pm
 lib/SVG/Rasterize/Regexes.pm

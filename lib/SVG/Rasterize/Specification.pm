@@ -6,7 +6,7 @@ use Exporter 'import';
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Specification.pm 6490 2011-04-21 22:28:32Z powergnom $
+# $Id: Specification.pm 6630 2011-04-29 23:30:26Z powergnom $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification> - data structures derived from DTD
 
 =head1 VERSION
 
-Version 0.003005
+Version 0.003007
 
 =cut
 
-our $VERSION = '0.003005';
+our $VERSION = '0.003007';
 
 our @EXPORT      = ();
 our @EXPORT_OK   = qw(spec_is_element
@@ -378,9 +378,9 @@ Only a few attributes change their behaviour depending on their
 element. However, they exist. To be future safe, both the element
 name and the attribute name have to be specified.
 
-  spec_is_color($element_name, $attribute_name)
-
 =head3 spec_is_color
+
+  spec_is_color($element_name, $attribute_name)
 
 As C<spec_is_length>.
 

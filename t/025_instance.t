@@ -2,12 +2,12 @@
 use strict;
 use warnings;
 
-use Test::More tests => 22;
+use Test::More tests => 23;
 use Test::Exception;
 
 use SVG::Rasterize;
 use SVG;
-use SVG::Rasterize::Cairo;
+use SVG::Rasterize::Engine::PangoCairo;
 
 sub svg_rasterize {
     my $rasterize;
@@ -24,9 +24,11 @@ sub svg_rasterize_engine {
     my $engine;
     my $context;
 
-    $engine = SVG::Rasterize::Cairo->new(width => 10, height => 20);
+    $engine = SVG::Rasterize::Engine::PangoCairo->new
+	(width => 10, height => 20);
     ok(defined($engine), 'engine defined');
-    isa_ok($engine, 'SVG::Rasterize::Cairo');
+    isa_ok($engine, 'SVG::Rasterize::Engine::PangoCairo');
+    isa_ok($engine, 'SVG::Rasterize::Engine');
     can_ok($engine,
 	   'width', 'height', 'context',
 	   'draw_path', 'draw_text',

@@ -2,9 +2,9 @@
 use strict;
 use warnings;
 
-# $Id: 080_text.t 6598 2011-04-28 06:56:16Z powergnom $
+# $Id: 080_text.t 6649 2011-04-30 05:30:57Z powergnom $
 
-use Test::More tests => 227;
+use Test::More tests => 234;
 
 use SVG;
 use Test::Exception;
@@ -29,10 +29,17 @@ sub state_cdata {
     $rasterize->rasterize(svg => $svg);
 }
 
-sub font_size {
+sub font_properties {
     my $rasterize;
     my $svg;
     my $node;
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(id => 'svg', width => 400, height => 300);
+    $svg->svg(id => 'svg01', 'font-size' => 'humangous');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/font\-size/,
+	      'invalid font-size');
 
     $rasterize = SVG::Rasterize->new;
     $svg       = SVG->new(width => 400, height => 300);
@@ -45,6 +52,75 @@ sub font_size {
 	    if($state->node_attributes->{id} eq 'te01') {
 		is($state->properties->{'font-size'}, 18,
 		   'font-size large');
+	    }
+	}
+    });
+    $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(id => 'svg', width => 400, height => 300);
+    $svg->svg(id => 'svg01', 'font-weight' => 'superfat');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/font\-weight/,
+	      'invalid named font-weight');
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(id => 'svg', width => 400, height => 300);
+    $svg->svg(id => 'svg01', 'font-weight' => 350);
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/font\-weight/,
+	      'invalid numerical font-weight');
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $node = $svg->text(id => 'te01', 'font-weight' => 'bold');
+    $node->cdata('Hello World');
+    $rasterize->start_node_hook(sub {
+	my ($rasterize, $state) = @_;
+	if($state->node_attributes->{id}) {
+	    if($state->node_attributes->{id} eq 'te01') {
+		is($state->properties->{'font-weight'}, 700,
+		   'font-weight 700 (bold)');
+	    }
+	}
+    });
+    $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $node = $svg->text(id => 'te01', 'font-weight' => '300');
+    $node->cdata('Hello World');
+    $rasterize->start_node_hook(sub {
+	my ($rasterize, $state) = @_;
+	if($state->node_attributes->{id}) {
+	    if($state->node_attributes->{id} eq 'te01') {
+		is($state->properties->{'font-weight'}, 300,
+		   'font-weight 300');
+	    }
+	}
+    });
+    $rasterize->rasterize(svg => $svg);
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(id => 'svg', width => 400, height => 300);
+    $svg->svg(id => 'svg01', 'font-stretch' => 'so wide');
+    throws_ok(sub { $rasterize->rasterize(svg => $svg) },
+	      qr/font\-stretch/,
+	      'invalid font-stretch');
+
+    $rasterize = SVG::Rasterize->new;
+    $svg       = SVG->new(width => 400, height => 300);
+    $svg->firstChild->attrib('id' => 'svg');
+    $node = $svg->text(id => 'te01', 'font-stretch' => 'ultra-condensed');
+    $node->cdata('Hello World');
+    $rasterize->start_node_hook(sub {
+	my ($rasterize, $state) = @_;
+	if($state->node_attributes->{id}) {
+	    if($state->node_attributes->{id} eq 'te01') {
+		is($state->properties->{'font-stretch'}, 'ultra-condensed',
+		   'font-stretch ultra-condensed');
 	    }
 	}
     });
@@ -517,6 +593,6 @@ sub split_into_atoms {
 }
 
 state_cdata;
-font_size;
+font_properties;
 process_character_positions;
 split_into_atoms;

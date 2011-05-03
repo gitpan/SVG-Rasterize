@@ -5,7 +5,7 @@ use warnings;
 use Exporter 'import';
 use Scalar::Util qw(blessed);
 
-# $Id: Exception.pm 6610 2011-04-28 08:00:38Z powergnom $
+# $Id: Exception.pm 6666 2011-04-30 07:35:53Z powergnom $
 
 =head1 NAME
 
@@ -13,14 +13,15 @@ C<SVG::Rasterize::Exception> - exception classes
 
 =head1 VERSION
 
-Version 0.003006
+Version 0.003007
 
 =cut
 
-our $VERSION = '0.003006';
+our $VERSION = '0.003007';
 
 our @EXPORT    = ();
 our @EXPORT_OK = qw(ex_se_lo
+                    ex_en_ov
                     ex_pa
                     ex_us_si
                     ex_us_pl
@@ -53,31 +54,34 @@ our @EXPORT_OK = qw(ex_se_lo
 our %EXPORT_TAGS = (all => [@EXPORT, @EXPORT_OK]);
 
 use Exception::Class (
-    'SVG::Rasterize::Exception::Base'        =>
+    'SVG::Rasterize::Exception::Base'           =>
         {description => 'exception base class',
 	 fields      => 'state'},
-    'SVG::Rasterize::Exception::InError'     =>
+    'SVG::Rasterize::Exception::InError'        =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'document is in error'},
-    'SVG::Rasterize::Exception::Setting'       =>
+    'SVG::Rasterize::Exception::Setting'        =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'parse error indicating a bug'},
-    'SVG::Rasterize::Exception::Parse'       =>
+    'SVG::Rasterize::Exception::Engine'         =>
+        {isa         => 'SVG::Rasterize::Exception::Base',
+	 description => 'rasterization engine problem'},
+    'SVG::Rasterize::Exception::Parse'          =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'parse error indicating a bug'},
-    'SVG::Rasterize::Exception::Unsupported' =>
+    'SVG::Rasterize::Exception::Unsupported'    =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'unsupported feature'},
-    'SVG::Rasterize::Exception::Attribute' =>
+    'SVG::Rasterize::Exception::Attribute'      =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'user value failed individual check'},
     'SVG::Rasterize::Exception::ParamsValidate' =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'user value failed Params::Validate check'},
-    'SVG::Rasterize::Exception::Param' =>
+    'SVG::Rasterize::Exception::Param'          =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'user value failed individual check'},
-    'SVG::Rasterize::Exception::Return' =>
+    'SVG::Rasterize::Exception::Return'         =>
         {isa         => 'SVG::Rasterize::Exception::Base',
 	 description => 'invalid return value'}
 );
@@ -124,6 +128,17 @@ sub ex_se_lo {
     SVG::Rasterize::Exception::Setting->throw
 	(state   => $state,
 	 message => _compose_message($template, $value, $syserror));
+}
+
+sub ex_en_ov {
+    my ($caller, $method, $class) = @_;
+    my ($rasterize, $state)       = _get_env($caller);
+    my $template                  =
+	"Method %s not overloaded in class %s.\n";
+    
+    SVG::Rasterize::Exception::Setting->throw
+	(state   => $state,
+	 message => _compose_message($template, $method, $class));
 }
 
 sub ex_pa {
@@ -525,6 +540,10 @@ which then provides the respective objects.
 
 Stands for "exception settings load".
 
+=item * ex_en_ov
+
+Stands for "exception engine overload".
+
 =item * ex_pa
 
 Stands for "exception parse".
@@ -666,7 +685,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of either: the GNU General Public License as

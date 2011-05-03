@@ -6,7 +6,7 @@ use Params::Validate qw(:types);
 
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Conditional.pm 6484 2011-04-21 09:25:12Z powergnom $
+# $Id: Conditional.pm 6636 2011-04-30 00:17:34Z powergnom $
 
 =head1 NAME
 
@@ -14,11 +14,11 @@ C<SVG::Rasterize::Specification::Conditional> - specification for class Conditio
 
 =head1 VERSION
 
-Version 0.003005
+Version 0.003007
 
 =cut
 
-our $VERSION = '0.003005';
+our $VERSION = '0.003007';
 
 our %CHILDREN = ('switch' => {'a'                => 1,
                               'animate'          => 1,
@@ -118,7 +118,7 @@ our %ATTR_VAL = ('switch' => {'alignment-baseline'           => {'optional' => 1
                                                                  'regex'    => qr/.?/},
                               'font-size'                    => {'optional' => 1,
                                                                  'type'     => SCALAR,
-                                                                 'regex'    => qr/.?/},
+                                                                 'regex'    => $RE_TEXT{p_FONT_SIZE}},
                               'font-size-adjust'             => {'optional' => 1,
                                                                  'type'     => SCALAR,
                                                                  'regex'    => qr/.?/},

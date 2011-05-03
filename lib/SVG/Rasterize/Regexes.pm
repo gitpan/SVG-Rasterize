@@ -4,7 +4,7 @@ use warnings;
 
 use Exporter 'import';
 
-# $Id: Regexes.pm 6340 2010-07-02 04:14:15Z mullet $
+# $Id: Regexes.pm 6632 2011-04-30 00:09:38Z powergnom $
 
 =head1 NAME
 
@@ -12,11 +12,11 @@ C<SVG::Rasterize::Regexes> - Commonly used regular expressions
 
 =head1 VERSION
 
-Version 0.003005
+Version 0.003007
 
 =cut
 
-our $VERSION = '0.003005';
+our $VERSION = '0.003007';
 
 our @EXPORT    = qw();
 our @EXPORT_OK = qw($WSP
@@ -31,7 +31,8 @@ our @EXPORT_OK = qw($WSP
                     %RE_VIEW_BOX
                     %RE_PATH
                     %RE_DASHARRAY
-                    %RE_POLY);
+                    %RE_POLY
+                    %RE_TEXT);
 
 our %EXPORT_TAGS = (all           => [@EXPORT, @EXPORT_OK],
 		    whitespace    => [qw($WSP $CWSP)],
@@ -44,7 +45,8 @@ our %EXPORT_TAGS = (all           => [@EXPORT, @EXPORT_OK],
                                          %RE_VIEW_BOX
                                          %RE_PATH
                                          %RE_DASHARRAY
-                                         %RE_POLY)]);
+                                         %RE_POLY
+                                         %RE_TEXT)]);
 
 our $WSP  = qr/[\x{20}\x{9}\x{D}\x{A}]/;
 our $CWSP = qr/(?:$WSP+\,?$WSP*|\,$WSP*)/;
@@ -372,6 +374,20 @@ our %RE_POLY = ();
                                   ($pm?)$/x;
 }
 
+# text
+our %RE_TEXT = ();
+{
+    my $as = qr/(?:xx-small
+                  |x-small
+                  |small
+                  |medium
+                  |large
+                  |x-large
+                  |xx-large)/x;
+    my $rs = qr/(?:smaller|larger)/;
+    $RE_TEXT{p_FONT_SIZE} = qr/^(?:$as|$rs|$RE_LENGTH{A_LENGTH})$/;
+}
+
 1;
 
 
@@ -514,6 +530,11 @@ Regular expressions required to parse values of the C<points>
 attribute of C<polyline> and C<polygon> elements. These expressions
 are constructed according to the Backus Naur form at
 L<http://www.w3.org/TR/SVG11/shapes.html#PointsBNF>.
+
+=item * %RE_TEXT
+
+Regular expressions required to parse values associated with text
+that have a more complex structure, e.g. the C<font-size> attribute.
 
 =back
 

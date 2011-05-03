@@ -1,5 +1,20 @@
 Revision history for SVG-Rasterize
 
+0.003007 Tue May  3 19:51:07 NZST 2011
+	 - Incompatible changes:
+	   - The default backend SVG::Rasterize::Cairo has been
+	     renamed to SVG::Rasterize::Engine::PangoCairo. There is
+	     a base class SVG::Rasterize::Engine which backends
+	     should inherit from. If you are selecting the
+	     rasterization backend explicitly you will have to
+	     update your code. Otherwise - unless you are
+	     maintaining your own rasterization backend for
+	     SVG::Rasterize - this change is completely transparent
+	     for you.
+	 - more font attributes
+	 - minor fixes and improvements
+	 - docu expansion
+
 0.003006 Thu Apr 28 20:21:15 NZST 2011
 	 - Incompatible changes:
 	   - The current_text_position method of

@@ -17,7 +17,7 @@ use SVG::Rasterize::Properties;
 use SVG::Rasterize::Colors;
 use SVG::Rasterize::Exception qw(:all);
 
-# $Id: State.pm 6603 2011-04-28 07:16:04Z powergnom $
+# $Id: State.pm 6675 2011-05-02 05:35:09Z powergnom $
 
 =head1 NAME
 
@@ -25,11 +25,11 @@ C<SVG::Rasterize::State> - state of settings during traversal
 
 =head1 VERSION
 
-Version 0.003006
+Version 0.003007
 
 =cut
 
-our $VERSION = '0.003006';
+our $VERSION = '0.003007';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -344,7 +344,7 @@ sub _process_direct_color {
     $self->ie_pr_co_iv($color_str);
 }
 
-sub _process_styling_properties {
+sub _process_style_properties {
     my ($self)      = @_;
     my $name        = $self->{node_name};
     my $parent_prop = $self->{parent} ? $self->{parent}->properties : {};
@@ -499,6 +499,35 @@ sub _process_styling_properties {
 		}
 	    }
 	}
+	if($_ eq 'font-weight') {
+	    if($properties->{$_} eq 'normal') {
+		$properties->{$_} = 400;
+	    }
+	    elsif($properties->{$_} eq 'bold') {
+		$properties->{$_} = 700;
+	    }
+	    if($properties->{$_} eq 'bolder') {
+		# TODO
+		$self->ex_us_si(q{font-weight 'bolder'});
+	    }
+	    elsif($properties->{$_} eq 'lighter') {
+		# TODO
+		$self->ex_us_si(q{font-weight 'lighter'});
+	    }
+	    elsif($properties->{$_} !~ /^[1-9]00$/) {
+		$self->ex_pa('font-weight', $properties->{$_});
+	    }
+	}
+	if($_ eq 'font-stretch') {
+	    if($properties->{$_} eq 'narrower') {
+		# TODO
+		$self->ex_us_si(q{font-stretch 'narrower'});
+	    }
+	    elsif($properties->{$_} eq 'wider') {
+		# TODO
+		$self->ex_us_si(q{font-stretch 'wider'});
+	    }
+	}
     }
 
     $self->{properties} = $properties;
@@ -557,7 +586,7 @@ sub _process_node {
     }
     $self->_process_transform_attribute  if($attributes->{transform});
     $self->_process_viewBox_attribute    if($attributes->{viewBox});
-    $self->_process_styling_properties;
+    $self->_process_style_properties;
     $self->process_node_extra;
 
     return;
@@ -920,6 +949,13 @@ Takes a string that describes a color either as color name
 as hexadecimal value (e.g. C<FFFFFF> or C<FFF>) and returns an ARRAY
 reference representing the color (C<[255, 255, 255]> in each of the
 examples above. Throws an exception if none of the pattern matches.
+
+=item * _process_direct_color
+
+I cannot remember why I called the method like this. Takes a color
+string and a current color. Returns the current color if this is
+requested. Splits C<ICC> color settings (unsupported) and returns
+the result of C<_process_css_color|/_process_css_color>.
 
 =item * make_ro_accessor
 

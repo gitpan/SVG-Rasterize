@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 787;
+use Test::More tests => 802;
 
 use Test::Exception;
 use SVG::Rasterize;
@@ -1160,6 +1160,34 @@ sub re_dasharray {
     }
 }
 
+sub re_text {
+    my $r;
+    my $s;
+
+    $r = 'p_FONT_SIZE';
+    foreach $s ('xx-small',
+                'x-small',
+	        'small',
+		'medium',
+		'large',
+		'x-large',
+		'xx-large',
+		'smaller',
+		'larger',
+		'5pt',
+		'30%',
+		'40')
+    {
+	ok($s =~ $RE_TEXT{$r}, "'$s' =~ $r");
+    }
+    foreach $s ('exorbitant',
+		'30km',
+		'50 %')
+    {
+	ok($s !~ $RE_TEXT{$r}, "'$s' !~ $r");
+    }
+}
+
 sub units {
     my $rasterize;
 
@@ -1271,6 +1299,7 @@ re_transform;
 re_viewBox;
 re_path;
 re_dasharray;
+re_text;
 
 units;
 path_data_splitting;

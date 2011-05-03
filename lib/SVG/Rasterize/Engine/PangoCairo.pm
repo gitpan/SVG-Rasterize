@@ -1,5 +1,5 @@
-package SVG::Rasterize::Cairo;
-use base Class::Accessor;
+package SVG::Rasterize::Engine::PangoCairo;
+use base SVG::Rasterize::Engine;
 
 use warnings;
 use strict;
@@ -12,19 +12,19 @@ use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(%RE_NUMBER);
 
-# $Id: Cairo.pm 6591 2011-04-27 08:58:55Z powergnom $
+# $Id: PangoCairo.pm 6659 2011-04-30 06:21:24Z powergnom $
 
 =head1 NAME
 
-C<SVG::Rasterize::Cairo> - rasterize output using Cairo
+C<SVG::Rasterize::Engine::PangoCairo> - rasterize output using Cairo
 
 =head1 VERSION
 
-Version 0.003006
+Version 0.003007
 
 =cut
 
-our $VERSION = '0.003006';
+our $VERSION = '0.003007';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -451,28 +451,49 @@ sub draw_path {
     return;
 }
 
+sub _text_layout {
+    my ($self, $state, $cdata) = @_;
+    my %font_weights           = (100 => 'thin',
+				  200 => 'ultralight',
+				  300 => 'light',
+				  400 => 'normal',
+				  500 => 'medium',
+				  600 => 'semibold',
+				  700 => 'bold',
+				  800 => 'ultrabold',
+				  900 => 'heavy');
+
+    my $properties = $state->properties;
+    my $layout     = Pango::Cairo::create_layout($self->{context});
+    my $desc       = Pango::FontDescription->new;
+    $desc->set_absolute_size
+	(Pango::units_from_double($properties->{'font-size'}));
+    $desc->set_family($properties->{'font-family'})
+	if($properties->{'font-family'});
+    $desc->set_style($properties->{'font-style'})
+	if($properties->{'font-style'});
+    $desc->set_variant($properties->{'font-variant'})
+	if($properties->{'font-variant'});
+    $desc->set_weight($font_weights{$properties->{'font-weight'}})
+	if($properties->{'font-weight'});
+    $desc->set_stretch($properties->{'font-stretch'})
+	if($properties->{'font-stretch'});
+    $layout->set_font_description($desc);
+    $layout->set_text($cdata);
+
+    return $layout;
+}
+
 sub text_width {
     my ($self, $state, $cdata) = @_;
 
     return 0 if(!$cdata);
 
-    my $properties = $state->properties;
-    my $context    = $self->{context};
+    my $context = $self->{context};
     $context->save;
 
     $context->set_matrix(Cairo::Matrix->init(@{$state->matrix}));
-
-    my $layout = Pango::Cairo::create_layout($self->{context});
-    my $desc   = Pango::FontDescription->new;
-
-    $desc->set_absolute_size
-	(Pango::units_from_double($properties->{'font-size'}));
-#    $desc->set_family($properties->{'font-family'});
-#    $desc->set_style($properties->{'font-style'});
-
-    $layout->set_font_description($desc);
-    $layout->set_text($cdata);
-
+    my $layout  = $self->_text_layout($state, $cdata);
     my $extents = $layout->get_pixel_extents;
 
     $context->restore;
@@ -489,18 +510,7 @@ sub draw_text {
     $context->save;
 
     $context->set_matrix(Cairo::Matrix->init(@{$state->matrix}));
-
-    my $layout = Pango::Cairo::create_layout($self->{context});
-    my $desc   = Pango::FontDescription->new;
-
-    $desc->set_absolute_size
-	(Pango::units_from_double($properties->{'font-size'}));
-#    $desc->set_family($properties->{'font-family'});
-#    $desc->set_style($properties->{'font-style'});
-
-    $layout->set_font_description($desc);
-    $layout->set_text($cdata);
-
+    my $layout   = $self->_text_layout($state, $cdata);
     my $extents  = $layout->get_pixel_extents;
     my $baseline = Pango::units_to_double($layout->get_baseline);
     $context->translate($x, $y - $baseline);
@@ -515,7 +525,7 @@ sub draw_text {
     }
 
     $context->restore;
-    return($x + $extents->{width}, $y);
+    return;
 }
 
 sub write {
@@ -550,16 +560,15 @@ __END__
 =head1 SYNOPSIS
 
   # explicit construction (unusual)
-  use SVG::Rasterize::Cairo;
-  my $engine = SVG::Rasterize::Cairo->new(width  => 640,
-                                          height => 480);
+  use SVG::Rasterize::Engine::PangoCairo;
+  my $engine = SVG::Rasterize::Engine::PangoCairo->new
+      (width  => 640, height => 480);
 
 =head1 DESCRIPTION
 
 This class provides a rasterization backend for
-L<SVG::Rasterize|SVG::Rasterize> based on the L<Cairo|Cairo>
-library. At the same time, it defines the interface that alternative
-backends have to provide.
+L<SVG::Rasterize|SVG::Rasterize> based on the L<Cairo|Cairo> and
+L<Pango|Pango> libraries.
 
 This class is only instantiated by the L<rasterize
 method|SVG::Rasterize/rasterize> of C<SVG::Rasterize>.
@@ -570,10 +579,11 @@ method|SVG::Rasterize/rasterize> of C<SVG::Rasterize>.
 
 =head3 new
 
-  SVG::Rasterize::Cairo->new(%args)
+  SVG::Rasterize::Engine::PangoCairo->new(%args)
 
-Creates a new C<SVG::Rasterize::Cairo> object and calls C<init(%args)>.
-If you subclass C<SVG::Rasterize::Cairo> overload C<init>, not C<new>.
+Creates a new C<SVG::Rasterize::Engine::PangoCairo> object and calls
+C<init(%args)>. If you subclass
+C<SVG::Rasterize::Engine::PangoCairo> overload C<init>, not C<new>.
 
 =head3 init
 
@@ -590,55 +600,15 @@ constructor of the engine class without validation.
 
 =head2 Public Attributes
 
-These are the attributes which alternative rasterization engines
-have to implement.
-
-=head3 width
-
-Can only be set and construction time. Saves the width of the output
-image.
-
-=head3 height
-
-Can only be set and construction time. Saves the height of the
-output image.
-
 =head2 Methods for Developers
 
-These are the methods which alternative rasterization engines have
-to implement.
+See <SVG::Rasterize::Engine|SVG::Rasterize::Engine>.
 
 =head3 draw_path
 
-Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
-a list of instructions. None of the parameters are validated, it is
-expected that this has happened before. Each instruction must be an
-ARRAY reference with one of the following sets of entries (the first
-entry is always a letter, the rest are numbers):
+=head3 text_width
 
-=over 4
-
-=item * C<M> or C<m>, followed by two numbers
-
-=item * C<Z>
-
-=item * C<L> or C<l>, followed by two numbers
-
-=item * C<H> or C<h>, followed by one number
-
-=item * C<V> or C<v>, followed by one number
-
-=item * C<C> or C<c>, followed by six numbers
-
-=item * C<S> or C<s>, followed by four numbers
-
-=item * C<Q> or C<q>, followed by four numbers
-
-=item * C<T> or C<t>, followed by two numbers
-
-=item * C<A> or C<a>, followed by seven numbers
-
-=back
+=head3 draw_text
 
 =head3 write
 
@@ -655,10 +625,6 @@ moment and the only supported type is "png". If C<file_name> has a
 false value, no output is written and a warning is issued. Besides
 that, C<file_name> is not validated at all. Make sure that you
 provide a sane value (whatever that means to you).
-
-=head3 text_width
-
-=head3 draw_text
 
 
 =head1 DIAGNOSTICS
@@ -705,7 +671,7 @@ Lutz Gehlen, C<< <perl at lutzgehlen.de> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

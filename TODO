@@ -9,46 +9,89 @@ The following list contains some things I don't want to
 forget. It mainly contains small stuff and specificly no big feature
 plans.
 
-- validate font-size
-- initial param validation in rasterize
-- before_flush_hook
-- docu for
-  - possibly internal methods in Rasterize, State, and State::Text
-- sort out new block in
-  SVG::Rasterize::State::Text::_process_node_extra based on glyph
-  orientation
-- rotate of letters
-- document ligature bug
-- in_error checker box is no checker box
-- more elaborate DESCRIPTION for SVG::Rasterize::State::Text
+- merge engine_args
+- SVG::Rasterize must be able to deal with undef values from
+  text_width:
+  - check if text_width returns undef on a simple string
+  - or alternatively throw the exception and capture it
+  - if not overloaded merge atoms of each chunk, also don't try
+    to do some bidi stuff
+  - alternatively to merging, just do nothing; _process_cdata will
+    then call draw_text with undefined x/y values and the Engine has
+    to maintain its own current text position; it will not need to
+    know about new text elements because they will start with an
+    absolute x/y setting (won't they?); the engine might even try to
+    do alignment stuff on its own although this will only work with
+    one-atom chunks (which argues for the chunk merging)
+  - on second thought (or 21st) maybe cdata should merge its atoms,
+    this would at least lead to homogeneous markup
+  - for now, maybe just bail out with Unsupported exception :-).
 
+- work carefully through Changes section of SVG spec (maybe wait
+  until it becomes a recommendation)
+- allow user to change Regexes: do I really want to do that?
+- before_flush_hook
+- before_process_hook?
+- before_engine_hook
+- support for relative units -> make special versions of map_length,
+  e.g. map_length_font_size, or...hm...maybe, we can keep
+  map_length, but a reference length has to be provided explicitly,
+  otherwise we keep on complaining about relative units
+- also relative font-sizes (larger, smaller), -weights (bolder,
+  lighter), and -stretches (wider, narrower)
 - make sure really all attributes used so far are validated with
   regexes in Specification; it is the goal that each used attribute
   has to pass a non-trivial regex check at this stage
   - stroke, fill
+    update: They actually do pass a non-trivial check. I don't know
+    	    what happens if an invalid color name is given
 - spec: check per callback that fixed value has that value
-- support other output types than png
 - docu error messages
+- complete docu of SVG::Rasterize::Cairo, then remove sparseness
+  remark in SVG::Rasterize docu
+- more elaborate DESCRIPTION for SVG::Rasterize::State::Text
+- Cairo docu: Exceptions and Warnings
+- Cairo docu: possibility of basic shape methods
+- Cairo docu: draw_text
+- more text attributes
+  - now
+  - soon
+    - rotate individual letters
+    - sort out if ligatures etc. can be treated without too big
+      effort
+    - text-decoration 
+    - kerning?
+    - letter-spacing
+    - word-spacing?
+    - textLength
+    - lengthAdjust
+    - font?
+  - some time
+    - writing-mode
+    - glyph-orientation-vertical
+    - glyph-orientation-horizontal
+    - sort out new block in
+      SVG::Rasterize::State::Text::_process_node_extra based on
+      glyph orientation
+    - direction
+    - unicode-bidi
+    - dominant-baseline
+    - alignment-baseline
+    - baseline-shift
+    - fontsize-adjust
+
+- support other output types than png
 - idea: provide a simple GD backend, just as proof of concept for
   different backends
 - wild idea: provide a plotter backend which could be used e.g. by
   robot drawing with a pen
 - how can I handle defer in preserveAspectRatio?
-- Cairo docu: Exceptions and Warnings
-- Cairo docu: possibility of basic shape methods
-- merge engine_args
-- complete docu of SVG::Rasterize::Cairo, then remove sparseness
-  remark in SVG::Rasterize docu
-- support for relative units -> make special versions of map_length,
-  e.g. map_length_font_size, or...hm...maybe, we can keep
-  map_length, but a reference length has to be provided explicitly,
-  otherwise we keep on complaining about relative units
-- Cairo docu: draw_text
 - Can an element have an attribute which a child does not have, but
   a grandchild is supposed to inherit? Check and fix accordingly.
-- more text attributes
 - medium_font_size, font_size_scale dependent on font-family, set
-  and get should be transparent
+  and get should be transparent.... - what did I mean with this?
+  - I think I was referring to the CSS specification which allows
+  different font size tables for different font families.
 - test all regexes
 - move the non-regex stuff out of t/010_regexes
 - reach 100% in Devel::Cover
@@ -82,8 +125,9 @@ done (excerpt, containing what I might look at again)
   situation where one wants to give a different state object to the
   hook (see in_error_hook)
 - Params::Validate consequently
-- rename SVG::Rasterize::Cairo to SVG::Rasterize::Engine::Cairo?
-  Or ...Backend::Cairo? - not important enough to take the hassle 
-  of dealing with backwards compatibility
 - fix or document character limitations in XML regexes
 - ID and NMTOKEN in %ATTR_VAL
+- initial param validation in rasterize: No. This would just throw
+  an exception instead of the standard Perl error message. I cannot
+  avoid the feeling that I would like to avoid any Perl error, but
+  the question is if there is really a good reason for this.

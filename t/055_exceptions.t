@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 316;
+use Test::More tests => 322;
 use Test::Warn;
 
 use SVG;
@@ -15,7 +15,7 @@ sub test_caller {
 
     is(scalar(@SVG::Rasterize::Exception::EXPORT)
        + scalar(@SVG::Rasterize::Exception::EXPORT_OK),
-       29, 'number of exceptions');
+       30, 'number of exceptions');
     foreach(@SVG::Rasterize::Exception::EXPORT,
 	    @SVG::Rasterize::Exception::EXPORT_OK)
     {

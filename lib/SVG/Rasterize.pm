@@ -19,7 +19,7 @@ use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::State::Text;
 use SVG::Rasterize::TextNode;
 
-# $Id: Rasterize.pm 6612 2011-04-28 08:15:16Z powergnom $
+# $Id: Rasterize.pm 6674 2011-05-02 05:23:41Z powergnom $
 
 =head1 NAME
 
@@ -27,11 +27,11 @@ C<SVG::Rasterize> - rasterize C<SVG> content to pixel graphics
 
 =head1 VERSION
 
-Version 0.003006
+Version 0.003007
 
 =cut
 
-our $VERSION = '0.003006';
+our $VERSION = '0.003007';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -308,7 +308,7 @@ sub _create_engine {
     # $args_ptr->{engine_args} is only validated to be a HASH
     # reference (if it exists at all).
 
-    my $default           = 'SVG::Rasterize::Cairo';
+    my $default           = 'SVG::Rasterize::Engine::PangoCairo';
     my %engine_args       = (width  => $args_ptr->{width},
 			     height => $args_ptr->{height},
 			     %{$args_ptr->{engine_args} || {}});
@@ -585,22 +585,22 @@ sub restore_in_error_hook {
 	my $edge           = $min / 8;
 	my $properties     = $state->properties;
 
-	$properties->{'fill'}         = [45, 45, 45];
+	$properties->{'fill'}         = [90, 90, 90];
 	$properties->{'fill-opacity'} = 0.6;
 	
-	my $x = 0;
-	while($x < $width) {
-	    my $y = 0;
-	    while($y < $height) {
+	my $i = 0;
+	while($i * $edge < $width) {
+	    my $j = $i % 2;
+	    while($j * $edge < $height) {
 		$engine->draw_path($state,
-				   ['M', $x, $y],
+				   ['M', $i*$edge, $j*$edge],
 				   ['h', $edge],
 				   ['v', $edge],
 				   ['h', -$edge],
 				   ['z']);
-		$y += 2 * $edge;
+		$j += 2;
 	    }
-	    $x += 2 * $edge;
+	    $i++;
 	}
 
 	return;
@@ -1391,7 +1391,8 @@ sub rasterize {
     $args{engine_args}          = $self->{engine_args}
         if(!exists($args{engine_args}) and exists($self->{engine_args}));
 
-    my @args = %args;
+    my @args                 = %args;
+    my $default_engine_class = 'SVG::Rasterize::Engine::PangoCairo';
     %args = validate_with
 	(params => \@args,
 	 spec   =>
@@ -1408,7 +1409,7 @@ sub rasterize {
 	      current_color        => {optional => 1,
 				       type     => SCALAR,
 	                               regex    => $RE_PAINT{p_COLOR}},
-	      engine_class         => {default  => 'SVG::Rasterize::Cairo',
+	      engine_class         => {default  => $default_engine_class,
 				       type     => SCALAR,
 				       regex    =>
 					   $RE_PACKAGE{p_PACKAGE_NAME}},
@@ -1617,7 +1618,7 @@ output image.
 
 =head3 svg
 
-Holds the C<DOM> object to render. It does not have to be a
+Holds the C<DOM> object to render. It does not have to be an
 L<SVG|SVG> object, but it has to offer certain C<DOM> methods (see
 L<SVG Input|/SVG Input> for details).
 
@@ -1721,9 +1722,9 @@ C<fill> properties specified as C<currentColor>, temporarily
 overrides the L<current_color|/current_color> attribute.
 
 =item * engine_class (optional): alternative engine class to
-L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>, temporarily
-overrides the C<engine_class> attribute. See
-L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> for details on the
+L<SVG::Rasterize::Engine::PangoCairo|SVG::Rasterize::Engine::PangoCairo>,
+temporarily overrides the C<engine_class> attribute. See
+L<SVG::Rasterize::Engine|SVG::Rasterize::Engine> for details on the
 interface. The value has to match the regular expression
 L<p_PACKAGE_NAME|SVG::Rasterize::Regexes/%RE_PACKAGE>.
 
@@ -1785,8 +1786,8 @@ B<Example:>
 
 The supported parameters depend on the rasterization backend. The
 C<write> method hands all parameters over to the backend. See
-L<write|SVG::Rasterize::Cairo/write> in C<SVG::Rasterize::Cairo> for
-an example.
+L<write|SVG::Rasterize::Engine::PangoCairo/write> in
+C<SVG::Rasterize::Engine::PangoCairo> for an example.
 
 =head1 ADVANCED TOPICS
 
@@ -1981,14 +1982,17 @@ Defaults to 1/6.
 =head2 Hooks
 
 The L<rasterize|/rasterize> method traverses through the C<SVG> tree
-and creates an L<SVG::Rasterize::State|SVG::Rasterize::State>
-object for each node (node means here element or text node if
-relevant, attributes are not treated as nodes). Hooks allow you to
-execute your own subroutines at given steps of this
-traversal. However, the whole hook business is experimental at the
-moment and likely to change. Right now, to set your own hooks you
-can set one of the following attributes to a code reference of your
-choice.
+and creates an L<SVG::Rasterize::State|SVG::Rasterize::State> object
+for each node (node means here element or text node if relevant,
+attributes are not treated as nodes). Hooks allow you to execute
+your own subroutines at given steps of this traversal. However, the
+whole hook business is experimental at the moment and likely to
+change. If you use any of the existing hooks or wish for other ones
+you may want to let me know because this will certainly influence
+the stability and development of this interface.
+
+Right now, to set your own hooks you can set one of the following
+attributes to a code reference of your choice.
 
 Currently, there are four hooks:
 
@@ -2100,18 +2104,17 @@ via an init parameter.
 
 C<SVG::Rasterize> does not render pixel graphics itself. By default,
 it uses the L<cairo|http://www.cairographics.org/> library through
-its L<Perl bindings|Cairo>. The interface is documented in
-L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>. However, this
-interface could also be implemented by other backends. In the
-future, it will be documented in
-L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>. Currently, it has to
-be considered unstable, though, and the documentation is sparse.
+its L<Perl bindings|Cairo>. However, the interface could also be
+implemented by other backends. In the future, it will be documented
+in L<SVG::Rasterize::Engine|SVG::Rasterize::Engine>. Currently, the
+interface has to be considered unstable, though, and the
+documentation is sparse.
 
 =head3 engine_class
 
-This attribute defaults to C<SVG::Rasterize::Cairo>. It can be set
-as an object attribute or temporarily as a parameter to the
-L<rasterize|/rasterize> method.
+This attribute defaults to C<SVG::Rasterize::Engine::PangoCairo>. It
+can be set as an object attribute or temporarily as a parameter to
+the L<rasterize|/rasterize> method.
 
 =head3 engine_args
 
@@ -2126,9 +2129,9 @@ L<rasterize|/rasterize> method.
   $rasterize->engine
 
 This attribute holds the interface object to the rasterization
-backend, by default a L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>
-object. The object is created by the L<rasterize|/rasterize>
-method.
+backend, by default a
+L<SVG::Rasterize::Engine::PangoCairo|SVG::Rasterize::Engine::PangoCairo>
+object. The object is created by the L<rasterize|/rasterize> method.
 
 The attribute is readonly, but, of course, you are able to
 manipulate the object directly via its methods. However, this is
@@ -2268,9 +2271,9 @@ used.
   @result = $rasterize->endpoint_to_center(@input)
 
 Rasterization engines like
-L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> might use center
-parameterization instead of endpoint parameterization of an
-elliptical arc (see
+L<SVG::Rasterize::Engine::PangoCairo|SVG::Rasterize::Engine::PangoCairo>
+might use center parameterization instead of endpoint
+parameterization of an elliptical arc (see
 L<http://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes>).
 This method calculates the center parameters from the endpoint
 parameters given in a C<SVG> path data string. As indicated above,
@@ -2576,6 +2579,13 @@ The exception was triggered by an error during the general
 preparation of the processing, e.g. an error during initialization
 of the rasterization backend.
 
+=item * C<SVG::Rasterize::Exception::Engine>
+
+The exception was triggered by the rasterization backend
+itself. This is specfically used when a bug in an engine
+implementation is encountered (e.g. a mandatory method is not
+overloaded). It is not restricted to these cases, though.
+
 =item * C<SVG::Rasterize::Exception::Parse>
 
 An error occured during parsing (usually of an attribute value). An
@@ -2624,12 +2634,13 @@ You have given a parameter to the L<new|/new> method which does not
 have a corresponding method. The parameter is ignored in that case.
 
 =item * "Unable to load %s: %s. Falling back to
-SVG::Rasterize::Cairo."
+SVG::Rasterize::Engine::PangoCairo."
 
 The C<engine_class> you were trying to use for rasterization could
 not be loaded. C<SVG::Rasterize> then tries to use its default
-backend L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo>. If that also
-fails, it gives up.
+backend
+L<SVG::Rasterize::Engine::PangoCairo|SVG::Rasterize::Engine::PangoCairo>.
+If that also fails, it gives up.
 
 =item * "Surface width is 0, nothing to do."
 
@@ -2680,8 +2691,8 @@ cycles are completely decoupled.
 
 The rest of what has been said about C<Cairo> above is also true for
 C<Pango>. Both are loaded by
-L<SVG::Rasterize::Cairo|SVG::Rasterize::Cairo> and that is only
-loaded if no other backend has been specified.
+L<SVG::Rasterize::Engine::PangoCairo|SVG::Rasterize::Engine::PangoCairo>
+and that is only loaded if no other backend has been specified.
 
 =item * L<Params::Validate|Params::Validate>, version 0.91 or higher
 
@@ -2709,29 +2720,45 @@ Additionally, testing requires the following modules:
 
 =head2 Bugs
 
-At time of release, there are no open bugs. Please report any bugs
-or feature requests to C<bug-svg-rasterize at rt.cpan.org>, or
-through the web interface at
+Please report any bugs or feature requests to C<bug-svg-rasterize at
+rt.cpan.org>, or through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SVG-Rasterize>. I
 will be notified, and then you will automatically be notified of
 progress on your bug as I make changes.
 
+=over 4
+
+=item * Rendering of not fully opaque groups
+
+Grouping elements are supposed to be rendered on a temporary canvas
+which is then composited into the background (see
+L<http://www.w3.org/TR/SVG11/render.html#Grouping>). Currently,
+C<SVG::Rasterize> renders each child element of the grouping element
+individually. This leads to wrong results if the group has an
+opacity setting below 1.
+
+=back
+
+
 =head2 Limitations
 
-=head3 Relative units
+=over 4
+
+=item * Relative units
 
 The relative units C<em>, C<ex>, and C<%> are currently not
 supported. Neither are the C<font-size> values C<smaller> and
-C<larger>.
+C<larger>, the C<font-weight> values C<lighter> and C<bolder>, and
+the C<font-stretch> values C<narrower> and C<wider>.
 
-=head3 C<ICC> colors
+=item * C<ICC> colors
 
 C<ICC> color settings for the C<fill> and C<stroke> properties are
 understood, but ignored. I do not know enough about color profiles
 to foresee how support would look like. Unless requested, C<ICC>
 color profiles will probably not be supported for a long time.
 
-=head3 C<XML> names
+=item * C<XML> names
 
 The C<XML> standard is very inclusive with respect to characters
 allowed in C<XML> Names and Nmtokens (see
@@ -2744,9 +2771,14 @@ Most importantly, this restriction affects the C<id> attribute of
 any element. Apart from that, it affects C<xml:lang> attributes and
 the C<target> attribute of C<a> elements.
 
+=back
+
+
 =head2 Caveats
 
-=head3 C<eval BLOCK> and C<$SIG{__DIE__}>
+=over 4
+
+=item * C<eval BLOCK> and C<$SIG{__DIE__}>
 
 Several methods in this distribution use C<eval BLOCK> statements
 without setting a local C<$SIG{__DIE__}>. Therefore, a
@@ -2754,11 +2786,13 @@ C<$SIG{__DIE__}> installed somewhere else can be triggered by
 these statements. See C<die> and C<eval> in C<perlfunc> and
 C<$^S> in C<perlvar>.
 
-=head3 Thread safety
+=item * Thread safety
 
 I do not know much about threads and how to make a module thread
 safe. No specific measures have been taken to achieve thread
 safety of this distribution.
+
+=back
 
 
 =head1 IMPLEMENTATION NOTES
@@ -2773,10 +2807,9 @@ Some elements (namely C<text> and C<textPath> elements) can only be
 rasterized once their entire content is known (e.g. for alignment
 issues). In these situations, the
 L<SVG::Rasterize::State|SVG::Rasterize::State> objects representing
-the deferred nodes are kept (by preventing their destruction, see
-L<child_states|SVG::Rasterize::State/child_states> in
-C<SVG::Rasterize::State>). The content is then only rasterized once
-the root element of this subtree is about to run out of scope.
+the deferred nodes are pushed to a C<_rasterization_queue>. The
+content is then only rasterized once the root element of this
+subtree is about to run out of scope.
 
 
 =head1 INTERNALS
@@ -2857,9 +2890,11 @@ used and expected to be valid if present.
 
 =item * _initial_viewport
 
-Expects two HASH references. The first one is expected to be defined
-and a HASH reference, but the content can be arbitrary. The second
-is expected to be validated. Does not return anything.
+Expects two HASH references. The first one contains the node
+attributes of the respective element. It has to be defined and a
+HASH reference, but the content is assumed to be unvalidated. The
+second is expected to be validated. The keys C<width>, C<height>,
+and C<matrix> are used. Does not return anything.
 
 =item * _traverse_object_tree
 
@@ -2894,6 +2929,9 @@ This uses the C<getChildNodes> C<DOM> method. The return value is
 validated as being either C<undef> or an ARRAY reference. A copy
 of the array is made to enable addition or removal of child nodes
 (by hooks) without affecting the node object.
+
+At this time, ignored nodes are filtered out of the list of child
+nodes.
 
 =item * transformation of L<SVG::Element|SVG::Element> character
 data into a L<SVG::Rasterize::TextNode|SVG::Rasterize::TextNode>
@@ -2931,7 +2969,7 @@ double work, because it is split into a hash again later by
 C<State>, but it is a design decision that C<State> should not see
 if the input data came as an object tree or C<XML> string. So this
 has to be done, and this seemed to be a good place although this
-method was not started for womething like that (maybe it should be
+method was not started for something like that (maybe it should be
 renamed).
 
 =item * _flush_rasterization_queue
@@ -2944,6 +2982,15 @@ runs out of scope this method flushes the queue and calls the
 respective rasterization methods.
 
 Expects nothing, returns nothing.
+
+=item * _generate_font_size_scale_table
+
+Called by L<font_size_scale|/font_size_scale> to generate the font
+size scale table based on L<medium_font_size|/medium_font_size> and
+L<font_size_scale|/font_size_scale>. The underlying data structure
+is designed to support different tables for different font families
+(as mentioned in the respective C<CSS> specification), but the
+public accessor methods do not support that, yet.
 
 =item * _process_node
 
@@ -3023,31 +3070,29 @@ Same es L<_process_path|/_process_path>.
 =item * _process_text
 
 Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
-optionally a hash of options.
+optionally a hash of options. If the option C<queued> is set to a
+true value, nothing is done.
 
 Expects that C<< $state->node_attributes >> have been
-validated. Establishes the initial current text position.
-
-Sets the initial current text position.
+validated. Determines C<text-anchor> and the absolute rasterization
+position for each
+L<text atom|SVG::Rasterize::State::Text/DESCRIPTION>.
 
 =item * _process_tspan
 
-Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
-optionally a hash of options.
-
-Expects that C<< $state->node_attributes >> have been
-validated. Currently does not do anything. In the future, it will
-establish a new current text position if necessary.
+Currently does not do anything. All text processing is done by
+either L<_process_text|/_process_text> or
+L<_process_cdata|/_process_cdata>. Might be deleted in the future.
 
 =item * _process_cdata
 
 Expects a L<SVG::Rasterize::State|SVG::Rasterize::State> object and
-optionally a hash of options.
+optionally a hash of options. If the option C<queued> is set to a
+true value, nothing is done.
 
-Gets the character data and the current text position from
-the C<State> object and hands them over to the rasterization
-backend. Receives the new current text position and updates it in
-the C<State> object.
+Expects that C<< $state->node_attributes >> have been
+validated. Calls the C<draw_text> method of the rasterization engine
+on each of its atoms in the right order.
 
 =item * make_ro_accessor
 

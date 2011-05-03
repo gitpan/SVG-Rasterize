@@ -1,11 +1,12 @@
 #!perl -T
 
-use Test::More tests => 34;
+use Test::More tests => 35;
 
 BEGIN {
     my @modules = qw(SVG::Rasterize::Regexes
                      SVG::Rasterize
-                     SVG::Rasterize::Cairo
+                     SVG::Rasterize::Engine
+                     SVG::Rasterize::Engine::PangoCairo
                      SVG::Rasterize::Specification
                      SVG::Rasterize::Specification::Use
                      SVG::Rasterize::Specification::Gradient

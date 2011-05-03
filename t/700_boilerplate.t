@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 35;
+use Test::More tests => 37;
 
 sub not_in_file_ok {
     my ($filename, %regex) = @_;
@@ -43,7 +43,8 @@ not_in_file_ok(README =>
 
 my @modules = qw(lib/SVG/Rasterize/Regexes.pm
                  lib/SVG/Rasterize.pm
-                 lib/SVG/Rasterize/Cairo.pm
+                 lib/SVG/Rasterize/Engine.pm
+                 lib/SVG/Rasterize/Engine/PangoCairo.pm
                  lib/SVG/Rasterize/Specification.pm
                  lib/SVG/Rasterize/Specification/Use.pm
                  lib/SVG/Rasterize/Specification/Gradient.pm
@@ -72,6 +73,7 @@ my @modules = qw(lib/SVG/Rasterize/Regexes.pm
                  lib/SVG/Rasterize/Properties.pm
                  lib/SVG/Rasterize/Colors.pm
                  lib/SVG/Rasterize/State.pm
+                 lib/SVG/Rasterize/State/Text.pm
                  lib/SVG/Rasterize/Exception.pm
                  lib/SVG/Rasterize/TextNode.pm);
 

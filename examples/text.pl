@@ -22,18 +22,22 @@ $svg->line(x1 => 30, y1 => 20, x2 => 104, y2 => 20, 'stroke' => 'black');
 
 # deferred rasterization, flush in right order, text carries on
 $text = $svg->text('x' => 30, 'y' => 60);
-$text->tspan->cdata('foo');
+$text->tspan('font-style' => 'italic')->cdata('foo');
 $text->a('xlink:href' => 'foo')->circle
     (cx => 50, cy => 60, r => 7, 'fill' => 'yellow');
 $text->tspan('font-size' => 'large')->cdata('bar');
 
 # text-anchor
 $svg->line(x1 => 80, y1 => 100, x2 => 80, y2 => 140, 'stroke' => 'blue');
-$svg->text('x' => 80, 'y' => 110)->cdata('baz');
-$text = $svg->text('x' => 80, 'y' => 122, 'text-anchor' => 'middle');
+$svg->text('x' => 80, 'y' => 110, 'font-weight' => 900)->cdata('baz');
+$text = $svg->text('x' => 80, 'y' => 122,
+		   'text-anchor'  => 'middle',
+		   'font-weight'  => 'bold',
+		   'font-stretch' => 'expanded');
 $text->cdata('qux');
-$text = $svg->text('x' => 80, 'y' => 134, 'text-anchor' => 'end');
-$text->cdata('corge');
+$text = $svg->text('x' => 80, 'y' => 134, 'text-anchor' => 'end',
+		   'font-variant' => 'small-caps');
+$text->cdata('Corge');
 
 # positioning of single characters, directly from SVG spec
 $g    = $svg->group(transform => 'translate(50, 200) scale(0.2)');
@@ -48,7 +52,8 @@ $g->rect(x => "1", 'y' => "1", width => "998", height => "298",
 
 # new chunks are started only due to y
 $text = $svg->text(x => 150, 'y' => '50 52 54 56 58 60');
-$text->cdata('stairs');
+$node = $text->tspan('font-family' => 'Verdana');
+$node->cdata('stairs');
 
 $rasterize = SVG::Rasterize->new;
 $rasterize->rasterize(width => 300, height => 300, svg => $svg);
