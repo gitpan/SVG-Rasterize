@@ -47,12 +47,12 @@ cairo version 1.2 might actually be enough. However, 1.8 was the
 smallest version I got pango compiled with.
 
 With respect to the module code, the dependency on Cairo and Pango
-is not strict. Both are loaded by SVG::Rasterize::Cairo and that
-module is only loaded dynamically if no other rasterization backend
-has been specified (see documentation for details). However, if you
-do not provide a different backend, which would probably at least
-require a wrapper written by you, then you cannot do anything
-without SVG::Rasterize::Cairo (and thereby Cairo and
+is not strict. Both are loaded by SVG::Rasterize::Engine::PangoCairo
+and that module is only loaded dynamically if no other rasterization
+backend has been specified (see documentation for details). However,
+if you do not provide a different backend, which would probably at
+least require a wrapper written by you, then you cannot do anything
+without SVG::Rasterize::Engine::PangoCairo (and thereby Cairo and
 Pango). Therefore I have included them as a strict dependency. You
 could take them out of the Makefile.PL if you know what you are
 doing. However, the distribution will not pass the test suite
@@ -80,7 +80,7 @@ You can also look for information at:
         http://search.cpan.org/dist/SVG-Rasterize/
 
 
-Copyright 2010 Lutz Gehlen.
+Copyright 2010-2011 Lutz Gehlen.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of either: the GNU General Public License as

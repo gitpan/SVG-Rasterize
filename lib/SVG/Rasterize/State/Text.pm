@@ -12,7 +12,7 @@ use Params::Validate qw(:all);
 use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::Regexes qw(:attributes);
 
-# $Id: Text.pm 6607 2011-04-28 07:46:36Z powergnom $
+# $Id: Text.pm 6709 2011-05-21 07:46:34Z powergnom $
 
 =head1 NAME
 
@@ -20,11 +20,11 @@ C<SVG::Rasterize::State::Text> - state of a text/text content node
 
 =head1 VERSION
 
-Version 0.003006
+Version 0.003008
 
 =cut
 
-our $VERSION = '0.003006';
+our $VERSION = '0.003008';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -80,12 +80,12 @@ sub process_node_extra {
 
     # collect position information
     if($self->node_name eq '#text' and my $cdata = $self->cdata) {
-	my $ancestor  = $self->parent;
-	my $buffers   = {'x'    => [],
-			 'y'    => [],
-			 dx     => [],
-			 dy     => [],
-			 rotate => []};
+	my $ancestor = $self->parent;
+	my $buffers  = {'x'    => [],
+			'y'    => [],
+			dx     => [],
+			dy     => [],
+			rotate => []};
 	while(1) {
 	    $self->ex_co_pt if(!defined($ancestor));
 	    foreach(keys %$buffers) {
@@ -115,7 +115,21 @@ sub process_node_extra {
 		    # there are still levels possibly with data
 		    if(@{$buffers->{$_}->[0]}) {
 			# there are still entries, so we take one
-			$atom->{$_} = shift(@{$buffers->{$_}->[0]});
+			if($_ eq 'rotate') {
+			    # rotate receives special behaviour:
+			    # If there are too few elements on one
+			    # level then the last one is used. We
+			    # only go to the next level if this one
+			    # never had elements. This is
+			    # implemented here by never shifting the
+			    # last remaining element.
+			    $atom->{$_} = @{$buffers->{$_}->[0]} > 1
+				? shift(@{$buffers->{$_}->[0]})
+				: $buffers->{$_}->[0]->[0];
+			}
+			else {
+			    $atom->{$_} = shift(@{$buffers->{$_}->[0]});
+			}
 			$found      = 1;
 			next BUFFER;
 		    }
@@ -215,11 +229,11 @@ sub add_text_atoms {
 				       callbacks => {length => $lcb}},
 			 rotate    => {type      => UNDEF|SCALAR,
 				       callbacks => {length => $ncb}},
-			 new_chunk => {type     => BOOLEAN,
-				       optional => 1},
-			 new_block => {type     => BOOLEAN,
-				       optional => 1},
-			 cdata     => {type => SCALAR}},
+			 new_chunk => {type      => BOOLEAN,
+				       optional  => 1},
+			 new_block => {type      => BOOLEAN,
+				       optional  => 1},
+			 cdata     => {type      => SCALAR}},
 	     on_fail => sub { SVG::Rasterize->ex_pv($_[0]) });
 	    
 	if($SVG::Rasterize::TEXT_ROOT_ELEMENTS{$self->node_name}) {

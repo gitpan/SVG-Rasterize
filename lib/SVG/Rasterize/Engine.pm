@@ -10,7 +10,7 @@ use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(%RE_NUMBER);
 
-# $Id: Engine.pm 6678 2011-05-03 07:48:08Z powergnom $
+# $Id: Engine.pm 6712 2011-05-21 07:57:09Z powergnom $
 
 =head1 NAME
 
@@ -18,11 +18,11 @@ C<SVG::Rasterize::Engine> - rasterization engine base class
 
 =head1 VERSION
 
-Version 0.003007
+Version 0.003008
 
 =cut
 
-our $VERSION = '0.003007';
+our $VERSION = '0.003008';
 
 
 __PACKAGE__->mk_accessors(qw());
@@ -133,6 +133,9 @@ This class defines the interface for rasterization backends. It does
 not do any rasterization itself. Implementations of rasterization
 backends should subclass this class.
 
+Warning: Please be aware of that this interface has to be considered
+rather unstable at this state of the development.
+
 This class is only instantiated by the L<rasterize
 method|SVG::Rasterize/rasterize> of C<SVG::Rasterize> via one of its
 subclasses.
@@ -170,12 +173,12 @@ These following attributes are provided by this class.
 
 =item * width
 
-Can only be set and construction time. Saves the width of the output
+Can only be set at construction time. Saves the width of the output
 image.
 
 =item * height
 
-Can only be set and construction time. Saves the height of the
+Can only be set at construction time. Saves the height of the
 output image.
 
 =back
@@ -234,7 +237,7 @@ Expects the following parameters:
 
 =item * an L<SVG::Rasterize::State|SVG::Rasterize::State> object
 
-=item * the x coordinate of the start of the text
+=item * the C<x> coordinate of the start of the text
 
 For left-to-right text this is always the left end of the
 text. Alignment issues have been taken into account before (at least
@@ -242,7 +245,15 @@ if L<text_width|/text_width> is implemented. Right-to-left and
 top-to-bottom text and alignment issues in the absence of a
 L<text_width|/text_width> have not been worked out, yet.
 
-=item * the y coordinated of the text
+If L<text_width|/text_width> is implemented then the value is always
+defined. In the absence of a L<text_width|/text_width> method it
+will only be defined if an C<x> coordinate has been set explicitly
+(or at the beginning of a C<text> element where C<x> defaults to
+C<0>.
+
+=item * the C<y> coordinated of the text
+
+=item * the C<rotate> value of the text, possibly C<undef>
 
 =item * the text itself
 
@@ -283,10 +294,9 @@ and the text to render. Returns the width that the rendered text
 would occupy. The second argument may be C<undef> in which case C<0>
 should be returned.
 
-NB: The base class method throws an exception. In the future this
-exception will be caught and tolerated by
-L<SVG::Rasterize|SVG::Rasterize>. However, this functionality is not
-implemented, yet.
+NB: The base class method throws an exception. The exception is
+caught by L<SVG::Rasterize|SVG::Rasterize>. This behaviour is used
+to determine if this method is implemented by the engine or not.
 
 =head3 draw_rect
 

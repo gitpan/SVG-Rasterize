@@ -7,6 +7,7 @@ use strict;
 use 5.008009;
 
 use Params::Validate qw(:all);
+use Scalar::Util qw(blessed);
 
 use SVG::Rasterize::Regexes qw(:whitespace
                                %RE_PACKAGE
@@ -19,7 +20,7 @@ use SVG::Rasterize::Exception qw(:all);
 use SVG::Rasterize::State::Text;
 use SVG::Rasterize::TextNode;
 
-# $Id: Rasterize.pm 6674 2011-05-02 05:23:41Z powergnom $
+# $Id: Rasterize.pm 6717 2011-05-21 09:21:08Z powergnom $
 
 =head1 NAME
 
@@ -27,11 +28,11 @@ C<SVG::Rasterize> - rasterize C<SVG> content to pixel graphics
 
 =head1 VERSION
 
-Version 0.003007
+Version 0.003008
 
 =cut
 
-our $VERSION = '0.003007';
+our $VERSION = '0.003008';
 
 
 __PACKAGE__->mk_accessors(qw(normalize_attributes
@@ -1081,7 +1082,9 @@ sub _process_cdata {
     return if($args{queued});
 
     foreach(sort { $a->{atomID} <=> $b->{atomID} } @{$state->text_atoms}) {
-	$self->{engine}->draw_text($state, $_->{x}, $_->{y}, $_->{cdata});
+	$self->{engine}->draw_text($state,
+				   $_->{x}, $_->{y}, $_->{rotate},
+				   $_->{cdata});
     }
 
     return;
@@ -1113,55 +1116,72 @@ sub _process_text {
 
 =cut
 
+    # The following section will have to be revised in depth for
+    # right-to-left and particularly for top-to-bottom text.
+
+    # init variables with first chunk
     my $chunkID     = 0;
     my @chunk_atoms = grep { $_->{chunkID} == $chunkID } @$text_atoms;
-    my $x           = $chunk_atoms[0]->{x} || 0;
-    my $y           = $chunk_atoms[0]->{y} || 0;
+
+    # init current text position
+    # Note that the atom properties are also set to 0 if undefined.
+    # This means that for the first atom of the first chunk, x and
+    # y are always set even if we do not have a text_width method.
+    my $ctp_x = $chunk_atoms[0]->{x} ||= 0;
+    my $ctp_y = $chunk_atoms[0]->{y} ||= 0;
+
+    my $engine = $self->{engine};
+    eval { $engine->text_width($state, '') };
+    my $can_text_width =
+	SVG::Rasterize::Exception::Setting->caught ? 0 : 1;
+
+    # loop through chunks (@chunk_atoms is updated at end of loop)
     while(@chunk_atoms) {
-	# only the first atom of each chunk can have an absolute
-	# position
-	$x = $chunk_atoms[0]->{x} if(defined($chunk_atoms[0]->{x}));
-	$y = $chunk_atoms[0]->{y} if(defined($chunk_atoms[0]->{y}));
+	my $x = 0;
+	my $y = 0;
 
-	my $x_start = $x;
-	my $y_start = $y;
+	if($can_text_width) {
+	    foreach(@chunk_atoms) {
+		my $width = $self->{engine}->text_width
+		    ($_->{state}, $_->{cdata});
+	    
+		$_->{offset}       = [$x, $y];
+		$_->{displacement} =
+		    [defined($width) ? ($_->{dx} || 0) + $width : undef,
+		     ($_->{dy} || 0)];
+		$x += $_->{displacement}->[0];
+		$y += $_->{displacement}->[1];
+	    }
 
-	# TODO: This will not work for vertical text.
-	#       There will be a case differentiation here.
-	my $chunk_width = 0;
-	foreach(@chunk_atoms) {
-	    # this "width" is rather an x displacement
-	    $_->{width} = ($_->{dx} || 0) + $self->{engine}->text_width
-		($_->{state}, $_->{cdata});
-	    $chunk_width += $_->{width};
-	}
+	    # TODO: What to do if right-to-left?
+	    if(!$attributes->{'text-anchor'} or
+	       $attributes->{'text-anchor'} eq 'start')
+	    {
+		# nothing to do for left-to-right
+	    }
+	    elsif($attributes->{'text-anchor'} eq 'middle') {
+		$ctp_x -= $x / 2;
+		$ctp_y -= $y / 2;  # unsure if this is what we want
+	    }
+	    else {
+		# attribute validation should have made sure that
+		# it must be 'end' now
+		$ctp_x -= $x;
+		$ctp_y -= $y;  # unsure if this is what we want
+	    }
 
-	# TODO: What to do if right-to-left?
-	if(!$attributes->{'text-anchor'} or
-	   $attributes->{'text-anchor'} eq 'start')
-	{
-	    # unnecessary for left-to-right
-	    $x = $x_start;
-	}
-	elsif($attributes->{'text-anchor'} eq 'middle') {
-	    $x = $x_start - $chunk_width / 2;
-	}
-	else {
-	    # attribute validation should have made sure that
-	    # it must be 'end' now
-	    $x = $x_start - $chunk_width;
-	}
-
-	foreach(@chunk_atoms) {
-	    $_->{x} = $x + ($_->{dx} || 0);
-	    $_->{y} = $y + ($_->{dy} || 0);
-
-	    $x += $_->{width};
-	    $y  = $_->{y};
+	    foreach(@chunk_atoms) {
+		$_->{x} = $ctp_x + $_->{offset}->[0];
+		$_->{y} = $ctp_y + $_->{offset}->[1];
+	    }
 	}
 
 	$chunkID++;
 	@chunk_atoms = grep { $_->{chunkID} == $chunkID } @$text_atoms;
+	if(@chunk_atoms) {
+	    $ctp_x = $chunk_atoms[0]->{x} || ($ctp_x + $x);
+	    $ctp_y = $chunk_atoms[0]->{y} || ($ctp_y + $y);
+	}
     }
 
     return;
@@ -1221,6 +1241,17 @@ sub in_error {
     die $exception;
 }
 
+sub _flush_rasterization_queue {
+    my ($self) = @_;
+
+    foreach(@{$self->{_rasterization_queue} || []}) {
+	$self->_process_node($_, flush => 1);
+    }
+    $self->{_rasterization_queue} = undef;
+
+    return;
+}
+
 sub _process_normalize_attributes {
     my ($self, $normalize, $attr) = @_;
     my %attributes                = %{$attr || {}};  # copy before
@@ -1248,16 +1279,11 @@ sub _process_normalize_attributes {
     return \%attributes;
 }
 
-sub _flush_rasterization_queue {
-    my ($self) = @_;
-
-    foreach(@{$self->{_rasterization_queue} || []}) {
-	$self->_process_node($_, flush => 1);
-    }
-    $self->{_rasterization_queue} = undef;
-
-    return;
-}
+###########################################################################
+#                                                                         #
+#                              DOM specific                               #
+#                                                                         #
+###########################################################################
 
 sub _process_node_object {
     my ($self, $node, %args) = @_;
@@ -1370,6 +1396,24 @@ sub _traverse_object_tree {
     return;
 }
 
+###########################################################################
+#                                                                         #
+#                              SAX specific                               #
+#                                                                         #
+###########################################################################
+
+sub _parse_svg_file {
+    my ($self, %args) = @_;
+
+    $self->ex_us_si('The parsing of SVG files');
+}
+
+###########################################################################
+#                                                                         #
+#                               rasterize                                 #
+#                                                                         #
+###########################################################################
+
 sub rasterize {
     my ($self, %args) = @_;
 
@@ -1393,31 +1437,52 @@ sub rasterize {
 
     my @args                 = %args;
     my $default_engine_class = 'SVG::Rasterize::Engine::PangoCairo';
+    my $svg_callback         = sub {
+	my ($value) = @_;
+
+	if(blessed($value)) {
+	    foreach('getNodeName',
+		    'getAttributes')
+	    {
+		return 0 if(!$value->can($_));
+	    }
+	}
+
+	return 1;
+    };
     %args = validate_with
 	(params => \@args,
 	 spec   =>
-	     {normalize_attributes => {default  => 1,
-				       type     => BOOLEAN},
-	      svg                  => {can      => ['getNodeName',
-						    'getAttributes']},
-	      width                => {optional => 1,
-				       type     => SCALAR,
-				       regex    => $RE_LENGTH{p_A_LENGTH}},
-	      height               => {optional => 1,
-				       type     => SCALAR,
-				       regex    => $RE_LENGTH{p_A_LENGTH}},
-	      current_color        => {optional => 1,
-				       type     => SCALAR,
-	                               regex    => $RE_PAINT{p_COLOR}},
-	      engine_class         => {default  => $default_engine_class,
-				       type     => SCALAR,
-				       regex    =>
+	     {normalize_attributes => {default   => 1,
+				       type      => BOOLEAN},
+	      svg                  => {type      => SCALAR | OBJECT,
+				       callbacks =>
+					   {'svg type' => $svg_callback}},
+	      width                => {optional  => 1,
+				       type      => SCALAR,
+				       regex     =>
+					   $RE_LENGTH{p_A_LENGTH}},
+	      height               => {optional  => 1,
+				       type      => SCALAR,
+				       regex     =>
+					   $RE_LENGTH{p_A_LENGTH}},
+	      current_color        => {optional  => 1,
+				       type      => SCALAR,
+	                               regex     => $RE_PAINT{p_COLOR}},
+	      engine_class         => {default   => $default_engine_class,
+				       type      => SCALAR,
+				       regex     =>
 					   $RE_PACKAGE{p_PACKAGE_NAME}},
-	      engine_args          => {optional => 1,
-				       type     => HASHREF}},
+	      engine_args          => {optional  => 1,
+				       type      => HASHREF}},
 	on_fail => sub { $self->ex_pv($_[0]) });
 
-    return $self->_traverse_object_tree(%args);
+    if(blessed($args{svg})) {
+	return $self->_traverse_object_tree(%args);
+    }
+    else {
+	return $self->_parse_svg_file(%args);
+    }
 }
 
 sub write { return shift(@_)->{engine}->write(@_) }
@@ -1542,7 +1607,7 @@ Here is my current view of the next part of the roadmap:
 
 =over 4
 
-=item * text basics
+=item * completion of text basics
 
 =back
 
@@ -1550,13 +1615,23 @@ Here is my current view of the next part of the roadmap:
 
 =over 4
 
-=item * clipping paths
+=item * support for C<SVG> files
 
-=item * css styling?
+=item * relative units
 
 =back
 
 =item Version 0.006
+
+=over 4
+
+=item * clipping paths
+
+=item * css sections and files?
+
+=back
+
+=item Version 0.007
 
 =over 4
 
@@ -1566,7 +1641,7 @@ Here is my current view of the next part of the roadmap:
 
 =back
 
-=item Version 0.007
+=item Version 0.008
 
 =over 4
 
@@ -2737,6 +2812,18 @@ C<SVG::Rasterize> renders each child element of the grouping element
 individually. This leads to wrong results if the group has an
 opacity setting below 1.
 
+=item * Single character transformation in non-trivial
+character-to-glyph mapping scenarios
+
+The specification at
+L<http://www.w3.org/TR/SVG/text.html#TSpanElement> describes how
+single character transformations in e.g. text elements are supposed
+to be carried out when there is not a one to one mapping between
+characters and glyphs. Currently, C<SVG::Rasterize> does not abide
+by these rules. Where values for C<x>, C<y>, C<dx>, C<dy>, or
+C<rotate> are specified on a individual character basis, the string
+is broken into part an rasterized piece by piece.
+
 =back
 
 
@@ -2954,6 +3041,20 @@ attributes
 objects (as returned by C<getChildNodes>).
 
 =back
+
+=item * _parse_svg_file
+
+Called by L<rasterize|/rasterize>. Expects a hash with the
+rasterization parameters after all substitutions and hierarchies of
+defaults have been applied. Handles the C<SAX> parsing of an C<SVG>
+file for rasterization.
+
+This method requires L<XML::SAX|XML::SAX>. This module is not a
+formal dependency of the C<SVG::Rasterize> distribution because I do
+not want to force users to install it even if they only want to
+rasterize content that they have created e.g. using the L<SVG|SVG>
+module. This method will raise an exception if L<XML::SAX|XML::SAX>
+cannot be loaded.
 
 =item * _process_normalize_attributes
 

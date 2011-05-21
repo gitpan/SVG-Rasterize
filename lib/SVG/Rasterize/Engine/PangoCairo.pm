@@ -12,7 +12,7 @@ use Params::Validate qw(:all);
 
 use SVG::Rasterize::Regexes qw(%RE_NUMBER);
 
-# $Id: PangoCairo.pm 6659 2011-04-30 06:21:24Z powergnom $
+# $Id: PangoCairo.pm 6714 2011-05-21 08:55:13Z powergnom $
 
 =head1 NAME
 
@@ -54,6 +54,8 @@ sub make_ro_accessor {
         }
     };
 }
+
+use constant PI => 3.14159265358979;
 
 ###########################################################################
 #                                                                         #
@@ -501,7 +503,7 @@ sub text_width {
 }
 
 sub draw_text {
-    my ($self, $state, $x, $y, $cdata) = @_;
+    my ($self, $state, $x, $y, $rotate, $cdata) = @_;
 
     return if(!$cdata);
 
@@ -513,7 +515,9 @@ sub draw_text {
     my $layout   = $self->_text_layout($state, $cdata);
     my $extents  = $layout->get_pixel_extents;
     my $baseline = Pango::units_to_double($layout->get_baseline);
-    $context->translate($x, $y - $baseline);
+    $context->translate($x, $y);
+    $context->rotate(($rotate || 0) * PI / 180);
+    $context->translate(0 ,-$baseline);
     
     if($properties->{stroke}) {
 	Pango::Cairo::layout_path($context, $layout);
@@ -572,6 +576,10 @@ L<Pango|Pango> libraries.
 
 This class is only instantiated by the L<rasterize
 method|SVG::Rasterize/rasterize> of C<SVG::Rasterize>.
+
+This documentation focues on this specific implementation. For a
+more general description of the engine interface see
+L<SVG::Rasterize::Engine|SVG::Rasterize::Engine>.
 
 =head1 INTERFACE
 

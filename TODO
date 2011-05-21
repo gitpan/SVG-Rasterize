@@ -9,36 +9,25 @@ The following list contains some things I don't want to
 forget. It mainly contains small stuff and specificly no big feature
 plans.
 
-- merge engine_args
-- SVG::Rasterize must be able to deal with undef values from
-  text_width:
-  - check if text_width returns undef on a simple string
-  - or alternatively throw the exception and capture it
-  - if not overloaded merge atoms of each chunk, also don't try
-    to do some bidi stuff
-  - alternatively to merging, just do nothing; _process_cdata will
-    then call draw_text with undefined x/y values and the Engine has
-    to maintain its own current text position; it will not need to
-    know about new text elements because they will start with an
-    absolute x/y setting (won't they?); the engine might even try to
-    do alignment stuff on its own although this will only work with
-    one-atom chunks (which argues for the chunk merging)
-  - on second thought (or 21st) maybe cdata should merge its atoms,
-    this would at least lead to homogeneous markup
-  - for now, maybe just bail out with Unsupported exception :-).
-
-- work carefully through Changes section of SVG spec (maybe wait
-  until it becomes a recommendation)
-- allow user to change Regexes: do I really want to do that?
-- before_flush_hook
-- before_process_hook?
-- before_engine_hook
+- fix rendering of grouping elements on intermediate canvas
 - support for relative units -> make special versions of map_length,
   e.g. map_length_font_size, or...hm...maybe, we can keep
   map_length, but a reference length has to be provided explicitly,
   otherwise we keep on complaining about relative units
 - also relative font-sizes (larger, smaller), -weights (bolder,
   lighter), and -stretches (wider, narrower)
+- merge engine_args
+- allow user to change Regexes: do I really want to do that?
+
+- before_flush_hook
+- before_process_hook?
+- before_engine_hook
+- start reading files
+- css?
+- local die signal handlers in all evals?
+- allow for a full set of default attributes, not only color
+- work carefully through Changes section of SVG spec (maybe wait
+  until it becomes a recommendation)
 - make sure really all attributes used so far are validated with
   regexes in Specification; it is the goal that each used attribute
   has to pass a non-trivial regex check at this stage
@@ -51,12 +40,9 @@ plans.
   remark in SVG::Rasterize docu
 - more elaborate DESCRIPTION for SVG::Rasterize::State::Text
 - Cairo docu: Exceptions and Warnings
-- Cairo docu: possibility of basic shape methods
-- Cairo docu: draw_text
 - more text attributes
   - now
   - soon
-    - rotate individual letters
     - sort out if ligatures etc. can be treated without too big
       effort
     - text-decoration 
@@ -80,6 +66,9 @@ plans.
     - baseline-shift
     - fontsize-adjust
 
+- overhaul Exceptions
+  - more classes?
+  - more elaborate descriptions?
 - support other output types than png
 - idea: provide a simple GD backend, just as proof of concept for
   different backends
@@ -96,7 +85,9 @@ plans.
 - move the non-regex stuff out of t/010_regexes
 - reach 100% in Devel::Cover
 - let in_error somehow leave a mark on the exception object
+  What did I mean with that? Is this fixed?
 - check if the numbers in viewBox should be non-negative
+- wild idea: Create font from my handwriting
 
 done (excerpt, containing what I might look at again)
 -----------------------------------------------------

@@ -1,5 +1,18 @@
 Revision history for SVG-Rasterize
 
+0.003008 Sat May 21 21:02:18 NZST 2011
+	 - This release is at the same time a release candidate for
+           0.004000.
+	 - Incompatible changes:
+	   - Interface of backend classes (note that this interface
+	     is marked as generally unstable):
+	     - The interface of the draw_text method has changed to
+	       allow the specification of a rotate attribute.
+	 - docu fixes
+	 - fixed outdated README
+	 - prepared the code to start support for SVG files based on
+	   XML::SAX
+
 0.003007 Tue May  3 19:51:07 NZST 2011
 	 - Incompatible changes:
 	   - The default backend SVG::Rasterize::Cairo has been
